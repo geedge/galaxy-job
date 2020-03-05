@@ -24,6 +24,7 @@
     </repositories>
 
     <properties>
+        <xxl-job-core.version>2.1.2</xxl-job-core.version>
         <galaxy.version>1.0.2</galaxy.version>
         <httpclient.version>4.5.6</httpclient.version>
         <lombok.version>1.16.20</lombok.version>
@@ -55,10 +56,11 @@
         </dependency>
 
         <!-- xxl-job-core -->
+        <!-- https://mvnrepository.com/artifact/com.xuxueli/xxl-job-core -->
         <dependency>
             <groupId>com.xuxueli</groupId>
             <artifactId>xxl-job-core</artifactId>
-            <version>${project.parent.version}</version>
+            <version>${xxl-job-core.version}</version>
         </dependency>
 
         <dependency>
