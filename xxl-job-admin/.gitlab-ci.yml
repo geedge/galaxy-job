@@ -1,0 +1,39 @@
+
+stages:
+  - build
+  - clean
+  - deploy
+
+build:
+  stage: build
+  script:
+    - echo 'exec mvn clean install'
+    - echo 'tag:' $CI_COMMIT_TAG
+    - mvn clean install -Dmaven.test.skip=true
+  only:
+    - tags
+  tags:
+    - GN-XXG-Server
+
+clean:
+  stage: clean
+  script:
+    - echo 'build job fail, exec mvn clean'
+    - echo  'tag:' $CI_COMMIT_TAG
+    - mvn clean
+  when: on_failure
+  only:
+    - tags
+  tags:
+    - GN-XXG-Server
+deploy:
+  stage: deploy
+  script:
+    - echo 'exec mvn package & docker build'
+    - echo  'tag:' $CI_COMMIT_TAG
+    - mvn clean package -Dmaven.test.skip=true docker:build -DdockerImageTags=$CI_COMMIT_TAG
+  when: on_success
+  only:
+    - tags
+  tags:
+    - GN-XXG-Server
