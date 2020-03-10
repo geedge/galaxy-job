@@ -112,6 +112,10 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
+                <configuration>
+      			<!-- 不指定单元测试 -->
+				   <skipTests>true</skipTests>
+				</configuration>
                 <executions>
                     <execution>
                         <goals>

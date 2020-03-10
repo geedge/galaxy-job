@@ -217,7 +217,7 @@ public class HttpClientUtils {
         return msg;
     }
     /**
-     * 
+     * POST 请求
      * @param url
      * @param jsonString
      * @return
@@ -227,7 +227,7 @@ public class HttpClientUtils {
         CloseableHttpClient httpClient = getHttpClient();
         
         Map<String, String> resultMap = Maps.newHashMap();
-        // 创建GET请求对象
+        // 创建POST请求对象
         CloseableHttpResponse response = null;
         try {
             HttpPost httpPost = new HttpPost(url);
