@@ -8,7 +8,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
@@ -45,7 +44,6 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Maps;
 import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.config.HttpConfig;
 
@@ -222,24 +220,39 @@ public class HttpClientUtils {
      * @param jsonString
      * @return
      */
-    public static Map<String, String> httpPost(String url, String jsonString) {
+    public static String httpPost(String url, String jsonString) {
+    	String msg = "-1";
     	// 获取客户端连接对象
         CloseableHttpClient httpClient = getHttpClient();
         
-        Map<String, String> resultMap = Maps.newHashMap();
         // 创建POST请求对象
         CloseableHttpResponse response = null;
         try {
-            HttpPost httpPost = new HttpPost(url);
+        	
+        	URL ul = new URL(url);
+
+            URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
+
+            HttpPost httpPost = new HttpPost(uri);
             httpPost.setHeader("Content-Type", "application/json");
             httpPost.setEntity(new ByteArrayEntity(jsonString.getBytes("utf-8")));
+            
             response = httpClient.execute(httpPost);
+            int statusCode = response.getStatusLine().getStatusCode();
             // 获取响应实体
             HttpEntity entity = response.getEntity();
             // 获取响应信息
-            resultMap.put("status", String.valueOf(response.getStatusLine().getStatusCode()));
-            resultMap.put("result", EntityUtils.toString(entity, "UTF-8"));
-        } catch (ClientProtocolException e) {
+            msg = EntityUtils.toString(entity, "UTF-8");
+            
+            if (statusCode != HttpStatus.SC_OK) {
+                throw new BusinessException(response.getStatusLine().getStatusCode(),
+                        "Http post content is :" + msg);
+            }
+            
+        } catch (URISyntaxException e) {
+        	logger.error("URI 转换错误: {}", e.getMessage());
+            e.printStackTrace();
+		} catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
             e.printStackTrace();
         } catch (ParseException e) {
@@ -259,7 +272,7 @@ public class HttpClientUtils {
                 }
             }
         }
-        return resultMap;
+        return msg;
     }
 
 

@@ -10,26 +10,31 @@ import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import com.zdjizhi.utils.JsonMapper;
+import com.zdjizhi.utils.StringUtil;
 
 public class KafkaUtils {
     private static Logger logger = LoggerFactory.getLogger(KafkaUtils.class);
     public KafkaTemplate kafkaTemplate = (KafkaTemplate) SpringContextUtil.getBean("kafkaTemplate");
 
     public void sendMessage(String topic, String data) {
-        logger.info("kafka sendMessage start");
-        ListenableFuture<SendResult<Integer, String>> future = kafkaTemplate.send(topic, data);
-        future.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
-            @Override
-            public void onFailure(Throwable ex) {
-                logger.error("kafka sendMessage error, ex = {}, topic = {}, data = {}", ex, topic, data);
-            }
-
-            @Override
-            public void onSuccess(SendResult<Integer, String> result) {
-                logger.info("kafka sendMessage success topic = {}, data = {}",topic, data);
-            }
-        });
-        logger.info("kafka sendMessage end");
+    	if(StringUtil.isNotBlank(data)) {
+    		logger.info("kafka sendMessage start");
+    		ListenableFuture<SendResult<Integer, String>> future = kafkaTemplate.send(topic, data);
+    		future.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
+    			@Override
+    			public void onFailure(Throwable ex) {
+    				logger.error("kafka sendMessage error, ex = {}, topic = {}, data = {}", ex, topic, data);
+    			}
+    			
+    			@Override
+    			public void onSuccess(SendResult<Integer, String> result) {
+    				logger.info("kafka sendMessage success topic = {}, data = {}",topic, data);
+    			}
+    		});
+    		logger.info("kafka sendMessage end");
+    	} else {
+    		logger.info("kafka can not send message when the data is empty ");
+    	}
 
     }
     /**
@@ -37,24 +42,14 @@ public class KafkaUtils {
      * @param topic
      * @param data List<String>
      */
-    public void sendMessage(String topic, List<Object> data) {
-    	logger.info("kafka sendMessage start");
-    	for (Object object : data) {
-    		ListenableFuture<SendResult<Integer, String>> future = kafkaTemplate.send(topic, JsonMapper.toJsonString(object));
-    		future.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
-    			@Override
-    			public void onFailure(Throwable ex) {
-    				logger.error("kafka sendMessage error, ex = {}, topic = {}, data = {}", ex, topic, JsonMapper.toJsonString(object));
-    			}
-    			
-    			@Override
-    			public void onSuccess(SendResult<Integer, String> result) {
-    				logger.info("kafka sendMessage success topic = {}, data = {}",topic, JsonMapper.toJsonString(object));
-    			}
-    		});
-    		logger.info("kafka sendMessage end");
-		}
-    	
+    public void sendMessage(String topic, Object data) {
+    	if(data instanceof List) {
+    		for (Object object : (List) data) {
+    			sendMessage(topic, JsonMapper.toJsonString(object));
+    		}
+    	}else {
+    		sendMessage(topic, JsonMapper.toJsonString(data));
+    	}
     }
 
 }

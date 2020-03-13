@@ -12,8 +12,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RequestParam {
-    public String url;
-    public String method;
-    public String resultKey;
-    public Map<String, Object> requestBody;
+    private String url;
+    private String topic;
+    private String method;
+    private String resultKey;//指定结果集返回值
+    private Map<String, Object> requestBody;// http post请求参数
 }
