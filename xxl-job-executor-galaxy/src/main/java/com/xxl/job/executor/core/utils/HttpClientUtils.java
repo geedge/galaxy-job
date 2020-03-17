@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.config.HttpConfig;
+import com.zdjizhi.utils.StringUtil;
 
 public class HttpClientUtils {
     /** 全局连接池对象 */
@@ -235,7 +237,9 @@ public class HttpClientUtils {
 
             HttpPost httpPost = new HttpPost(uri);
             httpPost.setHeader("Content-Type", "application/json");
-            httpPost.setEntity(new ByteArrayEntity(jsonString.getBytes("utf-8")));
+            if(StringUtil.isNotBlank(jsonString)) {
+            	httpPost.setEntity(new ByteArrayEntity(jsonString.getBytes("utf-8")));
+            }
             
             response = httpClient.execute(httpPost);
             int statusCode = response.getStatusLine().getStatusCode();
@@ -382,7 +386,25 @@ public class HttpClientUtils {
 
     }
 
-
+	/**
+	 * 拼装url
+	 * url ,参数map
+	 */
+	public static String getUrlWithParams(String url, Map<String, Object> params) {
+		try {
+			StringBuffer query = new StringBuffer();
+			for (Map.Entry<String, Object> kv : params.entrySet()) {
+				query.append(kv.getKey() + "=");
+				query.append(kv.getValue() + "&");
+			}
+			if (query.lastIndexOf("&") > 0) {
+				query.deleteCharAt(query.length() - 1);
+			}
+			return url + "?" + query.toString();
+		} catch (Exception e) {
+			throw e;
+		}
+	}
 
 
 
