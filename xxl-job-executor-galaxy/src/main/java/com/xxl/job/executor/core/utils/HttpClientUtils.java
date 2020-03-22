@@ -174,7 +174,7 @@ public class HttpClientUtils {
 
 
             URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
-
+            logger.info("http get uri {}",uri);
             // 创建GET请求对象
             HttpGet httpGet = new HttpGet(uri);
             // 执行请求
@@ -234,7 +234,8 @@ public class HttpClientUtils {
         	URL ul = new URL(url);
 
             URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
-
+            logger.info("http post uri:{}， http post body:{}", uri, jsonString);
+            
             HttpPost httpPost = new HttpPost(uri);
             httpPost.setHeader("Content-Type", "application/json");
             if(StringUtil.isNotBlank(jsonString)) {

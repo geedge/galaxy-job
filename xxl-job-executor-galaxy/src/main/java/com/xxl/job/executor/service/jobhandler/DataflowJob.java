@@ -13,6 +13,7 @@ import com.xxl.job.core.log.XxlJobLogger;
 import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
 import com.xxl.job.executor.core.utils.KafkaUtils;
+import com.xxl.job.executor.core.utils.RemoteShellUtil;
 import com.xxl.job.executor.pojo.RequestParam;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
@@ -152,6 +153,44 @@ public class DataflowJob {
 		new KafkaUtils().sendMessage(requestParam.getTopic(), resultObj);
 		XxlJobLogger.log("Send message to kafka, topic is {}", requestParam.getTopic());
 		
+		return ReturnT.SUCCESS;
+	}
+	
+	/**
+	 * 调用脚本实现
+	 * @param params 脚本文件
+	 * {server,user,password,shell}
+	 */
+	@XxlJob("remoteCommandJobHandler")
+	public ReturnT<String> remoteCommandJobHandler (String params) {
+		logger.info("remote command job param is {}", params);
+		if(StringUtil.isBlank(params)) {
+			XxlJobLogger.log("params is empty ! ");
+			return ReturnT.FAIL;
+		}
+		Map<String,String> paramsMap = (Map<String, String>) JsonMapper.fromJsonString(params, Map.class);
+		if(paramsMap == null) {
+			XxlJobLogger.log("params error ! ");
+			return ReturnT.FAIL;
+		}
+		try {
+			
+			RemoteShellUtil remoteShellUtil = new RemoteShellUtil(paramsMap.get("server"), paramsMap.get("username"), paramsMap.get("password"), "UTF-8");
+			String execMessage = remoteShellUtil.exec(paramsMap.get("command"));
+			System.err.println(execMessage);
+			logger.info("remote command exec message {}", execMessage);
+			XxlJobLogger.log("remote command exec message {}", execMessage);
+			if(StringUtil.isBlank(execMessage)||"fail".contains(execMessage)) {
+				XxlJobLogger.log("remote command exec error");
+				return ReturnT.FAIL;
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			logger.error("remote comnand exec erorr,{}",e.getMessage());
+			XxlJobLogger.log("remote comnand exec erorr,{}",e);
+			return ReturnT.FAIL;
+		}
 		return ReturnT.SUCCESS;
 	}
 	
