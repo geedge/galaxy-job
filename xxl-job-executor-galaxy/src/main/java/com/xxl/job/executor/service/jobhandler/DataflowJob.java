@@ -6,8 +6,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.util.List;
 import java.util.Map;
 
+import com.xxl.job.executor.pojo.HttpToKafkaParam;
+import io.netty.handler.codec.http.HttpMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -20,7 +23,6 @@ import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.config.StorgeConfig;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
 import com.xxl.job.executor.core.utils.KafkaUtils;
-import com.xxl.job.executor.pojo.RequestParam;
 import com.zdjizhi.file.FileApplication;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
@@ -29,53 +31,63 @@ import com.zdjizhi.utils.StringUtil;
 public class DataflowJob {
 	private static Logger logger = LoggerFactory.getLogger(DataflowJob.class);
 
-//    @XxlJob("httpToKafkaJobHandler")
-	/**
-	 * params[0]: Http Rest url 
-	 * params[1]: Result BODY key ,Parser Json Data toRecords to Kafka 
-	 * params[2]: topicName, kafka topic name
-	 */
-	public ReturnT<String> httpToKafkaJobHandlerTest(String params) {
-		if (StringUtil.isBlank(params) || params.split(",").length != 4) {
-			XxlJobLogger.log("params is Empty or params must 4 params!");
-			return IJobHandler.FAIL;
-		}
-		String[] paramsArray = params.split(",");
-
-		// TODO
-
-		XxlJobLogger.log(paramsArray[0], paramsArray[1], paramsArray[2]);
-		return IJobHandler.SUCCESS;
-	}
 
 	/**
-	 * http查询 db，推送kafka 
-	 * { url:Http Rest url, method:request method,
-	 * requestBody:{query:query sql json }, 
-	 * resultKey:"data",
-	 * topic:topicName,
-	 * method:request method }
+	 * 调度模型httpToKafka
+	 * source: http rest url
+	 * sink: kafka
+	 * params 参数定义如下：
+	 * {
+	 *     url:<Http Rest url>,
+	 *     method:[request method], // get|post 可选，默认get
+	 *     requestBody:[{query:query sql json }],
+	 *     resultKey:[key], //可选，对结果做二次解析
+	 *     topic:<topicName>  // 分区名称，依据系统预置的kafka broker
+	 * }
+	 * @param params Json 结构
+	 * @return
 	 */
 	@XxlJob("httpToKafkaJobHandler")
 	public ReturnT<String> httpToKafkaJobHandler(String params) {
-		
-		logger.info("params: {} ", params);
-		
-		if (validateHttpToKafkaJobParams(params)) {
-			logger.error("params error , params is {}",params);
+
+
+		HttpToKafkaParam httpToKafkaParam = parserHttpToKafkaParams(params);
+
+		if (StringUtil.isEmpty(httpToKafkaParam)) {
+			logger.error("params parser error , params is {}",params);
 			return IJobHandler.FAIL;
 		}
-		
-		RequestParam requestParam = (RequestParam) JsonMapper.fromJsonString(params, RequestParam.class);
-		String resultMessage = "";
+
+
+
 		try {
-			if ("post".equalsIgnoreCase(requestParam.getMethod())) {
-				resultMessage = HttpClientUtils.httpPost(requestParam.getUrl(), JsonMapper.toJsonString(requestParam.getRequestBody()));
+			String resultMessage;
+
+			if (HttpMethod.POST.name().equalsIgnoreCase(httpToKafkaParam.getMethod())) {
+				resultMessage = HttpClientUtils.httpPost(httpToKafkaParam.getUrl(), JsonMapper.toJsonString(httpToKafkaParam.getRequestBody()));
+			} else if (HttpMethod.GET.name().equalsIgnoreCase(httpToKafkaParam.getMethod())) {
+				resultMessage = HttpClientUtils.httpGet(httpToKafkaParam.getUrl());
+			} else {
+				return new ReturnT<String>(IJobHandler.FAIL.getCode(), "Not support Method:" + httpToKafkaParam.getMethod());
 			}
-			if ("get".equalsIgnoreCase(requestParam.getMethod())) {
-				resultMessage = HttpClientUtils.httpGet(requestParam.getUrl());
-			}
-			return sendMessageToKafka(requestParam, resultMessage);
+
+			 if (resultMessage.equals("-1")) {
+				 return new ReturnT<String>(IJobHandler.FAIL.getCode(), "Http Client connection Error!");
+
+			 }
+
+			Object resultObj = JsonMapper.fromJsonString(resultMessage, Object.class);
+
+			 if (StringUtil.isNotBlank(httpToKafkaParam.getResultKey())) {
+				 resultObj = ((Map)resultObj).get(httpToKafkaParam.getResultKey());
+
+			 }
+
+			 new KafkaUtils().sendMessage(httpToKafkaParam.getTopic(), (List<Object>) resultObj);
+
+			 XxlJobLogger.log("Send message to kafka, topic is {}", httpToKafkaParam.getTopic());
+
+			return ReturnT.SUCCESS;
 			
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
@@ -90,81 +102,46 @@ public class DataflowJob {
 		}
 	}
 
+
+
+
 	/**
-	* 例： 
-	* {
-	*	"url": "http://ip:port/druid/v2/sql",
-	*	"method": "post",
-	*	"topic": "topicName",
-	*	"requestBody": {query sql ：json sql},
-	*	"resultKey": "data"
-	*	}
-	*/
-	private Boolean validateHttpToKafkaJobParams(String params) {
-		
-		if (StringUtil.isBlank(params)) {
-			XxlJobLogger.log("params is empty ! ");
-			return true;
-		}
-		
-		RequestParam requestParam = (RequestParam) JsonMapper.fromJsonString(params, RequestParam.class);
-		if(requestParam==null) {
-			XxlJobLogger.log("params is not format json ! ");
-			return true;
-		}
-		if (StringUtil.isBlank(requestParam.getUrl())) {
-			XxlJobLogger.log("url is empty ! ");
-			return true;
-		}
-		if(StringUtil.isEmpty(requestParam.getTopic())) {
-			XxlJobLogger.log("topic is empty ! ");
-			return true;
-		}
-		
-		String method = requestParam.getMethod();
-		if (StringUtil.isEmpty(method) || ( !"get".equalsIgnoreCase(method)&&!"post".equalsIgnoreCase(method) )) {
-			XxlJobLogger.log("this request method is not supported");
-			return true;
-		}
-		// post 需要url，method，requestBody,topic
-		if("post".equalsIgnoreCase(method)&&requestParam.getRequestBody()==null) {
-			XxlJobLogger.log("requestBody is empty ! ");
-			return true;
-		}
-		
-		return false;
-	}
-	
-	/**
-	 * 处理信息并发送kafka
-	 * @param requestParam
-	 * @param result
-	 * @throws Exception 
+	 * 必填参数进行验证，其它自行配置
+	 * @param params
+	 * @return
 	 */
-	private ReturnT<String> sendMessageToKafka(RequestParam requestParam, String result) throws Exception {
+	private HttpToKafkaParam parserHttpToKafkaParams(String params) {
+
+		if (StringUtil.isBlank(params)) {
+			XxlJobLogger.log("params is empty!");
+			return null;
+		}
+
+		HttpToKafkaParam httpToKafkaParam = (HttpToKafkaParam) JsonMapper.fromJsonString(params, HttpToKafkaParam.class);
 		
-		String resultKey = requestParam.getResultKey();
-		Object resultObj = JsonMapper.fromJsonString(result, Object.class);
-		
-		//获取指定key的结果集 , 默认全结果集
-		if (StringUtil.isNotBlank(resultKey) && resultObj instanceof Map) {
-			Map resultMap = (Map) resultObj;
-			
-			if (resultMap.containsKey(resultKey)) {
-				resultObj = resultMap.get(resultKey);
-				
-			} else {
-				XxlJobLogger.log("No fields matching result key error");
-				return ReturnT.FAIL;
-			}
+		if(StringUtil.isEmpty(httpToKafkaParam)) {
+			XxlJobLogger.log("params is not format json ! ");
+			return null;
+		}
+		if (StringUtil.isBlank(httpToKafkaParam.getUrl())) {
+			XxlJobLogger.log("url is empty ! ");
+			return null;
+		}
+		if(StringUtil.isEmpty(httpToKafkaParam.getTopic())) {
+			XxlJobLogger.log("kafka topic is empty ! ");
+			return null;
 		}
 		
-		new KafkaUtils().sendMessage(requestParam.getTopic(), resultObj);
-		XxlJobLogger.log("Send message to kafka, topic is {}", requestParam.getTopic());
-		
-		return ReturnT.SUCCESS;
+		if (StringUtil.isBlank(httpToKafkaParam.getMethod())) {
+			XxlJobLogger.log("this request method is not supported");
+			httpToKafkaParam.setMethod(HttpMethod.GET.name());
+		}
+
+
+		return httpToKafkaParam;
 	}
 	
+
 	/**
 	 * 本地服务器调用脚本实现
 	 * @param params 脚本文件
@@ -230,7 +207,7 @@ public class DataflowJob {
 					return ReturnT.FAIL;
 				}
 	            //发送到kafka
-	            new KafkaUtils().sendMessage(topic, resultMap.get("data"));
+	            new KafkaUtils().sendMessage(topic, (List<Object>) resultMap.get("data"));
 	            XxlJobLogger.log("Send message to kafka, topic is {}", topic);
 	            logger.info("Send message to kafka, topic is {}", topic);
 	            //脚本查询存在问题会返回fail
@@ -256,7 +233,7 @@ public class DataflowJob {
 	
 	/**
 	 * 解析脚本返回结果
-	 * @param InputStream
+	 * @param in
 	 * @param charset
 	 */
 	private String getProcessMessage(InputStream in, String charset) {

@@ -164,14 +164,11 @@ public class HttpClientUtils {
 
         // 获取客户端连接对象
         CloseableHttpClient httpClient = getHttpClient();
-
-
         CloseableHttpResponse response = null;
 
         try {
 
             URL ul = new URL(url);
-
 
             URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
             logger.info("http get uri {}",uri);
@@ -193,19 +190,18 @@ public class HttpClientUtils {
         } catch (URISyntaxException e) {
             logger.error("URI 转换错误: {}", e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
         } catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
+
         } catch (ParseException e) {
             logger.error("解析错误: {}", e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
+
         } catch (IOException e) {
             logger.error("IO错误: {}",e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
+
         }  finally {
             if (null != response) {
                 try {
@@ -223,10 +219,10 @@ public class HttpClientUtils {
     /**
      * POST 请求
      * @param url
-     * @param jsonString
+     * @param requestBody
      * @return
      */
-    public static String httpPost(String url, String jsonString) {
+    public static String httpPost(String url, String requestBody) {
     	String msg = "-1";
     	// 获取客户端连接对象
         CloseableHttpClient httpClient = getHttpClient();
@@ -238,12 +234,13 @@ public class HttpClientUtils {
         	URL ul = new URL(url);
 
             URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
-            logger.info("http post uri:{}， http post body:{}", uri, jsonString);
+
+            logger.info("http post uri:{}， http post body:{}", uri, requestBody);
             
             HttpPost httpPost = new HttpPost(uri);
             httpPost.setHeader("Content-Type", "application/json");
-            if(StringUtil.isNotBlank(jsonString)) {
-            	httpPost.setEntity(new ByteArrayEntity(jsonString.getBytes("utf-8")));
+            if(StringUtil.isNotBlank(requestBody)) {
+            	httpPost.setEntity(new ByteArrayEntity(requestBody.getBytes("utf-8")));
             }
             
             response = httpClient.execute(httpPost);
@@ -260,19 +257,19 @@ public class HttpClientUtils {
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
+
 		} catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
+
         } catch (ParseException e) {
         	logger.error("解析错误: {}", e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
+
         } catch (IOException e) {
         	logger.error("IO错误: {}", e.getMessage());
             e.printStackTrace();
-            throw new BusinessException(e.getMessage());
+
         } finally {
             if (null != response) {
                 try {
@@ -288,32 +285,6 @@ public class HttpClientUtils {
     }
 
 
-
-    private static String encodeUrlParam(String urlStr) {
-
-        URL url = null;
-        try {
-            url = new URL(urlStr);
-            String path  = url.getPath();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-
-      /*  String query =  url.replaceAll("\\+", "%2B");
-
-        List<NameValuePair> values = URLEncodedUtils.parse(query, Charset.forName("UTF-8"));
-        List<String> valueList = Lists.newArrayList();
-        for (NameValuePair nameValuePair: values) {
-            if (nameValuePair.getName().equals(query)) {
-                valueList.add(nameValuePair.getValue());
-            }
-        }
-        String[] valueString = new String[valueList.size()];
-        valueList.toArray(valueString);
-        return valueString.toString();*/
-      return null;
-
-    }
 
 
     public static InputStream httpGetInputStream(String url) {
@@ -394,26 +365,25 @@ public class HttpClientUtils {
 
     }
 
-	/**
-	 * 拼装url
-	 * url ,参数map
-	 */
-	public static String getUrlWithParams(String url, Map<String, Object> params) {
-		try {
-			StringBuffer query = new StringBuffer();
-			for (Map.Entry<String, Object> kv : params.entrySet()) {
-				query.append(kv.getKey() + "=");
-				query.append(kv.getValue() + "&");
-			}
-			if (query.lastIndexOf("&") > 0) {
-				query.deleteCharAt(query.length() - 1);
-			}
-			return url + "?" + query.toString();
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
+    /**
+     * 拼装url
+     * url ,参数map
+     */
+    public static String getUrlWithParams(String url, Map<String, Object> params) {
+        try {
+            StringBuffer query = new StringBuffer();
+            for (Map.Entry<String, Object> kv : params.entrySet()) {
+                query.append(kv.getKey() + "=");
+                query.append(kv.getValue() + "&");
+            }
+            if (query.lastIndexOf("&") > 0) {
+                query.deleteCharAt(query.length() - 1);
+            }
+            return url + "?" + query.toString();
+        } catch (Exception e) {
+            throw e;
+        }
+    }
 
 
 

@@ -38,18 +38,16 @@ public class KafkaUtils {
 
     }
     /**
-     * 批量发送
+     * 批量发送,限制数据类型
      * @param topic
-     * @param data List<String>
+     * @param data List<Object> 集合对象
      */
-    public void sendMessage(String topic, Object data) {
-    	if(data instanceof List) {
-    		for (Object object : (List) data) {
-    			sendMessage(topic, JsonMapper.toJsonString(object));
-    		}
-    	}else {
-    		sendMessage(topic, JsonMapper.toJsonString(data));
-    	}
+    public void sendMessage(String topic, List<Object> data) {
+
+		for (Object object :  data) {
+			sendMessage(topic, JsonMapper.toJsonString(object));
+		}
+
     }
 
 }
