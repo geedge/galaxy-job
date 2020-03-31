@@ -6,6 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.xxl.job.executor.XxlJobExecutorApplication;
+import com.xxl.job.executor.core.config.DeletionConfig;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
 import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
@@ -15,7 +16,7 @@ import com.zdjizhi.utils.TimeConstants;
 @SpringBootTest(classes = { XxlJobExecutorApplication.class })
 public class DeleteDataTest {
 	
-	@Test
+//	@Test
 	public void deleteLogTest() {
 //		String url = "http://192.168.40.224:8123/?user=default&password=111111&database=tsg_galaxy&query=select * from policy_event_log limit 1 FORMAT JSON";
 //		String resultMessage = HttpClientUtils.httpGet(url);
@@ -49,4 +50,8 @@ public class DeleteDataTest {
 		System.err.println(httpPost);
 	}
 
+	@Test
+	public void propertiesTest() {
+		System.err.println(DeletionConfig.analyticServer);
+	}
 }

@@ -13,8 +13,8 @@ import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
 import com.xxl.job.executor.Exception.BusinessException;
+import com.xxl.job.executor.core.config.DeletionConfig;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
-import com.xxl.job.executor.pojo.DeleteDataParam;
 import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
@@ -38,24 +38,23 @@ public class DataDeletionJob {
 			XxlJobLogger.log("params is Empty !");
 			return IJobHandler.FAIL;
 		}
-		
+		Map<String,Integer> paramsMap = (Map) JsonMapper.fromJsonString(params, Map.class);
+		if(paramsMap==null) {
+			XxlJobLogger.log("params error !");
+			return IJobHandler.FAIL;
+		}
 		try {
-			DeleteDataParam deleteDataParam = (DeleteDataParam) JsonMapper.fromJsonString(params, DeleteDataParam.class);
-			if(deleteDataParam==null) {
-				XxlJobLogger.log("params error !");
-				return IJobHandler.FAIL;
-			}
-			String server = deleteDataParam.getServer();
-			String tableName = deleteDataParam.getTablename();
-			Integer maxDays = deleteDataParam.getMaxdays();
-			String datasource = deleteDataParam.getDatasource();
+			Integer maxDays = paramsMap.get("maxdays");
+			String server = DeletionConfig.trafficServer;
+			String tableName = DeletionConfig.trafficTableNames;
+			String datasource = DeletionConfig.trafficDataSource;
 			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableName);
 			
 			//删除sql参数拼接
 			Map<String, Object> deleteParamMap = Maps.newHashMap();
 			deleteParamMap.put("database", datasource);
-			deleteParamMap.put("password", deleteDataParam.getPassword());
-			deleteParamMap.put("user", deleteDataParam.getUsername());
+			deleteParamMap.put("password", DeletionConfig.trafficPassword);
+			deleteParamMap.put("user", DeletionConfig.trafficUserName);
 			
 			String url = "http://"+server;
 			String prefixDeleteSql = "ALTER TABLE "+ datasource +".";
@@ -109,14 +108,14 @@ public class DataDeletionJob {
 			return IJobHandler.FAIL;
 		}
 		try {
-			DeleteDataParam deleteDataParam = (DeleteDataParam) JsonMapper.fromJsonString(params, DeleteDataParam.class);
-			if(deleteDataParam==null) {
+			Map<String,Integer> paramsMap = (Map) JsonMapper.fromJsonString(params, Map.class);
+			if(paramsMap==null) {
 				XxlJobLogger.log("params error !");
 				return IJobHandler.FAIL;
 			}
-			String server = deleteDataParam.getServer();
-			String tableName = deleteDataParam.getTablename();
-			Integer maxDays = deleteDataParam.getMaxdays();
+			String server = DeletionConfig.analyticServer;
+			String tableName = DeletionConfig.analyticTableNames;
+			Integer maxDays = paramsMap.get("maxdays");
 			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableName);
 			//修改规则
 			String changeRulesUrl ="http://"+ server +"/druid/coordinator/v1/rules/";
@@ -165,21 +164,22 @@ public class DataDeletionJob {
 		}
 		
 		try {
-			DeleteDataParam deleteDataParam = (DeleteDataParam) JsonMapper.fromJsonString(params, DeleteDataParam.class);
-			if(deleteDataParam==null) {
+			Map<String,Integer> paramsMap = (Map) JsonMapper.fromJsonString(params, Map.class);
+			if(paramsMap==null) {
 				XxlJobLogger.log("params error !");
 				return IJobHandler.FAIL;
 			}
-			String server = deleteDataParam.getServer();
-			String datasource = deleteDataParam.getDatasource();
-			String tableName = deleteDataParam.getTablename();
+			Integer maxDays = paramsMap.get("maxdays");
+			String server = DeletionConfig.trafficServer;
+			String tableName = DeletionConfig.trafficTableNames;
+			String datasource = DeletionConfig.trafficDataSource;
 			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableName);
 			
 			//连接参数
 			Map<String, Object> deleteParamMap = Maps.newHashMap();
 			deleteParamMap.put("database", datasource);
-			deleteParamMap.put("password", deleteDataParam.getPassword());
-			deleteParamMap.put("user", deleteDataParam.getUsername());
+			deleteParamMap.put("password", DeletionConfig.trafficPassword);
+			deleteParamMap.put("user", DeletionConfig.trafficUserName);
 			String url = "http://"+server;
 			//清库命令参数
 			String prefixDeleteSql = "TRUNCATE TABLE IF EXISTS "+ datasource+".";
@@ -221,18 +221,16 @@ public class DataDeletionJob {
 		}
 		
 		try {
-			DeleteDataParam deleteDataParam = (DeleteDataParam) JsonMapper.fromJsonString(params, DeleteDataParam.class);
-			if(deleteDataParam==null) {
+			Map<String,Integer> paramMap = (Map) JsonMapper.fromJsonString(params, Map.class);
+			if(paramMap==null) {
 				XxlJobLogger.log("params error !");
 				return IJobHandler.FAIL;
 			}
-			String servers = deleteDataParam.getServer();
-			List<String> serverList = Splitter.on(",").trimResults().splitToList(servers);
-			String deleteServer = serverList.get(0);//用于删除的节点
-			String queryServer = serverList.get(1);//用于查询
-			String tableName = deleteDataParam.getTablename();
-			Integer maxDays = deleteDataParam.getMaxdays();
-			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableName);
+			Integer maxDays = paramMap.get("maxdays");
+			String deleteServer = DeletionConfig.analyticServer;
+			String tableNames = DeletionConfig.analyticTableNames;
+			String queryServer = DeletionConfig.selectAnalyticServer;//用于查询
+			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableNames);
 			
 			//停止加载
 			String changeRulesUrl ="http://"+ deleteServer +"/druid/coordinator/v1/rules/";
@@ -253,24 +251,32 @@ public class DataDeletionJob {
 			long endTime = startTime + 1000*60*5;
 			tableList.forEach(table->{
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
-				//查询表数据是否删除 固定key EXPR$0
-				String countTableDataSql ="{\"query\":\"SELECT count(*) from "+table+" where __time < '"+DateUtils.getCurrentDate()+"'\",\"context\":{\"sqlTimeZone\":\"Asia/Shanghai\",\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-				int count = 1;
-				while(count > 0) {
-					String httpPostResult = HttpClientUtils.httpPost(countDataUrl, countTableDataSql);
-					List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
-					count = Integer.valueOf(String.valueOf(list.get(0).get("EXPR$0")));
-					try {
-						if(count>0) {
-							//每次停留两秒判断是否删除结束
-							Thread.sleep(2000L);
+				
+				try {
+					//查询表数据是否删除 固定key EXPR$0
+					String countTableDataSql ="{\"query\":\"SELECT count(*) from "+table+" where __time < '"+DateUtils.getCurrentDate()+"'\",\"context\":{\"sqlTimeZone\":\"Asia/Shanghai\",\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+					int count = 1;
+					while(count > 0) {
+						String httpPostResult = HttpClientUtils.httpPost(countDataUrl, countTableDataSql);
+						List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
+						count = Integer.valueOf(String.valueOf(list.get(0).get("EXPR$0")));
+						try {
+							if(count>0) {
+								//每次停留两秒判断是否删除结束
+								Thread.sleep(2000L);
+							}
+							if(System.currentTimeMillis()>endTime) {
+								break;
+							}
+						} catch (InterruptedException e) {
+							e.printStackTrace();
 						}
-						if(System.currentTimeMillis()>endTime) {
-							break;
-						}
-					} catch (InterruptedException e) {
-						e.printStackTrace();
 					}
+				} catch (BusinessException e) {
+					// 表不存在时，查询发生错误，记录下继续执行
+					e.printStackTrace();
+					logger.error(" query error {}",e.getErrorMessage());
+					XxlJobLogger.log(" query error {}",e.getErrorMessage());
 				}
 				
 				String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+ table +suffixDeleteParam);

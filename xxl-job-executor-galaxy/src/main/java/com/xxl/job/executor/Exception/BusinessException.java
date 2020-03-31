@@ -40,7 +40,12 @@ public class BusinessException extends RuntimeException {
         super(errorMessage, e);
         this.errorCode = errorCode;
     }
-
+    
+    public BusinessException(Throwable e) {
+        super(e.getMessage(), e);
+        this.errorCode = BaseResultEnum.SERVER_ERROR.getCode();
+        this.errorMessage = e.getMessage();
+    }
 
 
 }

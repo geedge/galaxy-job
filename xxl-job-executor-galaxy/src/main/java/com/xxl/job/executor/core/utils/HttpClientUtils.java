@@ -193,15 +193,19 @@ public class HttpClientUtils {
         } catch (URISyntaxException e) {
             logger.error("URI 转换错误: {}", e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
         } catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
         } catch (ParseException e) {
             logger.error("解析错误: {}", e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
         } catch (IOException e) {
             logger.error("IO错误: {}",e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
         }  finally {
             if (null != response) {
                 try {
@@ -253,19 +257,22 @@ public class HttpClientUtils {
                 throw new BusinessException(response.getStatusLine().getStatusCode(),
                         "Http post content is :" + msg);
             }
-            
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
 		} catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
         } catch (ParseException e) {
         	logger.error("解析错误: {}", e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
         } catch (IOException e) {
         	logger.error("IO错误: {}", e.getMessage());
             e.printStackTrace();
+            throw new BusinessException(e.getMessage());
         } finally {
             if (null != response) {
                 try {
