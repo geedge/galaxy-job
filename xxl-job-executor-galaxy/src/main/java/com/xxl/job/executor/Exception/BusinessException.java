@@ -10,7 +10,6 @@ import lombok.*;
  * @date 2018/3/22
  */
 @EqualsAndHashCode(callSuper = true)
-@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,5 +46,20 @@ public class BusinessException extends RuntimeException {
         this.errorMessage = e.getMessage();
     }
 
+	public int getErrorCode() {
+		return errorCode;
+	}
+
+	public void setErrorCode(int errorCode) {
+		this.errorCode = errorCode;
+	}
+
+	public String getErrorMessage() {
+		return errorMessage.replace("\"", "\\\"");
+	}
+
+	public void setErrorMessage(String errorMessage) {
+		this.errorMessage = errorMessage;
+	}
 
 }

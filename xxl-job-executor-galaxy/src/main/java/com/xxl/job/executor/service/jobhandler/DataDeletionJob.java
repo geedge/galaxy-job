@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.xxl.job.core.biz.model.ReturnT;
-import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
 import com.xxl.job.executor.Exception.BusinessException;
@@ -24,7 +23,36 @@ import com.zdjizhi.utils.TimeConstants;
 public class DataDeletionJob {
 	
 	private static Logger logger = LoggerFactory.getLogger(DataDeletionJob.class);
+	
+	private static String trafficServer;
+	private static String trafficDataSource;
+	private static String trafficUserName;
+	private static String trafficPassword;
+	private static String trafficTableNames;
+	
+	private static String clusterName = "ck_cluster";//clickhouse集群名称
+	
+	private static String analyticServer;
+	private static String analyticTableNames;
+	private static String selectAnalyticServer;
+	private static List<String> trafficTableList;
+	private static List<String> analyticTableList;
 
+	static {
+		 trafficServer = DeletionConfig.trafficServer;
+		 trafficDataSource = DeletionConfig.trafficDataSource;
+		 trafficTableNames = DeletionConfig.trafficTableNames;
+		 trafficUserName = DeletionConfig.trafficUserName;
+		 trafficPassword = DeletionConfig.trafficPassword;
+		 clusterName = DeletionConfig.clusterName;
+		 
+		 analyticServer = DeletionConfig.analyticServer;
+		 analyticTableNames = DeletionConfig.analyticTableNames;
+		 selectAnalyticServer = DeletionConfig.selectAnalyticServer;//用于查询
+		 
+		 trafficTableList = Splitter.on(",").trimResults().splitToList(trafficTableNames);
+		 analyticTableList = Splitter.on(",").trimResults().splitToList(analyticTableNames);
+	}
 	/**
 	  *  流量日志清除任务
 	 *  clickhouse 数据库
@@ -32,36 +60,17 @@ public class DataDeletionJob {
 	 */
 	@XxlJob("deleteTrafficDataJobHandler")
 	public ReturnT<String> deleteTrafficDataJobHandler(String params) {
-		logger.info("params{}",params);
-		
-		if (StringUtil.isBlank(params)) {
-			XxlJobLogger.log("params is Empty !");
-			return IJobHandler.FAIL;
-		}
-		Map<String,Integer> paramsMap = (Map) JsonMapper.fromJsonString(params, Map.class);
-		if(paramsMap==null) {
-			XxlJobLogger.log("params error !");
-			return IJobHandler.FAIL;
-		}
 		try {
-			Integer maxDays = paramsMap.get("maxdays");
-			String server = DeletionConfig.trafficServer;
-			String tableName = DeletionConfig.trafficTableNames;
-			String datasource = DeletionConfig.trafficDataSource;
-			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableName);
+			Map<String, Integer> paramsMap = validParams(params);
 			
-			//删除sql参数拼接
-			Map<String, Object> deleteParamMap = Maps.newHashMap();
-			deleteParamMap.put("database", datasource);
-			deleteParamMap.put("password", DeletionConfig.trafficPassword);
-			deleteParamMap.put("user", DeletionConfig.trafficUserName);
+			Map<String, Object> deleteParamMap = getDeleteSource();
 			
-			String url = "http://"+server;
-			String prefixDeleteSql = "ALTER TABLE "+ datasource +".";
+			String url = "http://"+trafficServer;
+			String prefixDeleteSql = "ALTER TABLE "+ trafficDataSource +".";
 			String suffixDeleteSql =" ON CLUSTER ck_cluster DROP PARTITION ";
-			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -maxDays));
+			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -paramsMap.get("maxdays")));
 			
-			tableList.forEach(table->{
+			trafficTableList.forEach(table->{
 				//查询所有小于设定时间的分区
 				deleteParamMap.put("query", "SELECT `partition` from `system`.parts WHERE table = '" + table + "' AND `partition` < '"+deleteMaxDate+"' FORMAT JSON;");
 				String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(url, deleteParamMap));
@@ -93,6 +102,7 @@ public class DataDeletionJob {
 		
 		return ReturnT.SUCCESS;
 	}
+
 	/**
 	 * Report and Metrics 日志清除任务
 	 * druid 数据库
@@ -101,33 +111,21 @@ public class DataDeletionJob {
 	 */
 	@XxlJob("deleteReportAndMetricsDataJobHandler")
 	public ReturnT<String> deleteReportAndMetricsDataJobHandler(String params) {
-		logger.info("params{}",params);
-
-		if (StringUtil.isBlank(params)) {
-			XxlJobLogger.log("params is Empty !");
-			return IJobHandler.FAIL;
-		}
+		
 		try {
-			Map<String,Integer> paramsMap = (Map) JsonMapper.fromJsonString(params, Map.class);
-			if(paramsMap==null) {
-				XxlJobLogger.log("params error !");
-				return IJobHandler.FAIL;
-			}
-			String server = DeletionConfig.analyticServer;
-			String tableName = DeletionConfig.analyticTableNames;
-			Integer maxDays = paramsMap.get("maxdays");
-			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableName);
+			Map<String, Integer> paramsMap = validParams(params);
+			
 			//修改规则
-			String changeRulesUrl ="http://"+ server +"/druid/coordinator/v1/rules/";
-			String changeRulesParam ="[{\"type\":\"loadByPeriod\",\"period\":\"P"+maxDays+"D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]";
+			String changeRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
+			String changeRulesParam ="[{\"type\":\"loadByPeriod\",\"period\":\"P"+paramsMap.get("maxdays")+"D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]";
 			//物理删除除
-			String deleteUrl = "http://"+server+"/druid/indexer/v1/task";
+			String deleteUrl = "http://"+analyticServer+"/druid/indexer/v1/task";
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
 			//1970-01-01/当前时间-maxDay
-			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -maxDays);
+			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -paramsMap.get("maxdays"));
 			String suffixDeleteParam = "\",\"interval\":\"1970-01-01/"+deleteMaxDate+"\"}";
 			
-			tableList.forEach(table->{
+			analyticTableList.forEach(table->{
 				
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				
@@ -156,37 +154,16 @@ public class DataDeletionJob {
 	 */
 	@XxlJob("deleteAllTrafficDataJobHandler")
 	public ReturnT<String> deleteAllTrafficDataJobHandler(String params){
-		logger.info("params{}",params);
-
-		if (StringUtil.isBlank(params)) {
-			XxlJobLogger.log("params is Empty !");
-			return IJobHandler.FAIL;
-		}
 		
 		try {
-			Map<String,Integer> paramsMap = (Map) JsonMapper.fromJsonString(params, Map.class);
-			if(paramsMap==null) {
-				XxlJobLogger.log("params error !");
-				return IJobHandler.FAIL;
-			}
-			Integer maxDays = paramsMap.get("maxdays");
-			String server = DeletionConfig.trafficServer;
-			String tableName = DeletionConfig.trafficTableNames;
-			String datasource = DeletionConfig.trafficDataSource;
-			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableName);
-			
-			//连接参数
-			Map<String, Object> deleteParamMap = Maps.newHashMap();
-			deleteParamMap.put("database", datasource);
-			deleteParamMap.put("password", DeletionConfig.trafficPassword);
-			deleteParamMap.put("user", DeletionConfig.trafficUserName);
-			String url = "http://"+server;
+			Map<String, Object> deleteParamMap = getDeleteSource();
+			String url = "http://"+trafficServer;
 			//清库命令参数
-			String prefixDeleteSql = "TRUNCATE TABLE IF EXISTS "+ datasource+".";
-			//String clusterName = "ck_cluster";
-			String suffixDeleteTtl = " ON CLUSTER ck_cluster";
+			String prefixDeleteSql = "TRUNCATE TABLE IF EXISTS "+ trafficDataSource+".";
 			
-			tableList.forEach(table->{
+			String suffixDeleteTtl = " ON CLUSTER " + clusterName;
+			
+			trafficTableList.forEach(table->{
 				deleteParamMap.put("query", prefixDeleteSql+ table +suffixDeleteTtl);
 				String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
 				logger.info("delete clickhouse message:{}",deleteMessage);
@@ -213,43 +190,27 @@ public class DataDeletionJob {
 	 */
 	@XxlJob("deleteAllReportAndMetricsDataJobHandler")
 	public ReturnT<String> deleteAllReportAndMetricsDataJobHandler(String params) {
-		logger.info("params{}",params);
-
-		if (StringUtil.isBlank(params)) {
-			XxlJobLogger.log("params is Empty !");
-			return IJobHandler.FAIL;
-		}
-		
 		try {
-			Map<String,Integer> paramMap = (Map) JsonMapper.fromJsonString(params, Map.class);
-			if(paramMap==null) {
-				XxlJobLogger.log("params error !");
-				return IJobHandler.FAIL;
-			}
-			Integer maxDays = paramMap.get("maxdays");
-			String deleteServer = DeletionConfig.analyticServer;
-			String tableNames = DeletionConfig.analyticTableNames;
-			String queryServer = DeletionConfig.selectAnalyticServer;//用于查询
-			List<String> tableList = Splitter.on(",").trimResults().splitToList(tableNames);
+			Map<String, Integer> paramMap = validParams(params);
 			
 			//停止加载
-			String changeRulesUrl ="http://"+ deleteServer +"/druid/coordinator/v1/rules/";
+			String changeRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
 			String changeRulesParam = "[{\"type\":\"dropForever\"}]";
 			
 			//物理删除所有数据
-			String deleteUrl ="http://"+ deleteServer +"/druid/indexer/v1/task";
+			String deleteUrl ="http://"+ analyticServer +"/druid/indexer/v1/task";
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
 			String suffixDeleteParam = "\",\"interval\":\"1970-01-01/"+DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1)+"\"}";
 			
 			//恢复加载规则
-			String resetRulesUrl ="http://"+ deleteServer +"/druid/coordinator/v1/rules/";
-			String resetRulesParam ="[{\"type\":\"loadByPeriod\",\"period\":\"P"+ maxDays +"D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]";
+			String resetRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
+			String resetRulesParam ="[{\"type\":\"loadByPeriod\",\"period\":\"P"+ paramMap.get("maxdays") +"D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]";
 			//查询表数据url
-			String countDataUrl = "http://"+queryServer+"/druid/v2/sql";
+			String countDataUrl = "http://"+selectAnalyticServer+"/druid/v2/sql";
 			//限制操作时间五分钟，开始计时
 			long startTime = System.currentTimeMillis();
 			long endTime = startTime + 1000*60*5;
-			tableList.forEach(table->{
+			analyticTableList.forEach(table->{
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				
 				try {
@@ -296,6 +257,36 @@ public class DataDeletionJob {
 		}
 		
 		return ReturnT.SUCCESS;
+	}
+	/**
+	 *  数据库连接
+	 * @return
+	 */
+	private Map<String, Object> getDeleteSource() {
+		//删除sql参数拼接
+		Map<String, Object> deleteParamMap = Maps.newHashMap();
+		deleteParamMap.put("database", trafficDataSource);
+		deleteParamMap.put("password", trafficPassword);
+		deleteParamMap.put("user", trafficUserName);
+		return deleteParamMap;
+	}
+	/**
+	 * 必填参数进行验证，其它自行配置
+	 * @param params
+	 */
+	private Map<String, Integer> validParams(String params) {
+		logger.info("params{}",params);
+
+		if (StringUtil.isBlank(params)) {
+			XxlJobLogger.log("params is Empty !");
+			return null;
+		}
+		Map<String,Integer> paramMap = (Map) JsonMapper.fromJsonString(params, Map.class);
+		if(paramMap==null) {
+			XxlJobLogger.log("params error !");
+			return null;
+		}
+		return paramMap;
 	}
 
 }

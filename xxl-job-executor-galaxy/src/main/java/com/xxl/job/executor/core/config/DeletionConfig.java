@@ -11,6 +11,7 @@ public class DeletionConfig {
 	public static String trafficUserName;
 	public static String trafficPassword;
 	public static String trafficTableNames;
+	public static String clusterName = "ck_cluster";
 	
 	public static String analyticServer;
 	public static String analyticTableNames;
@@ -72,6 +73,13 @@ public class DeletionConfig {
 	@Value("${select.analytic.server}")
 	public void setSelectAnalyticServer(String selectAnalyticServer) {
 		DeletionConfig.selectAnalyticServer = selectAnalyticServer;
+	}
+	
+	public static String getClusterName() {
+		return clusterName;
+	}
+	public static void setClusterName(String clusterName) {
+		DeletionConfig.clusterName = clusterName;
 	}
 	@Override
 	public String toString() {
