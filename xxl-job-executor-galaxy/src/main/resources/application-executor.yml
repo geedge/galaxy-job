@@ -1,0 +1,34 @@
+## 业务参数
+##指定kafka server的地址，集群配多个，中间，逗号隔开
+spring: 
+  kafka:
+    bootstrap-servers: 192.168.40.224:9092
+
+##存储配额脚本配置
+storge:
+  files:
+    server: 192.168.40.131:9090
+  analytic:
+    server: 192.168.40.224:8082
+  traffic:
+    server: 192.168.40.186
+    password: 111111
+    username: default
+    
+##数据删除配置 druid，clickhouse
+delete: 
+  analytic:
+    server: 192.168.40.119:8079
+
+  traffic:
+    server: 192.168.40.186:8123
+    password: ceiec2019
+    tablenames: active_defence_event_log_local,connection_record_log_common_client_ip,connection_record_log_common_server_ip,connection_record_log_common_subscriber_id,connection_record_log_http_domain,connection_record_log_local,proxy_event_log_local,radius_onff_log_local,radius_record_log_local,security_event_log_local,sys_packet_capture_log_local
+    datasource: tsg_galaxy_v3
+    username: default
+##存储配额druid查询地址
+select: 
+  analytic: 
+    server: 192.168.40.224:8082
+    
+    

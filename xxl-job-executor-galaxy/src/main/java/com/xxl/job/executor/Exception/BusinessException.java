@@ -1,5 +1,6 @@
 package com.xxl.job.executor.Exception;
 
+import com.xxl.job.executor.core.utils.JobUtil;
 import com.xxl.job.executor.enums.BaseResultEnum;
 import lombok.*;
 
@@ -55,7 +56,7 @@ public class BusinessException extends RuntimeException {
 	}
 
 	public String getErrorMessage() {
-		return errorMessage.replace("\"", "\\\"");
+		return JobUtil.formatJobLog(errorMessage);
 	}
 
 	public void setErrorMessage(String errorMessage) {

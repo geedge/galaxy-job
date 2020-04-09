@@ -14,7 +14,6 @@ public class DeletionConfig {
 	public static String clusterName = "ck_cluster";
 	
 	public static String analyticServer;
-	public static String analyticTableNames;
 	public static String selectAnalyticServer;
 	
 	
@@ -60,13 +59,6 @@ public class DeletionConfig {
 	public void setAnalyticServer(String analyticServer) {
 		DeletionConfig.analyticServer = analyticServer;
 	}
-	public String getAnalyticTableNames() {
-		return analyticTableNames;
-	}
-	@Value("${delete.analytic.tablenames}")
-	public void setAnalyticTableNames(String analyticTableNames) {
-		DeletionConfig.analyticTableNames = analyticTableNames;
-	}
 	public String getSelectAnalyticServer() {
 		return selectAnalyticServer;
 	}
@@ -86,8 +78,7 @@ public class DeletionConfig {
 		return "DeletionConfig [getTrafficServer()=" + getTrafficServer() + ", getTrafficDataSource()="
 				+ getTrafficDataSource() + ", getTrafficUserName()=" + getTrafficUserName() + ", getTrafficPassword()="
 				+ getTrafficPassword() + ", getTrafficTableNames()=" + getTrafficTableNames() + ", getAnalyticServer()="
-				+ getAnalyticServer() + ", getAnalyticTableNames()=" + getAnalyticTableNames()
-				+ ", getSelectAnalyticServer()=" + getSelectAnalyticServer() + "]";
+				+ getAnalyticServer() + ", getSelectAnalyticServer()=" + getSelectAnalyticServer() + "]";
 	}
 	
 
