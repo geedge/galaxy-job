@@ -71,14 +71,14 @@ public class LogStorageQuotaJob {
 	@XxlJob("deleteTrafficDataJobHandler")
 	public ReturnT<String> deleteTrafficDataJobHandler(String params) {
 		try {
-			Map<String, Integer> paramsMap = validParams(params);
+			Map<String, Object> paramsMap = validParams(params);
 			
 			Map<String, Object> deleteParamMap = getDeleteSource();
 			
 			String url = "http://"+trafficServer;
 			String prefixDeleteSql = "ALTER TABLE "+ trafficDataSource +".";
 			String suffixDeleteSql =" ON CLUSTER "+clusterName+" DROP PARTITION ";
-			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -paramsMap.get("maxdays")));
+			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays")))));
 			
 			getAnalyticTables().forEach(table->{
 				//查询所有小于设定时间的分区
@@ -122,7 +122,7 @@ public class LogStorageQuotaJob {
 	public ReturnT<String> deleteReportAndMetricsDataJobHandler(String params) {
 		
 		try {
-			Map<String, Integer> paramsMap = validParams(params);
+			Map<String, Object> paramsMap = validParams(params);
 			
 			//修改规则
 			String changeRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
@@ -131,7 +131,7 @@ public class LogStorageQuotaJob {
 			String deleteUrl = "http://"+analyticServer+"/druid/indexer/v1/task";
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
 			//1970-01-01/当前时间-maxDay
-			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -paramsMap.get("maxdays"));
+			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
 			String suffixDeleteParam = "\",\"interval\":\"1970-01-01/"+deleteMaxDate+"\"}";
 			
 			getAnalyticTables().forEach(table->{
@@ -200,7 +200,7 @@ public class LogStorageQuotaJob {
 	@XxlJob("deleteAllReportAndMetricsDataJobHandler")
 	public ReturnT<String> deleteAllReportAndMetricsDataJobHandler(String params) {
 		try {
-			Map<String, Integer> paramMap = validParams(params);
+			Map<String, Object> paramMap = validParams(params);
 			
 			//停止加载
 			String changeRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
@@ -277,26 +277,19 @@ public class LogStorageQuotaJob {
 	 * "sourceZipFile":"/config/script/storge.zip"}//源脚本放置的位置
 	 */
 	@XxlJob("getStorageQuotaJobHandler")
-	public ReturnT<String> scriptToKafkaJobHandler (String params) {
-		logger.info("remote command job param is {}", params);
-		if(StringUtil.isBlank(params)) {
-			XxlJobLogger.log("params is empty ! ");
-			return ReturnT.FAIL;
-		}
-		Map<String,String> paramsMap = (Map<String, String>) JsonMapper.fromJsonString(params, Map.class);
-		if(paramsMap == null) {
-			XxlJobLogger.log("params error ! ");
-			return ReturnT.FAIL;
-		}
+	public ReturnT<String> getStorageQuotaJobHandler (String params) {
 		
-	        int exitValue = -1;
+			int exitValue = -1;//表示命令执行结果：0 成功，其它值失败
 	        try {
+	        	Map<String, Object> paramsMap = validParams(params);
 	        	//脚本解压目录
-	        	String destDirectory = paramsMap.get("destDirectory");
+	        	String destDirectory = String.valueOf(paramsMap.get("destDirectory"));
 				//脚本文件带路径
 				String scriptFile = destDirectory + paramsMap.get("scriptName");
+				// updateScript 为true 的时候更新脚本文件，默认falsee
+				String updateScript = String.valueOf(paramsMap.get("updateScript"));
 				
-				if(!FileApplication.isExist(scriptFile)) {
+				if(!FileApplication.isExist(scriptFile)||"true".equals(updateScript)) {
 					//源压缩文件
 					String sourceFile = new File("").getCanonicalPath() + paramsMap.get("sourceZipFile");
 					boolean unZipFiles = FileApplication.unZipFiles(sourceFile, new File(destDirectory).getParent());
@@ -304,7 +297,7 @@ public class LogStorageQuotaJob {
 					//开通权限,修改配置文件
 					String[] commands  = new String[]{"/bin/sh","-c",StorgeConfig.getStorgeConfigCommand(destDirectory)};
 					Process chmodProcess = Runtime.getRuntime().exec(commands);
-					XxlJobLogger.log("chmod command result {}", getProcessMessage(chmodProcess.getInputStream(), "UTF-8"));
+					XxlJobLogger.log("chmod command ! ");
 					
 					chmodProcess.waitFor();
 					exitValue = chmodProcess.exitValue();
@@ -315,6 +308,8 @@ public class LogStorageQuotaJob {
 	        	
 	            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c",scriptFile});
 	            String execResult = getProcessMessage(process.getInputStream(), "UTF-8");
+	            logger.info("script run result：{}",execResult);
+	            XxlJobLogger.log(execResult);
 	            // command exit
 	            process.waitFor();
 	            exitValue = process.exitValue();
@@ -325,7 +320,7 @@ public class LogStorageQuotaJob {
 					return ReturnT.FAIL;
 				}
 	            //发送到kafka
-	            new KafkaUtils().sendMessage(paramsMap.get("topic"), (List<Object>) resultMap.get("data"));
+	            new KafkaUtils().sendMessage(String.valueOf(paramsMap.get("topic")), (List<Object>) resultMap.get("data"));
 	            XxlJobLogger.log("Send message to kafka, topic is {}", paramsMap.get("topic"));
 	            //脚本查询存在问题会返回fail
 	            if("fail".contains(execResult)) {
@@ -350,6 +345,10 @@ public class LogStorageQuotaJob {
 	/**
 	 *  数据库连接参数
 	 * @return map
+	 * {database：,
+	 * 	password：,
+	 * 	user:,
+	 * }
 	 */
 	private Map<String, Object> getDeleteSource() {
 		//删除sql参数拼接
@@ -363,14 +362,14 @@ public class LogStorageQuotaJob {
 	 * 必填参数进行验证，其它自行配置
 	 * @param params
 	 */
-	private Map<String, Integer> validParams(String params) {
+	private Map<String, Object> validParams(String params) {
 		logger.info("params{}",params);
 
 		if (StringUtil.isBlank(params)) {
 			XxlJobLogger.log("params is Empty !");
 			return null;
 		}
-		Map<String,Integer> paramMap = (Map) JsonMapper.fromJsonString(params, Map.class);
+		Map<String,Object> paramMap = (Map) JsonMapper.fromJsonString(params, Map.class);
 		if(paramMap==null) {
 			XxlJobLogger.log("params error !");
 			return null;
@@ -390,7 +389,7 @@ public class LogStorageQuotaJob {
 				br = new BufferedReader(new InputStreamReader(in, StringUtil.isBlank(charset)? "UTF-8":charset));
 				String line = null;
 				while ((line = br.readLine()) != null) {
-					buffer.append(JobUtil.formatJobLog(line));
+					buffer.append(line);
 				}
 			} catch (UnsupportedEncodingException e) {
 				e.printStackTrace();

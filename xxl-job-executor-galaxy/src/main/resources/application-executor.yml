@@ -5,23 +5,26 @@ spring:
     bootstrap-servers: 192.168.40.224:9092
 
 ##存储配额脚本配置
+## 存储配额文件服务器
 storge:
   files:
     server: 192.168.40.131:9090
+## 存储配额查询druid
   analytic:
     server: 192.168.40.224:8082
+## 存储配额查询 clickhouse
   traffic:
-    server: 192.168.40.186
-    password: 111111
+    server: 192.168.40.224
     username: default
+    password: ceiec2019
     
-##数据删除配置 druid，clickhouse
+##数据删除配置 druid
 delete: 
   analytic:
     server: 192.168.40.119:8079
-
+#数据删除配置 clickhouse
   traffic:
-    server: 192.168.40.186:8123
+    server: 192.168.40.224:8123
     password: ceiec2019
     tablenames: active_defence_event_log_local,connection_record_log_common_client_ip,connection_record_log_common_server_ip,connection_record_log_common_subscriber_id,connection_record_log_http_domain,connection_record_log_local,proxy_event_log_local,radius_onff_log_local,radius_record_log_local,security_event_log_local,sys_packet_capture_log_local
     datasource: tsg_galaxy_v3
