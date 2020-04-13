@@ -24,7 +24,6 @@ import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.config.DeletionConfig;
 import com.xxl.job.executor.core.config.StorgeConfig;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
-import com.xxl.job.executor.core.utils.JobUtil;
 import com.xxl.job.executor.core.utils.KafkaUtils;
 import com.zdjizhi.file.FileApplication;
 import com.zdjizhi.utils.DateUtils;
@@ -90,9 +89,11 @@ public class LogStorageQuotaJob {
 				partitionList.forEach(partition->{
 					if(Integer.valueOf(String.valueOf(partition.get("partition"))) < deleteMaxDate) {
 						deleteParamMap.put("query", prefixDeleteSql + table + suffixDeleteSql+partition.get("partition"));
+						XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql + table + suffixDeleteSql+partition.get("partition"));
+						
 						String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
-						logger.info("delete clickhouse message:{}",deleteMessage);
 						XxlJobLogger.log("delete clickhouse message:{}",deleteMessage);
+						XxlJobLogger.log("delete table {} success",table);
 					}
 					
 				});
@@ -136,11 +137,12 @@ public class LogStorageQuotaJob {
 			
 			getAnalyticTables().forEach(table->{
 				
+				XxlJobLogger.log("delete first command :{}",changeRulesParam);
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				
+				XxlJobLogger.log("delete second command :{}",prefixDeleteParam+table+suffixDeleteParam);
 				String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+table+suffixDeleteParam);
-				logger.info("delete info :{}",deleteMessage);
-				XxlJobLogger.log("delete message :{}",deleteMessage);
+				XxlJobLogger.log("delete result message :{}",deleteMessage);
 			});
 		} catch (BusinessException be) {
 			be.printStackTrace();
@@ -170,13 +172,13 @@ public class LogStorageQuotaJob {
 			//清库命令参数
 			String prefixDeleteSql = "TRUNCATE TABLE IF EXISTS "+ trafficDataSource+".";
 			
-			String suffixDeleteTtl = " ON CLUSTER " + clusterName;
+			String suffixDeleteSql = " ON CLUSTER " + clusterName;
 			
 			trafficTableList.forEach(table->{
-				deleteParamMap.put("query", prefixDeleteSql+ table +suffixDeleteTtl);
+				deleteParamMap.put("query", prefixDeleteSql+ table +suffixDeleteSql);
+				XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql+ table +suffixDeleteSql);
 				String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
-				logger.info("delete clickhouse message:{}",deleteMessage);
-				XxlJobLogger.log("delete clickhouse message:{}",deleteMessage);
+				XxlJobLogger.log("delete table {} success",table);
 			});
 		} catch (BusinessException be) {
 			be.printStackTrace();
@@ -216,12 +218,12 @@ public class LogStorageQuotaJob {
 			String resetRulesParam ="[{\"type\":\"loadByPeriod\",\"period\":\"P"+ paramMap.get("maxdays") +"D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]";
 			//查询表数据url
 			String countDataUrl = "http://"+selectAnalyticServer+"/druid/v2/sql";
-			//限制操作时间五分钟，开始计时
-			long startTime = System.currentTimeMillis();
-			long endTime = startTime + 1000*60*5;
 			getAnalyticTables().forEach(table->{
+				//每个表限制操作时间五分钟，开始计时
+				long startTime = System.currentTimeMillis();
+				long endTime = startTime + 1000*60*5;
+				XxlJobLogger.log("delete table first command , sql : {}",table , changeRulesParam);
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
-				
 				try {
 					//查询表数据是否删除 固定key EXPR$0
 					String countTableDataSql ="{\"query\":\"SELECT count(*) from "+table+" where __time < '"+DateUtils.getCurrentDate()+"'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
@@ -236,6 +238,7 @@ public class LogStorageQuotaJob {
 								Thread.sleep(2000L);
 							}
 							if(System.currentTimeMillis()>endTime) {
+								XxlJobLogger.log("delete time out error, table : {} ",table);
 								break;
 							}
 						} catch (InterruptedException e) {
@@ -249,9 +252,12 @@ public class LogStorageQuotaJob {
 					XxlJobLogger.log(" query error {}",e.getErrorMessage());
 				}
 				
+				XxlJobLogger.log("delete table second command , sql : {}",table , prefixDeleteParam+ table +suffixDeleteParam);
 				String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+ table +suffixDeleteParam);
-				XxlJobLogger.log("delete druid message :{}",deleteMessage);
+				XxlJobLogger.log("delete table third command , sql : {}",table , resetRulesParam);
 				HttpClientUtils.httpPost(resetRulesUrl+table, resetRulesParam);
+				
+				XxlJobLogger.log("delete druid message :{}",deleteMessage);
 			});
 		} catch (BusinessException be) {
 			be.printStackTrace();
