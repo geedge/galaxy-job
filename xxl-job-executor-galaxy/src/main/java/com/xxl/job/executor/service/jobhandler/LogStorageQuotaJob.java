@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.google.common.base.Splitter;
@@ -49,18 +50,18 @@ public class LogStorageQuotaJob {
 	private static List<String> trafficTableList;
 	private static List<String> analyticTableList;
 
-	static {
-		 trafficServer = DeletionConfig.trafficServer;
-		 trafficDataSource = DeletionConfig.trafficDataSource;
-		 trafficTableNames = DeletionConfig.trafficTableNames;
-		 trafficUserName = DeletionConfig.trafficUserName;
-		 trafficPassword = DeletionConfig.trafficPassword;
-		 clusterName = DeletionConfig.clusterName;
-		 
-		 analyticServer = DeletionConfig.analyticServer;
-		 selectAnalyticServer = DeletionConfig.selectAnalyticServer;//用于查询
-		 
-		 trafficTableList = Splitter.on(",").trimResults().splitToList(trafficTableNames);
+	@Autowired
+	public LogStorageQuotaJob(DeletionConfig deletionConfig) {
+		trafficServer = deletionConfig.trafficServer;
+		trafficDataSource = deletionConfig.trafficDataSource;
+		trafficTableNames = deletionConfig.trafficTableNames;
+		trafficUserName = deletionConfig.trafficUserName;
+		trafficPassword = deletionConfig.trafficPassword;
+		clusterName = deletionConfig.clusterName;
+
+		analyticServer = deletionConfig.analyticServer;
+		selectAnalyticServer = deletionConfig.selectAnalyticServer;//用于查询
+		trafficTableList = Splitter.on(",").trimResults().splitToList(trafficTableNames);
 	}
 	/**
 	  * 设置流量日志存储策略储
