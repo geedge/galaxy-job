@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.xxl.job.core.biz.model.ReturnT;
@@ -31,7 +30,7 @@ import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
 import com.zdjizhi.utils.TimeConstants;
-
+@SuppressWarnings({ "unchecked", "rawtypes" })
 @Component
 public class LogStorageQuotaJob {
 	
@@ -41,7 +40,6 @@ public class LogStorageQuotaJob {
 	private static String trafficDataSource;
 	private static String trafficUserName;
 	private static String trafficPassword;
-	private static String trafficTableNames;
 	
 	private static String clusterName = "ck_cluster";//clickhouse集群名称
 	
@@ -54,14 +52,12 @@ public class LogStorageQuotaJob {
 	public LogStorageQuotaJob(DeletionConfig deletionConfig) {
 		trafficServer = deletionConfig.trafficServer;
 		trafficDataSource = deletionConfig.trafficDataSource;
-		trafficTableNames = deletionConfig.trafficTableNames;
 		trafficUserName = deletionConfig.trafficUserName;
 		trafficPassword = deletionConfig.trafficPassword;
 		clusterName = deletionConfig.clusterName;
 
 		analyticServer = deletionConfig.analyticServer;
 		selectAnalyticServer = deletionConfig.selectAnalyticServer;//用于查询
-		trafficTableList = Splitter.on(",").trimResults().splitToList(trafficTableNames);
 	}
 	/**
 	  * 设置流量日志存储策略储
@@ -80,7 +76,7 @@ public class LogStorageQuotaJob {
 			String suffixDeleteSql =" ON CLUSTER "+clusterName+" DROP PARTITION ";
 			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays")))));
 			
-			getAnalyticTables().forEach(table->{
+			getTrafficTables().forEach(table->{
 				//查询所有小于设定时间的分区
 				deleteParamMap.put("query", "SELECT `partition` from `system`.parts WHERE table = '" + table + "' AND `partition` < '"+deleteMaxDate+"' FORMAT JSON;");
 				String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(url, deleteParamMap));
@@ -175,7 +171,7 @@ public class LogStorageQuotaJob {
 			
 			String suffixDeleteSql = " ON CLUSTER " + clusterName;
 			
-			trafficTableList.forEach(table->{
+			getTrafficTables().forEach(table->{
 				deleteParamMap.put("query", prefixDeleteSql+ table +suffixDeleteSql);
 				XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql+ table +suffixDeleteSql);
 				String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
@@ -433,5 +429,25 @@ public class LogStorageQuotaJob {
 			analyticTableList = tableList;
 		}
 		return analyticTableList;
+	}
+	/**
+	 * 查询clickhouse 需要删除的表
+	 * @return List<String>
+	 */
+	private List<String> getTrafficTables() {
+		//查询特定的表名
+		List<String> tableList = Lists.newArrayList();
+		if(trafficTableList==null) {
+			Map<String, Object> deleteParamMap = getDeleteSource();
+			String url = "http://"+trafficServer;
+			deleteParamMap.put("query", "SELECT name FROM `system`.tables WHERE database = '"+ trafficDataSource +"' AND engine in  ('MergeTree','ReplicatedMergeTree') FORMAT JSON;");
+			String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(url, deleteParamMap));
+			
+			Map httpGetResultMap = (Map) JsonMapper.fromJsonString(httpGetResult, Map.class);
+			List<Map> list = (List) httpGetResultMap.get("data");
+			list.forEach(map->tableList.addAll(map.values()));
+			trafficTableList = tableList;
+		}
+		return trafficTableList;
 	}
 }

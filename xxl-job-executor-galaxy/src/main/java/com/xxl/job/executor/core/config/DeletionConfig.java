@@ -10,7 +10,6 @@ public class DeletionConfig {
 	public static String trafficDataSource;
 	public static String trafficUserName;
 	public static String trafficPassword;
-	public static String trafficTableNames;
 	public static String clusterName = "ck_cluster";
 	
 	public static String analyticServer;
@@ -45,13 +44,6 @@ public class DeletionConfig {
 	public void setTrafficPassword(String trafficPassword) {
 		DeletionConfig.trafficPassword = trafficPassword;
 	}
-	public String getTrafficTableNames() {
-		return trafficTableNames;
-	}
-	@Value("${delete.traffic.tablenames}")
-	public void setTrafficTableNames(String trafficTableNames) {
-		DeletionConfig.trafficTableNames = trafficTableNames;
-	}
 	public String getAnalyticServer() {
 		return analyticServer;
 	}
@@ -77,7 +69,7 @@ public class DeletionConfig {
 	public String toString() {
 		return "DeletionConfig [getTrafficServer()=" + getTrafficServer() + ", getTrafficDataSource()="
 				+ getTrafficDataSource() + ", getTrafficUserName()=" + getTrafficUserName() + ", getTrafficPassword()="
-				+ getTrafficPassword() + ", getTrafficTableNames()=" + getTrafficTableNames() + ", getAnalyticServer()="
+				+ getTrafficPassword() + ", getAnalyticServer()="
 				+ getAnalyticServer() + ", getSelectAnalyticServer()=" + getSelectAnalyticServer() + "]";
 	}
 	

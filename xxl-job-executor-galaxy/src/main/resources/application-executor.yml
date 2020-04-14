@@ -26,7 +26,6 @@ delete:
   traffic:
     server: 192.168.40.224:8123
     password: ceiec2019
-    tablenames: active_defence_event_log_local,connection_record_log_common_client_ip,connection_record_log_common_server_ip,connection_record_log_common_subscriber_id,connection_record_log_http_domain,connection_record_log_local,proxy_event_log_local,radius_onff_log_local,radius_record_log_local,security_event_log_local,sys_packet_capture_log_local
     datasource: tsg_galaxy_v3
     username: default
 ##存储配额druid查询地址
