@@ -14,7 +14,7 @@ storge:
     server: 192.168.40.224:8082
 ## 存储配额查询 clickhouse
   traffic:
-    server: 192.168.40.224
+    server: 192.168.40.224:8123
     username: default
     password: ceiec2019
     

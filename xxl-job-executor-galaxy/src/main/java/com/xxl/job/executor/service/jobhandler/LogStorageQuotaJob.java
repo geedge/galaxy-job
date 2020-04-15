@@ -274,10 +274,9 @@ public class LogStorageQuotaJob {
 	/**
 	 * 本地服务器调用脚本实现
 	 * @param params 
-	 * {"scriptName":"diskUseSum.sh",//调用的脚本
-	 * "topic":"SYS-STORAGE-LOG",//脚本推送到kafka的topic
-	 * "destDirectory":"/usr/local/storge/",//脚本需要部署的服务器目录
-	 * "sourceZipFile":"/config/script/storge.zip"}//源脚本放置的位置
+	 * {"topic":"SYS-STORAGE-LOG",//脚本推送到kafka的topic
+	 * "scriptFile":"/scritp/storge/xxx.sh",//调用的脚本
+	 * "updateScript":"false"} //更新脚本参数
 	 */
 	@XxlJob("getStorageQuotaJobHandler")
 	public ReturnT<String> getStorageQuotaJobHandler (String params) {
@@ -285,33 +284,39 @@ public class LogStorageQuotaJob {
 			int exitValue = -1;//表示命令执行结果：0 成功，其它值失败
 	        try {
 	        	Map<String, Object> paramsMap = validParams(params);
-	        	//脚本解压目录
-	        	String destDirectory = String.valueOf(paramsMap.get("destDirectory"));
-				//脚本文件带路径
-				String scriptFile = destDirectory + paramsMap.get("scriptName");
-				// updateScript 为true 的时候更新脚本文件，默认falsee
-				String updateScript = String.valueOf(paramsMap.get("updateScript"));
+				//脚本路径+文件名
+				String scriptFile =new File("").getCanonicalPath() + paramsMap.get("scriptFile");
+				if(!FileApplication.isExist(scriptFile)) {
+					XxlJobLogger.log("Script file does not exist !");
+					return ReturnT.FAIL;
+				}
+				//脚本文件目录
+				String scriptDirectory = new File(scriptFile).getParent()+File.separator;
 				
-				if(!FileApplication.isExist(scriptFile)||"true".equals(updateScript)) {
-					//源压缩文件
-					String sourceFile = new File("").getCanonicalPath() + paramsMap.get("sourceZipFile");
-					boolean unZipFiles = FileApplication.unZipFiles(sourceFile, new File(destDirectory).getParent());
-					XxlJobLogger.log("unzip file success: {}", unZipFiles);
+				Process catcommands = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c",StorgeConfig.getDeployScriptCommand(scriptDirectory)});
+				String deplopMessage = getProcessMessage(catcommands.getInputStream(), "UTF-8");
+				XxlJobLogger.log("script deploy {} ",deplopMessage);
+				catcommands.waitFor();
+				exitValue = catcommands.exitValue();
+				if (exitValue != 0) {
+		            return new ReturnT<String>(IJobHandler.FAIL.getCode(), "deploy script file command exit value("+exitValue+") is failed");
+		        }
+				//更新脚本参数，并分配权限
+				if("true".equals(String.valueOf(paramsMap.get("updateScript")))||"no".equals(deplopMessage)) {
 					//开通权限,修改配置文件
-					String[] commands  = new String[]{"/bin/sh","-c",StorgeConfig.getStorgeConfigCommand(destDirectory)};
+					String[] commands  = new String[]{"/bin/sh","-c",StorgeConfig.getStorgeConfigCommand(scriptDirectory)};
 					Process chmodProcess = Runtime.getRuntime().exec(commands);
-					XxlJobLogger.log("chmod command ! ");
+					XxlJobLogger.log("Update parameters and chmod command ! ");
 					
 					chmodProcess.waitFor();
 					exitValue = chmodProcess.exitValue();
 					if (exitValue != 0) {
-			            return new ReturnT<String>(IJobHandler.FAIL.getCode(), "upload script file command exit value("+exitValue+") is failed");
+			            return new ReturnT<String>(IJobHandler.FAIL.getCode(), "Update script file command exit value("+exitValue+") is failed");
 			        }
 				}
 	        	
 	            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c",scriptFile});
 	            String execResult = getProcessMessage(process.getInputStream(), "UTF-8");
-	            logger.info("script run result：{}",execResult);
 	            XxlJobLogger.log(execResult);
 	            // command exit
 	            process.waitFor();
@@ -326,15 +331,15 @@ public class LogStorageQuotaJob {
 	            new KafkaUtils().sendMessage(String.valueOf(paramsMap.get("topic")), (List<Object>) resultMap.get("data"));
 	            XxlJobLogger.log("Send message to kafka, topic is {}", paramsMap.get("topic"));
 	            //脚本查询存在问题会返回fail
-	            if("fail".contains(execResult)) {
+	            if(execResult.contains("fail")) {
 	            	return new ReturnT<String>(IJobHandler.FAIL.getCode(), "script query error "+resultMap.get("status"));
 	        	}
 	        } catch (BusinessException be) {
-				logger.error("调用脚本发送到kafka发生错误：{}", be.getErrorMessage());
+				logger.error("script run error：{}", be.getErrorMessage());
 				XxlJobLogger.log(be.getErrorMessage());
 				return IJobHandler.FAIL;
 			} catch (Exception e) {
-	        	logger.error("调用脚本发送到kafka发生错误：{}", e.getMessage());
+	        	logger.error("script run error：{}", e.getMessage());
 	            XxlJobLogger.log(e);
 	            return IJobHandler.FAIL;
 	        }
@@ -345,6 +350,7 @@ public class LogStorageQuotaJob {
 	            return new ReturnT<String>(IJobHandler.FAIL.getCode(), "command exit value("+exitValue+") is failed");
 	        }
 	}
+	
 	/**
 	 *  数据库连接参数
 	 * @return map
@@ -449,5 +455,10 @@ public class LogStorageQuotaJob {
 			trafficTableList = tableList;
 		}
 		return trafficTableList;
+	}
+	public static void main(String[] args) throws IOException {
+		String s = new File("").getCanonicalPath() + "/script/storge/ckDayDisk.sh";
+		String storgeConfigCommand = StorgeConfig.getStorgeConfigCommand(new File(s).getParent());
+		System.out.println(storgeConfigCommand);
 	}
 }

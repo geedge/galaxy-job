@@ -19,9 +19,12 @@ public class StorgeConfig {
 	/**
 	 * 获取修改存储配额脚本参数命令
 	 * @param scriptDirectory 脚本所在文件绝对路径
+	 * DEPLOY=yes 标识脚本的第一次部署已经没了
 	 */
 	public static String getStorgeConfigCommand (String scriptDirectory) {
 		StringBuffer sb = new StringBuffer();
+		sb.append("sed -i \"s%DEPLOY=no%DEPLOY=yes%g\" "+scriptDirectory+"*.sh;");
+		sb.append("sed -i \"s%BASE_DIR=.*%BASE_DIR="+scriptDirectory+"%g\" "+scriptDirectory+"*.sh;");
 		sb.append("sed -i \"s%TRAFFIC_SERVER=.*%TRAFFIC_SERVER="+StorgeConfig.storgeTrafficServer+"%g\" "+scriptDirectory+"*.sh;");
 		sb.append("sed -i \"s%TRAFFIC_USERNAME=.*%TRAFFIC_USERNAME="+StorgeConfig.storgeTrafficUsername+"%g\" "+scriptDirectory+"*.sh;");
 		sb.append("sed -i \"s%TRAFFIC_PASSWORD=.*%TRAFFIC_PASSWORD="+StorgeConfig.storgeTrafficPassword+"%g\" "+scriptDirectory+"*.sh;");
@@ -30,7 +33,17 @@ public class StorgeConfig {
 		sb.append("chmod -R +x "+scriptDirectory+";");
 		return sb.toString();
 	}
-
+	/**
+	 * 判断是否已经部署过脚步，并修改了参数
+	 * @return
+	 */
+	public static String getDeployScriptCommand (String scriptDirectory) {
+		StringBuffer sb = new StringBuffer();
+		sb.append("cat "+scriptDirectory+"*.sh|grep DEPLOY=yes||echo no;");
+		
+		return sb.toString();
+				
+	}
 	public String getStorgeTrafficServer() {
 		return storgeTrafficServer;
 	}

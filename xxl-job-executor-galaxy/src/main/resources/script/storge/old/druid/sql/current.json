@@ -1,0 +1,1 @@
+{"query" : "SELECT SUM(curr_size) AS curr_size , SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'"}

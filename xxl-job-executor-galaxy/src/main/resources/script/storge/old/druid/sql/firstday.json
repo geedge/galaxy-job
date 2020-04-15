@@ -1,0 +1,1 @@
+{"query" : "SELECT \"start\" FROM sys.segments order by \"start\" limit 1"}

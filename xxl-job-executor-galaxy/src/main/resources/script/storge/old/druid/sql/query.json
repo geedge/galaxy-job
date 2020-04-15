@@ -1,0 +1,1 @@
+{"query" : "SELECT COUNT(\"days\") AS days FROM (SELECT DISTINCT(\"start\") AS days FROM sys.segments)"}
