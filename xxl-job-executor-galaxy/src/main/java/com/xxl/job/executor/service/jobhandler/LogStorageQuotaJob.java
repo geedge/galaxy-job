@@ -134,10 +134,10 @@ public class LogStorageQuotaJob {
 			
 			getAnalyticTables().forEach(table->{
 				
-				XxlJobLogger.log("delete first command :{}",changeRulesParam);
+				XxlJobLogger.log("delete first command table :{}, sql : {}",table,changeRulesParam);
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				
-				XxlJobLogger.log("delete second command :{}",prefixDeleteParam+table+suffixDeleteParam);
+				XxlJobLogger.log("delete second command table :{}, sql : {}",table,prefixDeleteParam+table+suffixDeleteParam);
 				String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+table+suffixDeleteParam);
 				XxlJobLogger.log("delete result message :{}",deleteMessage);
 			});
@@ -219,7 +219,7 @@ public class LogStorageQuotaJob {
 				//每个表限制操作时间五分钟，开始计时
 				long startTime = System.currentTimeMillis();
 				long endTime = startTime + 1000*60*5;
-				XxlJobLogger.log("delete table first command , sql : {}",table , changeRulesParam);
+				XxlJobLogger.log("delete table first command table :{}, sql : {}",table , changeRulesParam);
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				try {
 					//查询表数据是否删除 固定key EXPR$0
@@ -249,9 +249,9 @@ public class LogStorageQuotaJob {
 					XxlJobLogger.log(" query error {}",e.getErrorMessage());
 				}
 				
-				XxlJobLogger.log("delete table second command , sql : {}",table , prefixDeleteParam+ table +suffixDeleteParam);
+				XxlJobLogger.log("delete table second command table :{}, sql : {}",table , prefixDeleteParam+ table +suffixDeleteParam);
 				String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+ table +suffixDeleteParam);
-				XxlJobLogger.log("delete table third command , sql : {}",table , resetRulesParam);
+				XxlJobLogger.log("delete table third command table :{}, sql : {}",table , resetRulesParam);
 				HttpClientUtils.httpPost(resetRulesUrl+table, resetRulesParam);
 				
 				XxlJobLogger.log("delete druid message :{}",deleteMessage);
@@ -455,10 +455,5 @@ public class LogStorageQuotaJob {
 			trafficTableList = tableList;
 		}
 		return trafficTableList;
-	}
-	public static void main(String[] args) throws IOException {
-		String s = new File("").getCanonicalPath() + "/script/storge/ckDayDisk.sh";
-		String storgeConfigCommand = StorgeConfig.getStorgeConfigCommand(new File(s).getParent());
-		System.out.println(storgeConfigCommand);
 	}
 }
