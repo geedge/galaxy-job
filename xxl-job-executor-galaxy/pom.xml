@@ -165,8 +165,12 @@
                             <include>**/*.yml</include>
                         </resource>
                         <resource>
-                            <targetPath>/script</targetPath>
-                            <directory>${project.build.directory}/classes/script/</directory>
+
+
+                            <targetPath>/</targetPath>
+                            <directory>${project.build.directory}/classes/</directory>
+                            <include>script/**</include>
+
                         </resource>
                     </resources>
                 </configuration>
