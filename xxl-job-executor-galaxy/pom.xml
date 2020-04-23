@@ -5,7 +5,7 @@
     <parent>
         <artifactId>xxl-job</artifactId>
         <groupId>com.xuxueli</groupId>
-        <version>2.2.0-SNAPSHOT</version>
+        <version>2.2.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -24,7 +24,7 @@
     </repositories>
 
     <properties>
-        <xxl-job-core.version>2.1.2</xxl-job-core.version>
+        <xxl-job-core.version>2.2.0</xxl-job-core.version>
         <galaxy.version>1.0.2</galaxy.version>
         <httpclient.version>4.5.6</httpclient.version>
         <lombok.version>1.16.20</lombok.version>
@@ -146,9 +146,9 @@
                         <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73</JDK_IMAGE>
                         <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
                     </buildArgs>
-                    <imageTags>
-                        <imageTag>1.0</imageTag>
-                    </imageTags>
+<!--                     <imageTags> -->
+<!--                         <imageTag>1.0</imageTag> -->
+<!--                     </imageTags> -->
 
                     <!--将构建jar拷贝到/target/docker 目录下与dockerfile一起-->
                     <resources>
@@ -165,9 +165,12 @@
                             <include>**/*.yml</include>
                         </resource>
                         <resource>
+
+
                             <targetPath>/</targetPath>
                             <directory>${project.build.directory}/classes/</directory>
                             <include>script/**</include>
+
                         </resource>
                     </resources>
                 </configuration>

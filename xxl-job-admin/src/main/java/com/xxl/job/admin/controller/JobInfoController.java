@@ -1,17 +1,21 @@
 package com.xxl.job.admin.controller;
 
+import com.xxl.job.admin.core.conf.XxlJobAdminConfig;
 import com.xxl.job.admin.core.cron.CronExpression;
 import com.xxl.job.admin.core.exception.XxlJobException;
 import com.xxl.job.admin.core.model.XxlJobGroup;
 import com.xxl.job.admin.core.model.XxlJobInfo;
 import com.xxl.job.admin.core.model.XxlJobUser;
 import com.xxl.job.admin.core.route.ExecutorRouteStrategyEnum;
+import com.xxl.job.admin.core.scheduler.XxlJobScheduler;
 import com.xxl.job.admin.core.thread.JobTriggerPoolHelper;
 import com.xxl.job.admin.core.trigger.TriggerTypeEnum;
 import com.xxl.job.admin.core.util.I18nUtil;
 import com.xxl.job.admin.dao.XxlJobGroupDao;
 import com.xxl.job.admin.service.LoginService;
 import com.xxl.job.admin.service.XxlJobService;
+import com.xxl.job.core.biz.ExecutorBiz;
+import com.xxl.job.core.biz.model.IdleBeatParam;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.enums.ExecutorBlockStrategyEnum;
 import com.xxl.job.core.glue.GlueTypeEnum;
@@ -132,13 +136,13 @@ public class JobInfoController {
 	@RequestMapping("/trigger")
 	@ResponseBody
 	//@PermissionLimit(limit = false)
-	public ReturnT<String> triggerJob(int id, String executorParam) {
+	public ReturnT<String> triggerJob(int id, String executorParam, String addressList) {
 		// force cover job param
 		if (executorParam == null) {
 			executorParam = "";
 		}
 
-		JobTriggerPoolHelper.trigger(id, TriggerTypeEnum.MANUAL, -1, null, executorParam);
+		JobTriggerPoolHelper.trigger(id, TriggerTypeEnum.MANUAL, -1, null, executorParam, addressList);
 		return ReturnT.SUCCESS;
 	}
 
@@ -162,5 +166,28 @@ public class JobInfoController {
 		}
 		return new ReturnT<List<String>>(result);
 	}
-	
+	@RequestMapping("/jobBeat")
+	@ResponseBody
+//	@PermissionLimit(limit = false)
+	public ReturnT<String> jobBeat(Integer jobId) {
+		if(jobId==null) {
+			return new ReturnT<String>(ReturnT.FAIL_CODE, "jobId is null");
+		}
+		try {
+			
+			XxlJobInfo jobInfo = XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().loadById(jobId);
+			XxlJobGroup group = XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().load(jobInfo.getJobGroup());
+			String address = group.getRegistryList().get(0);
+			if (address != null) {
+				ExecutorBiz executorBiz = XxlJobScheduler.getExecutorBiz(address);
+				return executorBiz.idleBeat(new IdleBeatParam(jobId));
+			} else {
+				return new ReturnT<String>(ReturnT.FAIL_CODE, "executor address is empty");
+	        }
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ReturnT<String>(ReturnT.FAIL_CODE, e.getMessage());
+		}
+        
+	}
 }
