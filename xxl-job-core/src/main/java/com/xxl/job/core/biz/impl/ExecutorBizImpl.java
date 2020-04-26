@@ -38,7 +38,7 @@ public class ExecutorBizImpl implements ExecutorBiz {
         }
 
         if (isRunningOrHasQueue) {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "job thread is running or has trigger queue.");
+            return new ReturnT<String>(ReturnT.LOCKED_CODE, "job thread is running or has trigger queue.");
         }
         return ReturnT.SUCCESS;
     }

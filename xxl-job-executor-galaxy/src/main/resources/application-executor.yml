@@ -27,10 +27,5 @@ delete:
     server: 192.168.40.224:8123
     password: ceiec2019
     datasource: tsg_galaxy_v3
-    username: default
-##存储配额druid查询地址
-select: 
-  analytic: 
-    server: 192.168.40.224:8082
-    
+    username: default    
     
