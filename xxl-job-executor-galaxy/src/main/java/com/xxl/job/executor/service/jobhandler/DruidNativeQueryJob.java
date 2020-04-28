@@ -13,6 +13,7 @@ import com.xxl.job.executor.pojo.DruidNativeQueryToKafkaParam;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
 import io.netty.handler.codec.http.HttpMethod;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,18 +115,26 @@ public class DruidNativeQueryJob {
         }
         String queryRequestJson = JsonMapper.toJsonString(druidNativeToKafkaParamObject.get("requestBody"));
         DruidNativeParam druidNativeParam = (DruidNativeParam)JsonMapper.fromJsonString(queryRequestJson, DruidNativeParam.class);
-        //获取当前时间，按五分钟取整，向前推五分钟，再取五分钟间隔
-        long currentTime = new Date().getTime();
-        Interval interval = new Interval(currentTime/(60*5*1000)*60*5*1000 - 5*60*1000, currentTime/(60*5*1000)*60*5*1000);
-
-        ArrayList<Object> intervalList = new ArrayList<>();
-        intervalList.add(interval.toString());
-        druidNativeParam.setIntervals(intervalList);
+        druidNativeParam.setIntervals(getIntervalList());
         druidNativeToKafkaParamObject.put("requestBody",druidNativeParam);
         DruidNativeQueryToKafkaParam druidNativeToKafkaParam =
                 (DruidNativeQueryToKafkaParam)JsonMapper.fromJsonString(JsonMapper.toJsonString(druidNativeToKafkaParamObject), DruidNativeQueryToKafkaParam.class);
         return druidNativeToKafkaParam;
 
+    }
+
+    /**
+     * 获取本次查询时间范围
+     */
+    private List<Object> getIntervalList(){
+        //获取当前时间，按小时取整，再取24小时间隔
+        long currentTime = new Date().getTime();
+        long startTime =  currentTime/(60*60*1000) * 60*60*1000 - 60*60*24*1000;
+        long endTime = currentTime/(60*60*1000) * 60*60*1000;
+        Interval interval = new Interval(startTime,endTime, DateTimeZone.UTC);
+        ArrayList<Object> intervalList = new ArrayList<>();
+        intervalList.add(interval.toString());
+        return intervalList;
     }
 
     /**
@@ -137,11 +146,14 @@ public class DruidNativeQueryJob {
         ArrayList<Object> resultLst = new ArrayList<>();
         ArrayList<Object> lst = (ArrayList<Object>)JsonMapper.fromJsonString(resultMessage, Object.class);
         Map<String, Object> resultMap = (Map<String, Object>) lst.get(0);
-        Object timestamp = resultMap.get("timestamp");
+//        Object timestamp = resultMap.get("timestamp");
         ArrayList<Object> resultRowLst = (ArrayList<Object>) resultMap.get("result");
+        String interval = (String)getIntervalList().get(0);
+        String statTime = interval.split("/")[1];
         for (Object rowObj: resultRowLst){
             DruidNativeQueryResultParam row = (DruidNativeQueryResultParam)JsonMapper.fromJsonString(JsonMapper.toJsonString(rowObj), DruidNativeQueryResultParam.class);
-            row.setStat_time(timestamp.toString());
+            row.setStat_time(statTime);
+//            row.setStat_time(timestamp.toString());
             resultLst.add(row);
         }
         return resultLst;
