@@ -168,7 +168,6 @@ public class JobInfoController {
 	}
 	@RequestMapping("/jobBeat")
 	@ResponseBody
-//	@PermissionLimit(limit = false)
 	public ReturnT<String> jobBeat(Integer jobId) {
 		if(jobId==null) {
 			return new ReturnT<String>(ReturnT.FAIL_CODE, "jobId is null");
@@ -177,13 +176,15 @@ public class JobInfoController {
 			
 			XxlJobInfo jobInfo = XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().loadById(jobId);
 			XxlJobGroup group = XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().load(jobInfo.getJobGroup());
-			String address = group.getRegistryList().get(0);
-			if (address != null) {
+			//配置多个执行器地址时，只要有job工作或故障则返回500
+			for (String address : group.getRegistryList()) {
 				ExecutorBiz executorBiz = XxlJobScheduler.getExecutorBiz(address);
-				return executorBiz.idleBeat(new IdleBeatParam(jobId));
-			} else {
-				return new ReturnT<String>(ReturnT.FAIL_CODE, "executor address is empty");
-	        }
+				ReturnT<String> results = executorBiz.idleBeat(new IdleBeatParam(jobId));
+				if(results.getCode()!=ReturnT.SUCCESS_CODE) {
+					return results;
+				}
+			}
+			return new ReturnT<String>(ReturnT.SUCCESS_CODE, "job idle");
 		} catch (Exception e) {
 			e.printStackTrace();
 			return new ReturnT<String>(ReturnT.FAIL_CODE, e.getMessage());

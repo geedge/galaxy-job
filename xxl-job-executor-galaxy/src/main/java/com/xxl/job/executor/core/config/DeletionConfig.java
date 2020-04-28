@@ -54,7 +54,7 @@ public class DeletionConfig {
 	public String getSelectAnalyticServer() {
 		return selectAnalyticServer;
 	}
-	@Value("${select.analytic.server}")
+	@Value("${storge.analytic.server}")
 	public void setSelectAnalyticServer(String selectAnalyticServer) {
 		DeletionConfig.selectAnalyticServer = selectAnalyticServer;
 	}

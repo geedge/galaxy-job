@@ -76,12 +76,11 @@
 			<artifactId>mysql-connector-java</artifactId>
 			<version>${mysql-connector-java.version}</version>
 		</dependency>
-
 		<!-- xxl-job-core -->
 		<dependency>
 			<groupId>com.xuxueli</groupId>
 			<artifactId>xxl-job-core</artifactId>
-			<version>2.2.0</version>
+			<version>${project.parent.version}</version>
 		</dependency>
 
 	</dependencies>
@@ -123,7 +122,7 @@
 						<JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
 					</buildArgs>
 					<imageTags>
-						<imageTag>1.0</imageTag>
+						<imageTag>v1.1.20200421</imageTag>
 					</imageTags>
 
 					<!--将构建jar拷贝到/target/docker 目录下与dockerfile一起-->
