@@ -131,7 +131,8 @@ public class DruidNativeQueryJob {
         long currentTime = new Date().getTime();
         long startTime =  currentTime/(60*60*1000) * 60*60*1000 - 60*60*24*1000;
         long endTime = currentTime/(60*60*1000) * 60*60*1000;
-        Interval interval = new Interval(startTime,endTime, DateTimeZone.UTC);
+        Interval interval = new Interval(startTime,endTime);
+//        Interval interval = new Interval(startTime,endTime, DateTimeZone.UTC);
         ArrayList<Object> intervalList = new ArrayList<>();
         intervalList.add(interval.toString());
         return intervalList;
