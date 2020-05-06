@@ -177,14 +177,17 @@ public class JobInfoController {
 			XxlJobInfo jobInfo = XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().loadById(jobId);
 			XxlJobGroup group = XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().load(jobInfo.getJobGroup());
 			//配置多个执行器地址时，只要有job工作或故障则返回500
+			boolean usable = false;
 			for (String address : group.getRegistryList()) {
 				ExecutorBiz executorBiz = XxlJobScheduler.getExecutorBiz(address);
 				ReturnT<String> results = executorBiz.idleBeat(new IdleBeatParam(jobId));
-				if(results.getCode()!=ReturnT.SUCCESS_CODE) {
+				if(results.getCode()==ReturnT.LOCKED_CODE) {
 					return results;
+				} else if(results.getCode()==ReturnT.SUCCESS_CODE) {
+					usable = true;
 				}
 			}
-			return new ReturnT<String>(ReturnT.SUCCESS_CODE, "job idle");
+			return usable?new ReturnT<String>(ReturnT.SUCCESS_CODE, "job idle"):new ReturnT<String>(ReturnT.FAIL_CODE, "job error");
 		} catch (Exception e) {
 			e.printStackTrace();
 			return new ReturnT<String>(ReturnT.FAIL_CODE, e.getMessage());
