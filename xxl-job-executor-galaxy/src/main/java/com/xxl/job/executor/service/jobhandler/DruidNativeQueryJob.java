@@ -15,6 +15,7 @@ import com.zdjizhi.utils.StringUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
+import org.joda.time.chrono.ISOChronology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -64,7 +65,10 @@ public class DruidNativeQueryJob {
                 return new ReturnT<String>(IJobHandler.FAIL.getCode(), "Http Client connection Error!");
             }
 
-            new KafkaUtils().sendMessage(druidNativeQueryToKafkaParam.getTopic(), formatDruidNativeQueryResult(resultMessage));
+//            if (resultMessage.equals("[ ]")){
+//                return ReturnT.SUCCESS;
+//            }
+            new KafkaUtils().sendMessage(druidNativeQueryToKafkaParam.getTopic(), formatDruidNativeQueryResult(resultMessage,druidNativeQueryToKafkaParam));
 
             XxlJobLogger.log("Send message to kafka, topic is {}", druidNativeQueryToKafkaParam.getTopic());
 
@@ -115,7 +119,8 @@ public class DruidNativeQueryJob {
         }
         String queryRequestJson = JsonMapper.toJsonString(druidNativeToKafkaParamObject.get("requestBody"));
         DruidNativeParam druidNativeParam = (DruidNativeParam)JsonMapper.fromJsonString(queryRequestJson, DruidNativeParam.class);
-        druidNativeParam.setIntervals(getIntervalList());
+        druidNativeParam.setIntervals(getIntervalList(druidNativeParam));
+        druidNativeParam.setGranularity("all");
         druidNativeToKafkaParamObject.put("requestBody",druidNativeParam);
         DruidNativeQueryToKafkaParam druidNativeToKafkaParam =
                 (DruidNativeQueryToKafkaParam)JsonMapper.fromJsonString(JsonMapper.toJsonString(druidNativeToKafkaParamObject), DruidNativeQueryToKafkaParam.class);
@@ -124,15 +129,46 @@ public class DruidNativeQueryJob {
     }
 
     /**
-     * 获取本次查询时间范围
+     * 根据传入的参数确定查询粒度以及范围，目前支持minute、hour、day级别粒度查询
+     * @param druidNativeParam
+     * @return
      */
-    private List<Object> getIntervalList(){
-        //获取当前时间，按小时取整，再取24小时间隔
+    private List<Object> getIntervalList(DruidNativeParam druidNativeParam){
+        String granularity = druidNativeParam.getGranularity();
         long currentTime = new Date().getTime();
-        long startTime =  currentTime/(60*60*1000) * 60*60*1000 - 60*60*24*1000;
-        long endTime = currentTime/(60*60*1000) * 60*60*1000;
-        Interval interval = new Interval(startTime,endTime);
+        long startTime = 0L;
+        long endTime = 0L;
+        String initIntervalStr = druidNativeParam.getIntervals().get(0).toString();
+        if (StringUtil.isBlank(initIntervalStr)){
+            XxlJobLogger.log("intervals is empty ! ");
+            return null;
+        }
+        Interval initInterval = new Interval(initIntervalStr);
+        long intervalLong = initInterval.getEndMillis()-initInterval.getStartMillis();
+
+        if (StringUtil.isBlank(granularity)){
+            XxlJobLogger.log("granularity is empty ! ");
+            return null;
+        }
+        switch (granularity){
+            case "minute":
+                startTime = currentTime/(60*1000) * 60*1000 - intervalLong;
+                endTime = currentTime/(60*1000) * 60*1000;
+                break;
+            case "hour":
+                startTime = currentTime/(60*60*1000) * 60*60*1000 - intervalLong;
+                endTime = currentTime/(60*60*1000) * 60*60*1000;
+                break;
+            case "day":
+                startTime = currentTime/(60*60*24*1000) * 60*60*24*1000 - intervalLong;
+                endTime = currentTime/(60*60*24*1000) * 60*60*24*1000;
+                break;
+            default:
+                XxlJobLogger.log("Could not resolve type id {} into a subtype of granularity,known type ids = [minute,hour,day]",granularity);
+                return null;
+        }
 //        Interval interval = new Interval(startTime,endTime, DateTimeZone.UTC);
+        Interval interval = new Interval(startTime,endTime);
         ArrayList<Object> intervalList = new ArrayList<>();
         intervalList.add(interval.toString());
         return intervalList;
@@ -143,18 +179,27 @@ public class DruidNativeQueryJob {
      * @param resultMessage
      * @return
      */
-    private List<Object> formatDruidNativeQueryResult(String resultMessage){
-        ArrayList<Object> resultLst = new ArrayList<>();
+    private List<Object> formatDruidNativeQueryResult(String resultMessage,DruidNativeQueryToKafkaParam druidNativeQueryToKafkaParam){
+        if (resultMessage.equals("[ ]")){
+            return new ArrayList<>();
+        }
+        //从json数组中解析出结果集
         ArrayList<Object> lst = (ArrayList<Object>)JsonMapper.fromJsonString(resultMessage, Object.class);
         Map<String, Object> resultMap = (Map<String, Object>) lst.get(0);
-//        Object timestamp = resultMap.get("timestamp");
         ArrayList<Object> resultRowLst = (ArrayList<Object>) resultMap.get("result");
-        String interval = (String)getIntervalList().get(0);
-        String statTime = interval.split("/")[1];
+
+        //获取当前查询时间
+        Map<String, Object> requestBody = druidNativeQueryToKafkaParam.getRequestBody();
+        ArrayList<Object> intervalLst = (ArrayList<Object>) requestBody.get("intervals");
+        String intervalStr = intervalLst.get(0).toString();
+        Interval interval = new Interval(intervalStr, ISOChronology.getInstance(DateTimeZone.UTC));
+        String statTime = interval.getEnd().toString();
+
+        //组装最终结果集
+        ArrayList<Object> resultLst = new ArrayList<>();
         for (Object rowObj: resultRowLst){
             DruidNativeQueryResultParam row = (DruidNativeQueryResultParam)JsonMapper.fromJsonString(JsonMapper.toJsonString(rowObj), DruidNativeQueryResultParam.class);
             row.setStat_time(statTime);
-//            row.setStat_time(timestamp.toString());
             resultLst.add(row);
         }
         return resultLst;
