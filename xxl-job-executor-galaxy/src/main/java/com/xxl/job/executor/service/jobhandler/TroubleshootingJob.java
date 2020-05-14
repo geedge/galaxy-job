@@ -7,6 +7,7 @@ import com.xxl.job.core.log.XxlJobLogger;
 import com.xxl.job.core.util.ShardingUtil;
 import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -27,13 +28,13 @@ public class TroubleshootingJob {
 
     @XxlJob("commandJobHandler")
     public ReturnT<String> commandJobHandler(String param) throws Exception {
-        String command = param;
         int exitValue = -1;
 
         BufferedReader bufferedReader = null;
         try {
+        	String[] commands = {"/bin/sh","-c",param};
             // command process
-            Process process = Runtime.getRuntime().exec(command);
+            Process process = Runtime.getRuntime().exec(commands);
             BufferedInputStream bufferedInputStream = new BufferedInputStream(process.getInputStream());
             bufferedReader = new BufferedReader(new InputStreamReader(bufferedInputStream));
 

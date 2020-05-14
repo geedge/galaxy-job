@@ -108,7 +108,7 @@ fi
 
 #获取存储天数
 function ck_days(){
-days=`echo "SELECT COUNT(DISTINCT(partition)) FROM parts WHERE database = 'tsg_galaxy_v3' AND partition != '19700101'" | curl 'http://'$TRAFFIC_USERNAME':'$TRAFFIC_PASSWORD'@'$TRAFFIC_SERVER'/?database=system' --data-binary @-`
+days=`echo "SELECT COUNT(DISTINCT(partition)) FROM parts WHERE database = 'tsg_galaxy_v3' AND partition > '20000101'" | curl 'http://'$TRAFFIC_USERNAME':'$TRAFFIC_PASSWORD'@'$TRAFFIC_SERVER'/?database=system' --data-binary @-`
 if [ $days -gt "0" ];then
         echo $days > $BASE_DIR/old/clickhouse/days
         clickhouse_days="success"
@@ -127,7 +127,7 @@ fi
 
 #获取第一天存储时间
 function ck_firstday(){
-firstday=`echo "SELECT DISTINCT(partition) FROM parts WHERE database = 'tsg_galaxy_v3' AND partition != '19700101' ORDER BY partition limit 1" | curl 'http://'$TRAFFIC_USERNAME':'$TRAFFIC_PASSWORD'@'$TRAFFIC_SERVER'/?database=system' --data-binary @-`
+firstday=`echo "SELECT DISTINCT(partition) FROM parts WHERE database = 'tsg_galaxy_v3' AND partition > '20000101' ORDER BY partition limit 1" | curl 'http://'$TRAFFIC_USERNAME':'$TRAFFIC_PASSWORD'@'$TRAFFIC_SERVER'/?database=system' --data-binary @-`
 ck_stamp=`date -d $firstday +%s`
 is=$?
 if [ $is -eq "0" ];then
