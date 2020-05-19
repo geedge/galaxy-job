@@ -47,6 +47,10 @@ public class LogStorageQuotaJob {
 	private static String selectAnalyticServer;
 	private static List<String> trafficTableList;
 	private static List<String> analyticTableList;
+	
+	private static final String DELETE_START_TIME = "2000-01-01";//durid 清库的起始时间
+	private static final String CHARTSET_UTF8 = "UTF-8";//durid 清库的起始时间
+	
 
 	@Autowired
 	public LogStorageQuotaJob(DeletionConfig deletionConfig) {
@@ -128,9 +132,9 @@ public class LogStorageQuotaJob {
 			//物理删除除
 			String deleteUrl = "http://"+analyticServer+"/druid/indexer/v1/task";
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
-			//1970-01-01/当前时间-maxDay
+			//起始时间/当前时间-maxDay
 			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-			String suffixDeleteParam = "\",\"interval\":\"1970-01-01/"+deleteMaxDate+"\"}";
+			String suffixDeleteParam = "\",\"interval\":\""+DELETE_START_TIME+"/"+deleteMaxDate+"\"}";
 			
 			getAnalyticTables().forEach(table->{
 				
@@ -208,7 +212,7 @@ public class LogStorageQuotaJob {
 			//物理删除所有数据
 			String deleteUrl ="http://"+ analyticServer +"/druid/indexer/v1/task";
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
-			String suffixDeleteParam = "\",\"interval\":\"1970-01-01/"+DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1)+"\"}";
+			String suffixDeleteParam = "\",\"interval\":\""+DELETE_START_TIME+"/"+DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1)+"\"}";
 			
 			//恢复加载规则
 			String resetRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
@@ -294,7 +298,7 @@ public class LogStorageQuotaJob {
 				String scriptDirectory = new File(scriptFile).getParent()+File.separator;
 				
 				Process catcommands = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c",StorgeConfig.getDeployScriptCommand(scriptDirectory)});
-				String deplopMessage = getProcessMessage(catcommands.getInputStream(), "UTF-8");
+				String deplopMessage = getProcessMessage(catcommands.getInputStream(), CHARTSET_UTF8);
 				XxlJobLogger.log("script deploy {} ",deplopMessage);
 				catcommands.waitFor();
 				exitValue = catcommands.exitValue();
@@ -316,7 +320,7 @@ public class LogStorageQuotaJob {
 				}
 	        	
 	            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c",scriptFile});
-	            String execResult = getProcessMessage(process.getInputStream(), "UTF-8");
+	            String execResult = getProcessMessage(process.getInputStream(), CHARTSET_UTF8);
 	            XxlJobLogger.log(execResult);
 	            // command exit
 	            process.waitFor();
@@ -395,7 +399,7 @@ public class LogStorageQuotaJob {
 			BufferedReader br = null;
 			StringBuffer buffer = new StringBuffer();
 			try {
-				br = new BufferedReader(new InputStreamReader(in, StringUtil.isBlank(charset)? "UTF-8":charset));
+				br = new BufferedReader(new InputStreamReader(in, StringUtil.isBlank(charset)? CHARTSET_UTF8:charset));
 				String line = null;
 				while ((line = br.readLine()) != null) {
 					buffer.append(line);
@@ -427,7 +431,7 @@ public class LogStorageQuotaJob {
 		List<String> tableList = Lists.newArrayList();
 		if(analyticTableList==null) {
 			String  queryTablesUrl = "http://"+selectAnalyticServer+"/druid/v2/sql";
-			String queryTablesSql = "{\"query\":\"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%log'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+			String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
 			String httpPostResult = HttpClientUtils.httpPost(queryTablesUrl, queryTablesSql);
 			
 			List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
