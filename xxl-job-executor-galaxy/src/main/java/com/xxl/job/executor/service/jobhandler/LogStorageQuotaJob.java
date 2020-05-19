@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.xxl.job.core.biz.model.ReturnT;
@@ -49,7 +50,7 @@ public class LogStorageQuotaJob {
 	private static List<String> analyticTableList;
 	
 	private static final String DELETE_START_TIME = "2000-01-01";//durid 清库的起始时间
-	private static final String CHARTSET_UTF8 = "UTF-8";//durid 清库的起始时间
+	private static final String CHARTSET_UTF8 = "UTF-8";//调用Linux命令返回日志编码
 	
 
 	@Autowired
@@ -64,49 +65,47 @@ public class LogStorageQuotaJob {
 		selectAnalyticServer = deletionConfig.selectAnalyticServer;//用于查询
 	}
 	/**
-	  * 设置流量日志存储策略储
+	   *    设置流量日志存储策略储
 	 *  clickhouse 数据库
 	 * @param params {"maxdays":30}
 	 */
 	@XxlJob("deleteTrafficDataJobHandler")
-	public ReturnT<String> deleteTrafficDataJobHandler(String params) {
+	public ReturnT<String> deleteTrafficData(String params) {
 		try {
 			Map<String, Object> paramsMap = validParams(params);
 			
 			Map<String, Object> deleteParamMap = getDeleteSource();
 			
-			String url = "http://"+trafficServer;
-			String prefixDeleteSql = "ALTER TABLE "+ trafficDataSource +".";
-			String suffixDeleteSql =" ON CLUSTER "+clusterName+" DROP PARTITION ";
+			String url = Joiner.on("").join("http://", trafficServer);
+			String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", trafficDataSource,".");
+			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ",clusterName," DROP PARTITION ");
 			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays")))));
-			
+			// 设置一个获取sql的方法，把表List 
 			getTrafficTables().forEach(table->{
+				
+				String selectSql = Joiner.on("").join("SELECT `partition` from `system`.parts WHERE table = '", table, "' AND `partition` < '",deleteMaxDate,"' FORMAT JSON;");
 				//查询所有小于设定时间的分区
-				deleteParamMap.put("query", "SELECT `partition` from `system`.parts WHERE table = '" + table + "' AND `partition` < '"+deleteMaxDate+"' FORMAT JSON;");
+				deleteParamMap.put("query", selectSql);
 				String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(url, deleteParamMap));
 				Map httpGetResultMap = (Map) JsonMapper.fromJsonString(httpGetResult, Map.class);
 				List<Map> partitionList = (List) httpGetResultMap.get("data");
 				
 				partitionList.forEach(partition->{
-					if(Integer.valueOf(String.valueOf(partition.get("partition"))) < deleteMaxDate) {
-						deleteParamMap.put("query", prefixDeleteSql + table + suffixDeleteSql+partition.get("partition"));
-						XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql + table + suffixDeleteSql+partition.get("partition"));
+						String deleteSql = Joiner.on("").join(prefixDeleteSql, table, suffixDeleteSql, partition.get("partition"));
+						deleteParamMap.put("query", deleteSql);
+						XxlJobLogger.log("delete clickhouse sql:{}", deleteSql);
 						
 						String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
-						XxlJobLogger.log("delete clickhouse message:{}",deleteMessage);
-						XxlJobLogger.log("delete table {} success",table);
-					}
-					
+						XxlJobLogger.log("delete clickhouse message:{}", deleteMessage);
+						XxlJobLogger.log("delete table {} success", table);
 				});
 			});
 		      
 		} catch (BusinessException be) {
-			be.printStackTrace();
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
 			return ReturnT.FAIL;
 		} catch (Exception e) {
-			e.printStackTrace();
 			logger.error(e.getMessage());
 			XxlJobLogger.log(e);
 			return ReturnT.FAIL;
@@ -114,28 +113,26 @@ public class LogStorageQuotaJob {
 		
 		return ReturnT.SUCCESS;
 	}
-
 	/**
 	 * Report and Metrics 日志存储策略
 	 * druid 数据库
 	 * @param params{"maxdays":365}
 	 */
 	@XxlJob("deleteReportAndMetricsDataJobHandler")
-	public ReturnT<String> deleteReportAndMetricsDataJobHandler(String params) {
+	public ReturnT<String> deleteReportAndMetricsData(String params) {
 		
 		try {
 			Map<String, Object> paramsMap = validParams(params);
 			
 			//修改规则
-			String changeRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
-			String changeRulesParam ="[{\"type\":\"loadByPeriod\",\"period\":\"P"+paramsMap.get("maxdays")+"D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]";
+			String changeRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
+			String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
 			//物理删除除
-			String deleteUrl = "http://"+analyticServer+"/druid/indexer/v1/task";
+			String deleteUrl = Joiner.on("").join("http://", analyticServer, "/druid/indexer/v1/task");
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
 			//起始时间/当前时间-maxDay
 			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-			String suffixDeleteParam = "\",\"interval\":\""+DELETE_START_TIME+"/"+deleteMaxDate+"\"}";
-			
+			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", DELETE_START_TIME,"/", deleteMaxDate, "\"}");
 			getAnalyticTables().forEach(table->{
 				
 				XxlJobLogger.log("delete first command table :{}, sql : {}",table,changeRulesParam);
@@ -146,12 +143,10 @@ public class LogStorageQuotaJob {
 				XxlJobLogger.log("delete result message :{}",deleteMessage);
 			});
 		} catch (BusinessException be) {
-			be.printStackTrace();
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
 			return ReturnT.FAIL;
 		} catch (Exception e) {
-			e.printStackTrace();
 			logger.error(e.getMessage());
 			XxlJobLogger.log(e);
 			return ReturnT.FAIL;
@@ -159,35 +154,30 @@ public class LogStorageQuotaJob {
 		
 		return ReturnT.SUCCESS;
 	}
-	
 	/**
 	 * 清除所有流量数据,click hosue库
 	 * @param params{"maxdays":365}
 	 */
 	@XxlJob("deleteAllTrafficDataJobHandler")
-	public ReturnT<String> deleteAllTrafficDataJobHandler(String params){
+	public ReturnT<String> deleteAllTrafficData(String params){
 		
 		try {
 			Map<String, Object> deleteParamMap = getDeleteSource();
-			String url = "http://"+trafficServer;
+			String url = Joiner.on("").join("http://", trafficServer);
 			//清库命令参数
-			String prefixDeleteSql = "TRUNCATE TABLE IF EXISTS "+ trafficDataSource+".";
-			
-			String suffixDeleteSql = " ON CLUSTER " + clusterName;
-			
+			String prefixDeleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", trafficDataSource, ".");
+			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ", clusterName);
 			getTrafficTables().forEach(table->{
-				deleteParamMap.put("query", prefixDeleteSql+ table +suffixDeleteSql);
-				XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql+ table +suffixDeleteSql);
-				String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
+				deleteParamMap.put("query", prefixDeleteSql + table + suffixDeleteSql);
+				XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql + table + suffixDeleteSql);
+				HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
 				XxlJobLogger.log("delete table {} success",table);
 			});
 		} catch (BusinessException be) {
-			be.printStackTrace();
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
 			return ReturnT.FAIL;
 		} catch (Exception e) {
-			e.printStackTrace();
 			logger.error(e.getMessage());
 			XxlJobLogger.log(e);
 			return ReturnT.FAIL;
@@ -201,24 +191,23 @@ public class LogStorageQuotaJob {
 	 * @param params{"maxdays":30}
 	 */
 	@XxlJob("deleteAllReportAndMetricsDataJobHandler")
-	public ReturnT<String> deleteAllReportAndMetricsDataJobHandler(String params) {
+	public ReturnT<String> deleteAllReportAndMetricsData(String params) {
 		try {
 			Map<String, Object> paramMap = validParams(params);
 			
 			//停止加载
-			String changeRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
+			String changeRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
 			String changeRulesParam = "[{\"type\":\"dropForever\"}]";
 			
 			//物理删除所有数据
-			String deleteUrl ="http://"+ analyticServer +"/druid/indexer/v1/task";
+			String deleteUrl = Joiner.on("").join("http://", analyticServer, "/druid/indexer/v1/task");
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
-			String suffixDeleteParam = "\",\"interval\":\""+DELETE_START_TIME+"/"+DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1)+"\"}";
-			
+			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"",DELETE_START_TIME+"/",DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1),"\"}");
 			//恢复加载规则
-			String resetRulesUrl ="http://"+ analyticServer +"/druid/coordinator/v1/rules/";
-			String resetRulesParam ="[{\"type\":\"loadByPeriod\",\"period\":\"P"+ paramMap.get("maxdays") +"D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]";
+			String resetRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
+			String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
 			//查询表数据url
-			String countDataUrl = "http://"+selectAnalyticServer+"/druid/v2/sql";
+			String countDataUrl = Joiner.on("").join("http://", selectAnalyticServer, "/druid/v2/sql");
 			getAnalyticTables().forEach(table->{
 				//每个表限制操作时间五分钟，开始计时
 				long startTime = System.currentTimeMillis();
@@ -227,7 +216,7 @@ public class LogStorageQuotaJob {
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				try {
 					//查询表数据是否删除 固定key EXPR$0
-					String countTableDataSql ="{\"query\":\"SELECT count(*) from "+table+" where __time < '"+DateUtils.getCurrentDate()+"'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+					String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time > '", DELETE_START_TIME, "' AND __time < '", DateUtils.getCurrentDate(), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
 					int count = 1;
 					while(count > 0) {
 						String httpPostResult = HttpClientUtils.httpPost(countDataUrl, countTableDataSql);
@@ -261,12 +250,10 @@ public class LogStorageQuotaJob {
 				XxlJobLogger.log("delete druid message :{}",deleteMessage);
 			});
 		} catch (BusinessException be) {
-			be.printStackTrace();
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
 			return ReturnT.FAIL;
 		} catch (Exception e) {
-			e.printStackTrace();
 			logger.error(e.getMessage());
 			XxlJobLogger.log(e);
 			return ReturnT.FAIL;
@@ -283,7 +270,7 @@ public class LogStorageQuotaJob {
 	 * "updateScript":"false"} //更新脚本参数
 	 */
 	@XxlJob("getStorageQuotaJobHandler")
-	public ReturnT<String> getStorageQuotaJobHandler (String params) {
+	public ReturnT<String> getStorageQuota (String params) {
 		
 			int exitValue = -1;//表示命令执行结果：0 成功，其它值失败
 	        try {
@@ -291,7 +278,7 @@ public class LogStorageQuotaJob {
 				//脚本路径+文件名
 				String scriptFile =new File("").getCanonicalPath() + paramsMap.get("scriptFile");
 				if(!FileApplication.isExist(scriptFile)) {
-					XxlJobLogger.log("Script file does not exist !");
+					XxlJobLogger.log("script file does not exist !");
 					return ReturnT.FAIL;
 				}
 				//脚本文件目录
@@ -310,12 +297,12 @@ public class LogStorageQuotaJob {
 					//开通权限,修改配置文件
 					String[] commands  = new String[]{"/bin/sh","-c",StorgeConfig.getStorgeConfigCommand(scriptDirectory)};
 					Process chmodProcess = Runtime.getRuntime().exec(commands);
-					XxlJobLogger.log("Update parameters and chmod command ! ");
+					XxlJobLogger.log("update parameters and chmod command ! ");
 					
 					chmodProcess.waitFor();
 					exitValue = chmodProcess.exitValue();
 					if (exitValue != 0) {
-			            return new ReturnT<String>(IJobHandler.FAIL.getCode(), "Update script file command exit value("+exitValue+") is failed");
+			            return new ReturnT<String>(IJobHandler.FAIL.getCode(), "update script file command exit value("+exitValue+") is failed");
 			        }
 				}
 	        	
@@ -328,12 +315,12 @@ public class LogStorageQuotaJob {
 	            
 	            Map resultMap = (Map) JsonMapper.fromJsonString(execResult, Map.class);
 	            if(StringUtil.isBlank(execResult) || resultMap==null) {
-					XxlJobLogger.log("Script run error !");
+					XxlJobLogger.log("script run error !");
 					return ReturnT.FAIL;
 				}
 	            //发送到kafka
 	            new KafkaUtils().sendMessage(String.valueOf(paramsMap.get("topic")), (List<Object>) resultMap.get("data"));
-	            XxlJobLogger.log("Send message to kafka, topic is {}", paramsMap.get("topic"));
+	            XxlJobLogger.log("send message to kafka, topic is {}", paramsMap.get("topic"));
 	            //脚本查询存在问题会返回fail
 	            if(execResult.contains("fail")) {
 	            	return new ReturnT<String>(IJobHandler.FAIL.getCode(), "script query error "+resultMap.get("status"));
@@ -430,7 +417,7 @@ public class LogStorageQuotaJob {
 		//查询特定的表名
 		List<String> tableList = Lists.newArrayList();
 		if(analyticTableList==null) {
-			String  queryTablesUrl = "http://"+selectAnalyticServer+"/druid/v2/sql";
+			String  queryTablesUrl = Joiner.on("").join("http://", selectAnalyticServer, "/druid/v2/sql");
 			String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
 			String httpPostResult = HttpClientUtils.httpPost(queryTablesUrl, queryTablesSql);
 			
@@ -449,8 +436,9 @@ public class LogStorageQuotaJob {
 		List<String> tableList = Lists.newArrayList();
 		if(trafficTableList==null) {
 			Map<String, Object> deleteParamMap = getDeleteSource();
-			String url = "http://"+trafficServer;
-			deleteParamMap.put("query", "SELECT name FROM `system`.tables WHERE database = '"+ trafficDataSource +"' AND engine in  ('MergeTree','ReplicatedMergeTree') FORMAT JSON;");
+			String url = Joiner.on("").join("http://", trafficServer);
+			
+			deleteParamMap.put("query", Joiner.on("").join("SELECT name FROM `system`.tables WHERE database = '", trafficDataSource, "' AND engine in  ('MergeTree','ReplicatedMergeTree') FORMAT JSON;"));
 			String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(url, deleteParamMap));
 			
 			Map httpGetResultMap = (Map) JsonMapper.fromJsonString(httpGetResult, Map.class);
