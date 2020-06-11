@@ -30,8 +30,6 @@ public class ShellTest {
 //			runtime.exec("mv "+localFile +" "+remoteDirectory);
 			boolean unZipFiles = FileApplication.unZipFiles(localFile, new File("").getCanonicalPath()+"/config/");
 //			FileUtils.copyFileToDirectory(file, file2);
-			String s = StorgeConfig.getStorgeConfigCommand("home");
-			System.err.println(s);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

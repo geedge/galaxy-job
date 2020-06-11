@@ -4,8 +4,7 @@ import java.util.Map;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -17,16 +16,16 @@ import org.springframework.kafka.core.ProducerFactory;
 @EnableKafka
 public class KafkaConfig {
 
-	@Autowired
-	KafkaProperties kafkaProperties;
+	@Value("${spring.kafka.bootstrap-servers}")
+	private String servers;
 	 
     @Bean
     public Map<String,Object> producerConfigs(){
     	Map<String,Object> configs = new HashMap<>();
-        configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,kafkaProperties.getBootstrapServers());
+        configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,servers);
         configs.put(ProducerConfig.RETRIES_CONFIG, 0);
         configs.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
-        configs.put(ProducerConfig.ACKS_CONFIG, "-1");
+        configs.put(ProducerConfig.ACKS_CONFIG, "1");
         configs.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 524288);
         //设置序列化
         configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);

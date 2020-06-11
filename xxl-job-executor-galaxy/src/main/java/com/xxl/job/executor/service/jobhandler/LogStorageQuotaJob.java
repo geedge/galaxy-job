@@ -22,7 +22,6 @@ import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
 import com.xxl.job.executor.Exception.BusinessException;
-import com.xxl.job.executor.core.config.DeletionConfig;
 import com.xxl.job.executor.core.config.StorgeConfig;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
 import com.xxl.job.executor.core.utils.KafkaUtils;
@@ -31,6 +30,7 @@ import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
 import com.zdjizhi.utils.TimeConstants;
+
 @SuppressWarnings({ "unchecked", "rawtypes" })
 @Component
 public class LogStorageQuotaJob {
@@ -42,27 +42,30 @@ public class LogStorageQuotaJob {
 	private static String trafficUserName;
 	private static String trafficPassword;
 	
-	private static String clusterName = "ck_cluster";//clickhouse集群名称
+	private static String trafficClusterName;//clickhouse集群名称
 	
 	private static String analyticServer;
 	private static String selectAnalyticServer;
 	private static List<String> trafficTableList;
 	private static List<String> analyticTableList;
 	
-	private static final String DELETE_START_TIME = "2000-01-01";//durid 清库的起始时间
+	private static String deleteStartTime;//durid 清库的起始时间
 	private static final String CHARTSET_UTF8 = "UTF-8";//调用Linux命令返回日志编码
 	
-
 	@Autowired
-	public LogStorageQuotaJob(DeletionConfig deletionConfig) {
-		trafficServer = deletionConfig.trafficServer;
-		trafficDataSource = deletionConfig.trafficDataSource;
-		trafficUserName = deletionConfig.trafficUserName;
-		trafficPassword = deletionConfig.trafficPassword;
-		clusterName = deletionConfig.clusterName;
+	StorgeConfig storgeConfig;
+	
+	@Autowired
+	public LogStorageQuotaJob(StorgeConfig deletionConfig) {
+		trafficServer = deletionConfig.getTrafficServer();
+		trafficDataSource = deletionConfig.getTrafficDatasource();
+		trafficUserName = deletionConfig.getTrafficUsername();
+		trafficPassword = deletionConfig.getTrafficPassword();
+		trafficClusterName = deletionConfig.getTrafficClusterName();
 
-		analyticServer = deletionConfig.analyticServer;
-		selectAnalyticServer = deletionConfig.selectAnalyticServer;//用于查询
+		analyticServer = deletionConfig.getAnalyticServerDelete();//用于Druid删除
+		selectAnalyticServer = deletionConfig.getAnalyticServerSelect();//用于Druid查询
+		deleteStartTime = deletionConfig.getAnalyticDeleteStartTime();
 	}
 	/**
 	   *    设置流量日志存储策略储
@@ -78,7 +81,7 @@ public class LogStorageQuotaJob {
 			
 			String url = Joiner.on("").join("http://", trafficServer);
 			String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", trafficDataSource,".");
-			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ",clusterName," DROP PARTITION ");
+			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ",trafficClusterName," DROP PARTITION ");
 			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays")))));
 			// 设置一个获取sql的方法，把表List 
 			getTrafficTables().forEach(table->{
@@ -132,7 +135,7 @@ public class LogStorageQuotaJob {
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
 			//起始时间/当前时间-maxDay
 			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", DELETE_START_TIME,"/", deleteMaxDate, "\"}");
+			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", deleteStartTime,"/", deleteMaxDate, "\"}");
 			getAnalyticTables().forEach(table->{
 				
 				XxlJobLogger.log("delete first command table :{}, sql : {}",table,changeRulesParam);
@@ -166,7 +169,7 @@ public class LogStorageQuotaJob {
 			String url = Joiner.on("").join("http://", trafficServer);
 			//清库命令参数
 			String prefixDeleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", trafficDataSource, ".");
-			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ", clusterName);
+			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ", trafficClusterName);
 			getTrafficTables().forEach(table->{
 				deleteParamMap.put("query", prefixDeleteSql + table + suffixDeleteSql);
 				XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql + table + suffixDeleteSql);
@@ -202,7 +205,7 @@ public class LogStorageQuotaJob {
 			//物理删除所有数据
 			String deleteUrl = Joiner.on("").join("http://", analyticServer, "/druid/indexer/v1/task");
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
-			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"",DELETE_START_TIME+"/",DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1),"\"}");
+			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"",deleteStartTime+"/",DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1),"\"}");
 			//恢复加载规则
 			String resetRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
 			String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
@@ -216,7 +219,7 @@ public class LogStorageQuotaJob {
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				try {
 					//查询表数据是否删除 固定key EXPR$0
-					String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time > '", DELETE_START_TIME, "' AND __time < '", DateUtils.getCurrentDate(), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
+					String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time > '", deleteStartTime, "' AND __time < '", DateUtils.getCurrentDate(), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
 					int count = 1;
 					while(count > 0) {
 						String httpPostResult = HttpClientUtils.httpPost(countDataUrl, countTableDataSql);
@@ -284,7 +287,7 @@ public class LogStorageQuotaJob {
 				//脚本文件目录
 				String scriptDirectory = new File(scriptFile).getParent()+File.separator;
 				
-				Process catcommands = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c",StorgeConfig.getDeployScriptCommand(scriptDirectory)});
+				Process catcommands = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c",storgeConfig.getDeployScriptCommand(scriptDirectory)});
 				String deplopMessage = getProcessMessage(catcommands.getInputStream(), CHARTSET_UTF8);
 				XxlJobLogger.log("script deploy {} ",deplopMessage);
 				catcommands.waitFor();
@@ -295,7 +298,7 @@ public class LogStorageQuotaJob {
 				//更新脚本参数，并分配权限
 				if("true".equals(String.valueOf(paramsMap.get("updateScript")))||"no".equals(deplopMessage)) {
 					//开通权限,修改配置文件
-					String[] commands  = new String[]{"/bin/sh","-c",StorgeConfig.getStorgeConfigCommand(scriptDirectory)};
+					String[] commands  = new String[]{"/bin/sh","-c",storgeConfig.getStorgeConfigCommand(scriptDirectory)};
 					Process chmodProcess = Runtime.getRuntime().exec(commands);
 					XxlJobLogger.log("update parameters and chmod command ! ");
 					

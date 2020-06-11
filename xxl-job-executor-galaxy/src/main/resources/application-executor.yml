@@ -4,28 +4,24 @@ spring:
   kafka:
     bootstrap-servers: 192.168.40.224:9092
 
-##存储配额脚本配置
-## 存储配额文件服务器
+#####存储配额脚本配置
 storge:
+## 存储配额文件服务器
   files:
     server: 192.168.40.131:9090
 ## 存储配额查询druid
   analytic:
-    server: 192.168.40.224:8082
+    #Druid清库起始时间
+    deletestarttime: "2000-01-01"
+    server:
+      select: 192.168.40.224:8082
+      delete: 192.168.40.119:8079
 ## 存储配额查询 clickhouse
   traffic:
     server: 192.168.40.224:8123
+    datasource: tsg_galaxy_v3
     username: default
     password: ceiec2019
-    
-##数据删除配置 druid
-delete: 
-  analytic:
-    server: 192.168.40.119:8079
-#数据删除配置 clickhouse
-  traffic:
-    server: 192.168.40.224:8123
-    password: ceiec2019
-    datasource: tsg_galaxy_v3
-    username: default    
+    #clickhouse集群名称
+    clustername: ck_cluster
     
