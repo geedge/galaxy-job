@@ -32,9 +32,6 @@ public class StorgeConfig {
 	@Value("${storge.analytic.server.delete}")
 	private String analyticServerDelete;// druid 删除节点ip和port
 	
-	@Value("${storge.analytic.deletestarttime}")
-	private String analyticDeleteStartTime = "2000-01-01";// druid 清库删除起始时间
-	
 	@Value("${storge.files.server}")
 	private String filesServer;// 文件服务器 ip:port
 	

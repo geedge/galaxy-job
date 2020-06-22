@@ -11,8 +11,6 @@ storge:
     server: 192.168.40.131:9090
 ## 存储配额查询druid
   analytic:
-    #Druid清库起始时间
-    deletestarttime: "2000-01-01"
     server:
       select: 192.168.40.224:8082
       delete: 192.168.40.119:8079

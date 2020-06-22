@@ -9,6 +9,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,13 +44,14 @@ public class LogStorageQuotaJob {
 	private static String trafficPassword;
 	
 	private static String trafficClusterName;//clickhouse集群名称
+	private static String queryClickhouseUrl;
 	
 	private static String analyticServer;
 	private static String selectAnalyticServer;
 	private static List<String> trafficTableList;
 	private static List<String> analyticTableList;
+	private static String queryDruidUrl;
 	
-	private static String deleteStartTime;//durid 清库的起始时间
 	private static final String CHARTSET_UTF8 = "UTF-8";//调用Linux命令返回日志编码
 	
 	@Autowired
@@ -65,7 +67,9 @@ public class LogStorageQuotaJob {
 
 		analyticServer = deletionConfig.getAnalyticServerDelete();//用于Druid删除
 		selectAnalyticServer = deletionConfig.getAnalyticServerSelect();//用于Druid查询
-		deleteStartTime = deletionConfig.getAnalyticDeleteStartTime();
+		
+		queryDruidUrl = Joiner.on("").join("http://", selectAnalyticServer, "/druid/v2/sql");;
+		queryClickhouseUrl = Joiner.on("").join("http://", trafficServer);
 	}
 	/**
 	   *    设置流量日志存储策略储
@@ -79,7 +83,6 @@ public class LogStorageQuotaJob {
 			
 			Map<String, Object> deleteParamMap = getDeleteSource();
 			
-			String url = Joiner.on("").join("http://", trafficServer);
 			String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", trafficDataSource,".");
 			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ",trafficClusterName," DROP PARTITION ");
 			int deleteMaxDate = Integer.valueOf(DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays")))));
@@ -89,7 +92,7 @@ public class LogStorageQuotaJob {
 				String selectSql = Joiner.on("").join("SELECT `partition` from `system`.parts WHERE table = '", table, "' AND `partition` < '",deleteMaxDate,"' FORMAT JSON;");
 				//查询所有小于设定时间的分区
 				deleteParamMap.put("query", selectSql);
-				String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(url, deleteParamMap));
+				String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(queryClickhouseUrl, deleteParamMap));
 				Map httpGetResultMap = (Map) JsonMapper.fromJsonString(httpGetResult, Map.class);
 				List<Map> partitionList = (List) httpGetResultMap.get("data");
 				
@@ -98,7 +101,7 @@ public class LogStorageQuotaJob {
 						deleteParamMap.put("query", deleteSql);
 						XxlJobLogger.log("delete clickhouse sql:{}", deleteSql);
 						
-						String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
+						String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(queryClickhouseUrl, deleteParamMap), null);
 						XxlJobLogger.log("delete clickhouse message:{}", deleteMessage);
 						XxlJobLogger.log("delete table {} success", table);
 				});
@@ -135,7 +138,7 @@ public class LogStorageQuotaJob {
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
 			//起始时间/当前时间-maxDay
 			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", deleteStartTime,"/", deleteMaxDate, "\"}");
+			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", getDruidDataStartTime(),"/", deleteMaxDate, "\"}");
 			getAnalyticTables().forEach(table->{
 				
 				XxlJobLogger.log("delete first command table :{}, sql : {}",table,changeRulesParam);
@@ -166,14 +169,13 @@ public class LogStorageQuotaJob {
 		
 		try {
 			Map<String, Object> deleteParamMap = getDeleteSource();
-			String url = Joiner.on("").join("http://", trafficServer);
 			//清库命令参数
 			String prefixDeleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", trafficDataSource, ".");
 			String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ", trafficClusterName);
 			getTrafficTables().forEach(table->{
 				deleteParamMap.put("query", prefixDeleteSql + table + suffixDeleteSql);
 				XxlJobLogger.log("delete clickhouse sql:{}",prefixDeleteSql + table + suffixDeleteSql);
-				HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
+				HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(queryClickhouseUrl, deleteParamMap), null);
 				XxlJobLogger.log("delete table {} success",table);
 			});
 		} catch (BusinessException be) {
@@ -197,20 +199,22 @@ public class LogStorageQuotaJob {
 	public ReturnT<String> deleteAllReportAndMetricsData(String params) {
 		try {
 			Map<String, Object> paramMap = validParams(params);
+			String deleteEndDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1);
+			
+			String deleteStartTime = getDruidDataStartTime();
 			
 			//停止加载
 			String changeRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
-			String changeRulesParam = "[{\"type\":\"dropForever\"}]";
+			String changeRulesParam = "[{ \"type\":\"dropByInterval\", \"interval\":\""+deleteStartTime+"/"+deleteEndDate+"\" }]";
 			
 			//物理删除所有数据
 			String deleteUrl = Joiner.on("").join("http://", analyticServer, "/druid/indexer/v1/task");
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
-			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"",deleteStartTime+"/",DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1),"\"}");
+			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"",deleteStartTime+"/",deleteEndDate,"\"}");
 			//恢复加载规则
 			String resetRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
 			String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
-			//查询表数据url
-			String countDataUrl = Joiner.on("").join("http://", selectAnalyticServer, "/druid/v2/sql");
+			
 			getAnalyticTables().forEach(table->{
 				//每个表限制操作时间五分钟，开始计时
 				long startTime = System.currentTimeMillis();
@@ -219,16 +223,16 @@ public class LogStorageQuotaJob {
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				try {
 					//查询表数据是否删除 固定key EXPR$0
-					String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time > '", deleteStartTime, "' AND __time < '", DateUtils.getCurrentDate(), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
+					String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time >= '", deleteStartTime, "' AND __time <= '", DateUtils.getCurrentDate(), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
 					int count = 1;
 					while(count > 0) {
-						String httpPostResult = HttpClientUtils.httpPost(countDataUrl, countTableDataSql);
+						String httpPostResult = HttpClientUtils.httpPost(queryDruidUrl, countTableDataSql);
 						List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
 						count = Integer.valueOf(String.valueOf(list.get(0).get("EXPR$0")));
 						try {
 							if(count>0) {
-								//每次停留两秒判断是否删除结束
-								Thread.sleep(2000L);
+								//每次停留5秒判断是否删除结束
+								Thread.sleep(5000L);
 							}
 							if(System.currentTimeMillis()>endTime) {
 								XxlJobLogger.log("delete time out error, table : {} ",table);
@@ -240,7 +244,6 @@ public class LogStorageQuotaJob {
 					}
 				} catch (BusinessException e) {
 					// 表不存在时，查询发生错误，记录下继续执行
-					e.printStackTrace();
 					logger.error(" query error {}",e.getErrorMessage());
 					XxlJobLogger.log(" query error {}",e.getErrorMessage());
 				}
@@ -263,6 +266,18 @@ public class LogStorageQuotaJob {
 		}
 		
 		return ReturnT.SUCCESS;
+	}
+	
+	/**
+	 * 查询Druid数据的开始时间,为空时返回今天
+	 */
+	private String getDruidDataStartTime() {
+		//查询druid数据库的数据的开始时间
+		String queryAnalyticStartTimeSql = "{\"query\":\"SELECT \\\"start\\\" FROM sys.segments WHERE \\\"start\\\" <= '"+DateUtils.getSomeDate(DateUtils.YYYY_MM_DD, 1)+"' order by \\\"start\\\" limit 1\"}";//durid 清库的起始时间
+		String httpPost = HttpClientUtils.httpPost(queryDruidUrl, queryAnalyticStartTimeSql);
+		//查询表数据url
+		List<Map> startTimeList = (List) JsonMapper.fromJsonString(httpPost, List.class);
+		return ObjectUtils.isEmpty(startTimeList)?DateUtils.getCurrentDate():String.valueOf(startTimeList.get(0).get("start"));
 	}
 
 	/**
@@ -418,11 +433,10 @@ public class LogStorageQuotaJob {
 	 */
 	private List<String> getAnalyticTables() {
 		//查询特定的表名
-		List<String> tableList = Lists.newArrayList();
 		if(analyticTableList==null) {
-			String  queryTablesUrl = Joiner.on("").join("http://", selectAnalyticServer, "/druid/v2/sql");
+			List<String> tableList = Lists.newArrayList();
 			String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-			String httpPostResult = HttpClientUtils.httpPost(queryTablesUrl, queryTablesSql);
+			String httpPostResult = HttpClientUtils.httpPost(queryDruidUrl, queryTablesSql);
 			
 			List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
 			list.forEach(map->tableList.addAll(map.values()));
@@ -439,10 +453,9 @@ public class LogStorageQuotaJob {
 		List<String> tableList = Lists.newArrayList();
 		if(trafficTableList==null) {
 			Map<String, Object> deleteParamMap = getDeleteSource();
-			String url = Joiner.on("").join("http://", trafficServer);
 			
 			deleteParamMap.put("query", Joiner.on("").join("SELECT name FROM `system`.tables WHERE database = '", trafficDataSource, "' AND engine in  ('MergeTree','ReplicatedMergeTree') FORMAT JSON;"));
-			String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(url, deleteParamMap));
+			String httpGetResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(queryClickhouseUrl, deleteParamMap));
 			
 			Map httpGetResultMap = (Map) JsonMapper.fromJsonString(httpGetResult, Map.class);
 			List<Map> list = (List) httpGetResultMap.get("data");
