@@ -137,16 +137,18 @@ public class LogStorageQuotaJob {
 			String deleteUrl = Joiner.on("").join("http://", analyticServer, "/druid/indexer/v1/task");
 			String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
 			//起始时间/当前时间-maxDay
+			String druidDataStartTime = getDruidDataStartTime();
 			String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", getDruidDataStartTime(),"/", deleteMaxDate, "\"}");
+			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", druidDataStartTime,"/", deleteMaxDate, "\"}");
 			getAnalyticTables().forEach(table->{
 				
 				XxlJobLogger.log("delete first command table :{}, sql : {}",table,changeRulesParam);
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
-				
-				XxlJobLogger.log("delete second command table :{}, sql : {}",table,prefixDeleteParam+table+suffixDeleteParam);
-				String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+table+suffixDeleteParam);
-				XxlJobLogger.log("delete result message :{}",deleteMessage);
+				if(druidDataStartTime.compareTo(deleteMaxDate)<0) {
+					XxlJobLogger.log("delete second command table :{}, sql : {}",table,prefixDeleteParam+table+suffixDeleteParam);
+					String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+table+suffixDeleteParam);
+					XxlJobLogger.log("delete result message :{}",deleteMessage);
+				}
 			});
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
@@ -266,18 +268,6 @@ public class LogStorageQuotaJob {
 		}
 		
 		return ReturnT.SUCCESS;
-	}
-	
-	/**
-	 * 查询Druid数据的开始时间,为空时返回今天
-	 */
-	private String getDruidDataStartTime() {
-		//查询druid数据库的数据的开始时间
-		String queryAnalyticStartTimeSql = "{\"query\":\"SELECT \\\"start\\\" FROM sys.segments WHERE \\\"start\\\" <= '"+DateUtils.getSomeDate(DateUtils.YYYY_MM_DD, 1)+"' order by \\\"start\\\" limit 1\"}";//durid 清库的起始时间
-		String httpPost = HttpClientUtils.httpPost(queryDruidUrl, queryAnalyticStartTimeSql);
-		//查询表数据url
-		List<Map> startTimeList = (List) JsonMapper.fromJsonString(httpPost, List.class);
-		return ObjectUtils.isEmpty(startTimeList)?DateUtils.getCurrentDate():String.valueOf(startTimeList.get(0).get("start"));
 	}
 
 	/**
@@ -464,4 +454,17 @@ public class LogStorageQuotaJob {
 		}
 		return trafficTableList;
 	}
+	
+	/**
+	 * 查询Druid数据的开始时间,为空时返回今天，格式yyyy-MM-dd
+	 */
+	private String getDruidDataStartTime() {
+		//查询druid数据库的数据的开始时间
+		String queryAnalyticStartTimeSql = "{\"query\":\"SELECT \\\"start\\\" FROM sys.segments WHERE \\\"start\\\" <= '"+DateUtils.getSomeDate(DateUtils.YYYY_MM_DD, 1)+"' order by \\\"start\\\" limit 1\"}";//durid 清库的起始时间
+		String httpPost = HttpClientUtils.httpPost(queryDruidUrl, queryAnalyticStartTimeSql);
+		//查询表数据url
+		List<Map> startTimeList = (List) JsonMapper.fromJsonString(httpPost, List.class);
+		return ObjectUtils.isEmpty(startTimeList)?DateUtils.getCurrentDate():DateUtils.getFormatDate(DateUtils.convertStringToDate(String.valueOf(startTimeList.get(0).get("start")), "yyyy-MM-dd'T'HH:mm:ss.SSSZ"), DateUtils.YYYY_MM_DD);
+	}
+	
 }
