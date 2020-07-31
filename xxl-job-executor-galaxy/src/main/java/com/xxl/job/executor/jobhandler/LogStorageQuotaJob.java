@@ -125,11 +125,11 @@ public class LogStorageQuotaJob {
 				partitionList.forEach(partition->{
 						String deleteSql = Joiner.on("").join(prefixDeleteSql, table, suffixDeleteSql, partition.get("partition"));
 						deleteParamMap.put("query", deleteSql);
-						XxlJobLogger.log("delete clickhouse sql:{}", deleteSql);
+						XxlJobLogger.log("reset storage days clickhouse sql:{}", deleteSql);
 						
 						String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(queryClickhouseUrl, deleteParamMap), null);
-						XxlJobLogger.log("delete clickhouse message:{}", deleteMessage);
-						XxlJobLogger.log("delete table {} success", table);
+						XxlJobLogger.log("reset storage days clickhouse message:{}", deleteMessage);
+						XxlJobLogger.log("reset storage days table {} success", table);
 				});
 			});
 		      modifyLastStorage(TRAFFIC_LOGS, maxdays);
@@ -169,12 +169,12 @@ public class LogStorageQuotaJob {
 			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", druidDataStartTime,"/", deleteMaxDate, "\"}");
 			getAnalyticTables().forEach(table->{
 				
-				XxlJobLogger.log("delete first command table :{}, sql : {}",table,changeRulesParam);
+				XxlJobLogger.log("reset storage days first command table :{}, sql : {}",table,changeRulesParam);
 				HttpClientUtils.httpPost(changeRulesUrl+table, changeRulesParam);
 				if(druidDataStartTime.compareTo(deleteMaxDate)<0) {
-					XxlJobLogger.log("delete second command table :{}, sql : {}",table,prefixDeleteParam+table+suffixDeleteParam);
+					XxlJobLogger.log("reset storage days second command table :{}, sql : {}",table,prefixDeleteParam+table+suffixDeleteParam);
 					String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam+table+suffixDeleteParam);
-					XxlJobLogger.log("delete result message :{}",deleteMessage);
+					XxlJobLogger.log("reset storage days result message :{}",deleteMessage);
 				}
 			});
 			modifyLastStorage(REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
@@ -215,11 +215,11 @@ public class LogStorageQuotaJob {
 					try {
 						HttpClientUtils.httpPut(Joiner.on("").join(filesServer,"/hos/",bucket.getName(),"?lifecycle"),XmlUtil.converToXml(lc), headers);
 					} catch (BusinessException be) {
-						logger.error("delete files fail ,{}",be.getErrorMessage());
-						XxlJobLogger.log("delete files fail ,{}",be.getErrorMessage());
+						logger.error("reset storage days files fail ,{}",be.getErrorMessage());
+						XxlJobLogger.log("reset storage days files fail ,{}",be.getErrorMessage());
 						failCount++;
 					}
-					XxlJobLogger.log("delete bucket {} ",bucket);
+					XxlJobLogger.log("reset storage days bucket {} ",bucket);
 				}
 				if(failCount>0) {
 					throw new BusinessException("number of total task "+bucketList.size()+", number of failed tasks "+failCount) ;
@@ -535,12 +535,11 @@ public class LogStorageQuotaJob {
 		Long lastStorage = storageQuotaService.getLastStorage(logType);
 		Long now = System.currentTimeMillis() / 1000;
 		Long max = maxdays * 24 * 60 * 60L;// 单位秒
-		if (now - lastStorage > maxdays) {
+		if (now - lastStorage > max) {
 			storageQuotaService.modifyLastStorage(logType, String.valueOf(now - max));
 		}
 	}
 	private String getDruidDataEndTime() {
-		String sql ="SELECT version FROM sys.segments WHERE version LIKE '2%' ORDER BY version DESC LIMIT 1";
 		//查询druid数据库的数据的结束时间
 		String queryAnalyticStartTimeSql = "{\"query\":\"SELECT version FROM sys.segments WHERE version LIKE '2%' ORDER BY version DESC LIMIT 1\"}";//durid 清库的起始时间
 		String httpPost = HttpClientUtils.httpPost(queryDruidUrl, queryAnalyticStartTimeSql);
