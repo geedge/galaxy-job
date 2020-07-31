@@ -25,7 +25,7 @@
 
     <properties>
         <xxl-job-core.version>2.2.0</xxl-job-core.version>
-        <galaxy.version>1.0.2</galaxy.version>
+        <galaxy.version>1.0.4</galaxy.version>
         <httpclient.version>4.5.6</httpclient.version>
         <lombok.version>1.16.20</lombok.version>
         <docker.build>192.168.40.153</docker.build>
@@ -146,9 +146,9 @@
                         <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73</JDK_IMAGE>
                         <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
                     </buildArgs>
-<!--                     <imageTags> -->
-<!--                         <imageTag>1.0</imageTag> -->
-<!--                     </imageTags> -->
+					<imageTags>
+                        <imageTag>v1.0.2.20200628</imageTag>
+                    </imageTags>
 
                     <!--将构建jar拷贝到/target/docker 目录下与dockerfile一起-->
                     <resources>

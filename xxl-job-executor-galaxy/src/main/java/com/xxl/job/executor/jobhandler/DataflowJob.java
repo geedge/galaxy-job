@@ -1,4 +1,4 @@
-package com.xxl.job.executor.service.jobhandler;
+package com.xxl.job.executor.jobhandler;
 
 import java.util.List;
 import java.util.Map;
