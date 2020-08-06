@@ -89,7 +89,7 @@ public class LogStorageQuotaJob {
 		queryDruidUrl = Joiner.on("").join("http://", selectAnalyticServer, "/druid/v2/sql");
 		queryClickhouseUrl = Joiner.on("").join("http://", trafficServer);
 		
-		filesServer = deletionConfig.getFilesServer();
+		filesServer = Joiner.on("").join("http://",deletionConfig.getFilesServer());
 		filesToken = deletionConfig.getFilesToken();
 	}
 	
@@ -105,7 +105,10 @@ public class LogStorageQuotaJob {
 	public ReturnT<String> deleteTrafficData(String params) {
 		try {
 			Map<String, Object> paramsMap = validParams(params);
-			
+			if (ObjectUtils.isEmpty(paramsMap)) {
+				logger.error("params parser error , params is {}",params);
+				return IJobHandler.FAIL;
+			}
 			Map<String, Object> deleteParamMap = getDeleteSource();
 			
 			String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", trafficDataSource,".");
@@ -156,7 +159,10 @@ public class LogStorageQuotaJob {
 		
 		try {
 			Map<String, Object> paramsMap = validParams(params);
-			
+			if (ObjectUtils.isEmpty(paramsMap)) {
+				logger.error("params parser error , params is {}",params);
+				return IJobHandler.FAIL;
+			}
 			//修改规则
 			String changeRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
 			String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
@@ -198,6 +204,11 @@ public class LogStorageQuotaJob {
 	public ReturnT<String> deleteFiles(String params){
 		try {
 			Map<String, Object> paramsMap = validParams(params);
+			if (ObjectUtils.isEmpty(paramsMap)) {
+				logger.error("params parser error , params is {}",params);
+				return IJobHandler.FAIL;
+			}
+			
 			Header header1 = new BasicHeader("Token", filesToken);
 			Header header2 = new BasicHeader(HttpHeaders.CONTENT_TYPE, "text/xml");
 			Header[] headers = {header1,header2};
@@ -248,6 +259,11 @@ public class LogStorageQuotaJob {
 	public ReturnT<String> deleteAllTrafficData(String params){
 		
 		try {
+			Map<String, Object> paramsMap = validParams(params);
+			if (ObjectUtils.isEmpty(paramsMap)) {
+				logger.error("params parser error , params is {}",params);
+				return IJobHandler.FAIL;
+			}
 			Map<String, Object> deleteParamMap = getDeleteSource();
 			//清库命令参数
 			String prefixDeleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", trafficDataSource, ".");
@@ -279,7 +295,11 @@ public class LogStorageQuotaJob {
 	@XxlJob("deleteAllReportAndMetricsDataJobHandler")
 	public ReturnT<String> deleteAllReportAndMetricsData(String params) {
 		try {
-			Map<String, Object> paramMap = validParams(params);
+			Map<String, Object> paramsMap = validParams(params);
+			if (ObjectUtils.isEmpty(paramsMap)) {
+				logger.error("params parser error , params is {}",params);
+				return IJobHandler.FAIL;
+			}
 			String deleteEndDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD,1);
 			
 			String deleteStartTime = getDruidDataStartTime();
@@ -294,7 +314,7 @@ public class LogStorageQuotaJob {
 			String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"",deleteStartTime+"/",deleteEndDate,"\"}");
 			//3恢复加载规则
 			String resetRulesUrl = Joiner.on("").join("http://", analyticServer, "/druid/coordinator/v1/rules/");
-			String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
+			String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
 			List<String> analyticTables = getAnalyticTables();
 			int failCount = 0;
 			for( String table: analyticTables){
@@ -360,8 +380,12 @@ public class LogStorageQuotaJob {
 	 */
 	@XxlJob("deleteAllFilesJobHandler")
 	public ReturnT<String> deleteAllFiles(String params){
-		
 		try {
+			Map<String, Object> paramsMap = validParams(params);
+			if (ObjectUtils.isEmpty(paramsMap)) {
+				logger.error("params parser error , params is {}",params);
+				return IJobHandler.FAIL;
+			}
 			Header header = new BasicHeader("Token", filesToken);
 
 			String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer,"/hos/"), header);
@@ -412,6 +436,10 @@ public class LogStorageQuotaJob {
 		
 	        try {
 	        	Map<String, Object> paramsMap = validParams(params);
+				if (ObjectUtils.isEmpty(paramsMap)) {
+					logger.error("params parser error , params is {}",params);
+					return IJobHandler.FAIL;
+				}
 				//调用查询方法单机，集群
 	        	Map resultMap = null;
 	        	

@@ -97,6 +97,7 @@ public class ZookeeperUtils implements Watcher {
 		} catch (KeeperException | InterruptedException e) {
 			logger.error("Get node information exception");
 			e.printStackTrace();
+			return null;
 		} finally {
 			closeConn();
 		}
