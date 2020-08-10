@@ -10,7 +10,7 @@ storge:
   isclusder: false
   files:
     server: 192.168.40.224:9098
-    hbase-linux-dir: /home/tsg3.0-volumes/hbase/data #单机数据目录在linux上的位置
+    hbase-linux-dir: /home/tsg/galaxy/mobdir #单机数据目录在linux上的位置
     hbase-hdfs-dir: /hbase/hbase-2.2.3/mobdir #HBase 在HDFS上的路径
     token: c21f969b5f03d33d43e04f8f136e7682
 ## 存储配额查询druid

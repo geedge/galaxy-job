@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.xxl.job.executor.Exception.BusinessException;
@@ -66,7 +65,6 @@ public class StorageQuotaService {
 	 * HBase 所在HDFS集群地址
 	 */
 	private static String queryHBaseUrl;
-	private static String queryAloneHBaseServer;
 
 	private static String trafficUserName;
 	private static String trafficPassword;
@@ -91,7 +89,6 @@ public class StorageQuotaService {
 		queryDruidUrl = Joiner.on("").join("http://", config.getAnalyticServerSelect(), "/druid/v2/sql");
 
 		queryHBaseUrl = Joiner.on("").join("http://", config.getFilesServer());
-		queryAloneHBaseServer = Splitter.on(":").splitToList(config.getFilesServer()).get(0);
 		hbaselinuxDir = config.getHbaseLinuxDir();
 		hbaseHdfsDir = config.getHbaseHdfsDir();
 		isCluster = config.getIsClusder();
@@ -250,16 +247,11 @@ public class StorageQuotaService {
 	private StorageQuota getHBaseAloneCurr() {
 		StorageQuota storageQuota = new StorageQuota();
 		try {
-			int exitValue = -1;
 			Process catCommands = Runtime.getRuntime()
-					.exec(new String[] { "ssh", "root@"+queryAloneHBaseServer, "du -s " + hbaselinuxDir + " | awk '{print $1}'" });
+					.exec(new String[] { "/bin/sh", "-c", "du -s " + hbaselinuxDir + " | awk '{print $1}'" });
 			String message = getProcessMessage(catCommands.getInputStream(), CHART_SET_UTF8);
 			logger.info("查询 hbase alone used_size 命令行结果，{}", message);
 			catCommands.waitFor();
-            exitValue = catCommands.exitValue();
-//            if (exitValue != 0) {
-//            	throw new RuntimeException("查询 hbase alone used_size 失败， command exit value("+exitValue+") is failed");
-//            }
 			
 			Long result = Long.parseLong(message.trim())*1024L;
 			storageQuota.setData(ImmutableMap.of("used_size", result));
@@ -281,16 +273,11 @@ public class StorageQuotaService {
 	private StorageQuota getHBaseAloneMax() {
 		StorageQuota storageQuota = new StorageQuota();
 		try {
-			int exitValue = -1;
 			Process catCommands = Runtime.getRuntime().exec(
-					new String[] { "ssh", "root@"+queryAloneHBaseServer, "df " + hbaselinuxDir + " | sed -n '2,2p' | awk '{print $2}'" });
+					new String[] { "/bin/sh", "-c", "df " + hbaselinuxDir + " | sed -n '2,2p' | awk '{print $2}'" });
 			String message = getProcessMessage(catCommands.getInputStream(), CHART_SET_UTF8);
 			logger.info("查询 hbase alone max_size 命令行结果，{}", message);
 			catCommands.waitFor();
-            exitValue = catCommands.exitValue();
-//            if (exitValue != 0) {
-//            	throw new RuntimeException("查询 hbase alone max_size 失败， command exit value("+exitValue+") is failed");
-//            }
 			
 			Long result = Long.parseLong(message.trim()) * 1024L;
 			storageQuota.setData(ImmutableMap.of("max_size", result));
@@ -311,17 +298,12 @@ public class StorageQuotaService {
 	 */
 	private StorageQuota getHBaseAloneDiff() {
 		StorageQuota storageQuota = new StorageQuota();
-		int exitValue = -1;
 		try {
 			Process catCommands = Runtime.getRuntime()
-					.exec(new String[] { "ssh", "root@"+queryAloneHBaseServer, "du -s " + hbaselinuxDir + " | awk '{print $1}'" });
+					.exec(new String[] { "/bin/sh", "-c", "du -s " + hbaselinuxDir + " | awk '{print $1}'" });
 			String message = getProcessMessage(catCommands.getInputStream(), CHART_SET_UTF8);
 			logger.info("查询 hbase alone aggregate_size 命令行结果，{}", message);
 			catCommands.waitFor();
-            exitValue = catCommands.exitValue();
-//            if (exitValue != 0) {
-//            	throw new RuntimeException("查询 hbase alone aggregate_size 失败， command exit value("+exitValue+") is failed");
-//            }
 			
 			long result = Long.parseLong(message.trim())*1024L;
 			Long trafficLogs = getCurrBefore("Files");

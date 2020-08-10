@@ -1,5 +1,5 @@
 ARG JDK_IMAGE
-FROM 192.168.40.153:9080/common/jdk:1.8.0_73_rc1
+FROM ${JDK_IMAGE}
 MAINTAINER Galaxy
 VOLUME /tmp
 WORKDIR /home/tsg/galaxy/galaxy-job/galaxy-job-1
