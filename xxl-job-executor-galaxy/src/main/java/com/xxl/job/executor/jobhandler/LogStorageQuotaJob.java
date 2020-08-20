@@ -21,6 +21,7 @@ import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
 import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.config.StorgeConfig;
+import com.xxl.job.executor.core.utils.Constant;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
 import com.xxl.job.executor.core.utils.KafkaUtils;
 import com.xxl.job.executor.core.utils.XmlUtil;
@@ -61,10 +62,6 @@ public class LogStorageQuotaJob {
 	private static String filesServer;
 	private static String filesToken;
 	
-	// zookeeper /path+node
-	private static final String TRAFFIC_LOGS = "Traffic-Logs";
-	private static final String REPORT_AND_METRICS = "Report-and-Metrics";
-	private static final String FILES = "Files";
 	
 	@Autowired
 	StorgeConfig storgeConfig;
@@ -89,7 +86,7 @@ public class LogStorageQuotaJob {
 		queryDruidUrl = Joiner.on("").join("http://", selectAnalyticServer, "/druid/v2/sql");
 		queryClickhouseUrl = Joiner.on("").join("http://", trafficServer);
 		
-		filesServer = Joiner.on("").join("http://",deletionConfig.getFilesServer());
+		filesServer = Joiner.on("").join("http://",deletionConfig.getFilesHosServer());
 		filesToken = deletionConfig.getFilesToken();
 	}
 	
@@ -135,7 +132,7 @@ public class LogStorageQuotaJob {
 						XxlJobLogger.log("reset storage days table {} success", table);
 				});
 			});
-		      modifyLastStorage(TRAFFIC_LOGS, maxdays);
+		      modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, maxdays);
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
@@ -183,7 +180,7 @@ public class LogStorageQuotaJob {
 					XxlJobLogger.log("reset storage days result message :{}",deleteMessage);
 				}
 			});
-			modifyLastStorage(REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
+			modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
@@ -236,7 +233,7 @@ public class LogStorageQuotaJob {
 					throw new BusinessException("number of total task "+bucketList.size()+", number of failed tasks "+failCount) ;
 				}
 			}
-			modifyLastStorage(FILES, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
+			modifyLastStorage(Constant.FILES, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
@@ -274,7 +271,7 @@ public class LogStorageQuotaJob {
 				HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(queryClickhouseUrl, deleteParamMap), null);
 				XxlJobLogger.log("delete table {} success",table);
 			});
-			modifyLastStorage(TRAFFIC_LOGS, 0);
+			modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, 0);
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
@@ -361,7 +358,7 @@ public class LogStorageQuotaJob {
 			if(failCount>0) {
 				throw new BusinessException("number of total tasks "+analyticTables.size()+" , number of failed tasks "+failCount) ;
 			}
-			modifyLastStorage(REPORT_AND_METRICS, 0);
+			modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, 0);
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
@@ -410,7 +407,7 @@ public class LogStorageQuotaJob {
 					throw new BusinessException("number of total tasks "+bucketList.size()+" , number of failed tasks "+failCount) ;
 				}
 			}
-			modifyLastStorage(FILES, 0);
+			modifyLastStorage(Constant.FILES, 0);
 		} catch (BusinessException be) {
 			logger.error(be.getErrorMessage());
 			XxlJobLogger.log(be.getErrorMessage());
@@ -430,7 +427,6 @@ public class LogStorageQuotaJob {
 	 * {"topic":"SYS-STORAGE-LOG","ckDayGrowth":"false"}
 	 * ckDayGrowth:表示是否为一天的执行一次的时间粒度
 	 */
-	@SuppressWarnings("null")
 	@XxlJob("getStorageQuotaJobHandler")
 	public ReturnT<String> getStorageQuota (String params) {
 		

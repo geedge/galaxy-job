@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.xxl.job.executor.Exception.BusinessException;
 import com.xxl.job.executor.core.config.StorgeConfig;
+import com.xxl.job.executor.core.utils.Constant;
 import com.xxl.job.executor.core.utils.HttpClientUtils;
 import com.xxl.job.executor.core.utils.ZookeeperUtils;
 import com.zdjizhi.utils.DateUtils;
@@ -34,7 +35,6 @@ import lombok.Data;
  *
  * @author qidaijie
  */
-@SuppressWarnings("unchecked")
 @Service
 public class StorageQuotaService {
 
@@ -64,7 +64,7 @@ public class StorageQuotaService {
 	/**
 	 * HBase 所在HDFS集群地址
 	 */
-	private static String queryHBaseUrl;
+	private static String queryHdfsUrl;
 
 	private static String trafficUserName;
 	private static String trafficPassword;
@@ -72,8 +72,8 @@ public class StorageQuotaService {
 	private static String systemParts;
 	private static String systemDisks;
 	private static boolean isCluster;
-	private  String zookeeperStoragePath = "/storage/worker/";
-	
+	private static final String ZOOKEEPER_STORAGE_PATH = "/storage/worker/";
+
 	@Value("${zookeeper.server}")
 	private String zookeeperServer;
 
@@ -88,7 +88,7 @@ public class StorageQuotaService {
 
 		queryDruidUrl = Joiner.on("").join("http://", config.getAnalyticServerSelect(), "/druid/v2/sql");
 
-		queryHBaseUrl = Joiner.on("").join("http://", config.getFilesServer());
+		queryHdfsUrl = Joiner.on("").join("http://", config.getFilesHdfsServer());
 		hbaselinuxDir = config.getHbaseLinuxDir();
 		hbaseHdfsDir = config.getHbaseHdfsDir();
 		isCluster = config.getIsClusder();
@@ -112,7 +112,7 @@ public class StorageQuotaService {
 			logger.info("查询 clickhouse used_size 成功, {}", storageQuota);
 			return storageQuota;
 		} catch (Exception e) {
-			Long trafficLogs = getCurrBefore("Traffic Logs");
+			Long trafficLogs = getCurrBefore(Constant.TRAFFIC_LOGS);
 			storageQuota.setData(ImmutableMap.of("used_size", trafficLogs));
 			storageQuota.setStatus(ImmutableMap.of("traffic_current", "fail "+e.getMessage()));
 			logger.error("查询 clickhouse used_size 失败, {}", e.getMessage());
@@ -138,7 +138,7 @@ public class StorageQuotaService {
 			logger.info("查询 clickhouse max_size 成功 ,{}", storageQuota);
 			return storageQuota;
 		} catch (Exception e) {
-			Long trafficLogs = getMaxBefore("Traffic Logs");
+			Long trafficLogs = getMaxBefore(Constant.TRAFFIC_LOGS);
 			storageQuota.setData(ImmutableMap.of("max_size", trafficLogs));
 			storageQuota.setStatus(ImmutableMap.of("traffic_max", "fail "+e.getMessage()));
 			logger.error("查询 clickhouse max_size 失败,{}", e.getMessage());
@@ -203,7 +203,7 @@ public class StorageQuotaService {
 	private StorageQuota getDruidDiff(Long currSize) {
 		StorageQuota storageQuota = new StorageQuota();
 		try {
-			Long before = getCurrBefore("Report and Metrics");
+			Long before = getCurrBefore(Constant.REPORT_AND_METRICS);
 			long diff = getDiffNum(currSize, before);
 			storageQuota.setData(ImmutableMap.of("aggregate_size", diff));
 			storageQuota.setStatus(ImmutableMap.of("analytic_aggregate", "success"));
@@ -259,7 +259,7 @@ public class StorageQuotaService {
 			logger.info("查询 hbase alone used_size 成功，{}", storageQuota);
 			return storageQuota;
 		} catch (Exception e) {
-			Long trafficLogs = getCurrBefore("Files");
+			Long trafficLogs = getCurrBefore(Constant.FILES);
 			storageQuota.setData(ImmutableMap.of("used_size", trafficLogs));
 			storageQuota.setStatus(ImmutableMap.of("files_current", "fail "+e.getMessage()));
 			logger.error("查询 hbase alone used_size 失败，{}", e.getMessage());
@@ -285,7 +285,7 @@ public class StorageQuotaService {
 			logger.info("查询 hbase max_size alone  max_size 成功，{}", storageQuota);
 			return storageQuota;
 		} catch (Exception e) {
-			Long trafficLogs = getMaxBefore("Files");
+			Long trafficLogs = getMaxBefore(Constant.FILES);
 			storageQuota.setData(ImmutableMap.of("max_size", trafficLogs));
 			storageQuota.setStatus(ImmutableMap.of("files_max", "fail "+e.getMessage()));
 			logger.error("查询 hbase alone max_size 失败，{}", e.getMessage());
@@ -306,7 +306,7 @@ public class StorageQuotaService {
 			catCommands.waitFor();
 			
 			long result = Long.parseLong(message.trim())*1024L;
-			Long trafficLogs = getCurrBefore("Files");
+			Long trafficLogs = getCurrBefore(Constant.FILES);
 			long diff = getDiffNum(result, trafficLogs);
 			storageQuota.setData(ImmutableMap.of("aggregate_size", diff));
 			storageQuota.setStatus(ImmutableMap.of("files_aggregate", "success"));
@@ -328,7 +328,7 @@ public class StorageQuotaService {
 	private StorageQuota getHBaseClusterCurr() {
 		StorageQuota storageQuota = new StorageQuota();
 		try {
-			String currDir = queryHBaseUrl + "/webhdfs/v1" + hbaseHdfsDir + "?op=GETCONTENTSUMMARY";
+			String currDir = queryHdfsUrl + "/webhdfs/v1" + hbaseHdfsDir + "?op=GETCONTENTSUMMARY";
 			String diffResult = HttpClientUtils.httpGet(currDir);
 			Map map = (Map) JsonMapper.fromJsonString(diffResult, Map.class);
 			Map contentSummary = (Map) map.get("ContentSummary");
@@ -339,7 +339,7 @@ public class StorageQuotaService {
 			logger.info("查询 hbase cluster used_size 成功，{}", storageQuota);
 			return storageQuota;
 		} catch (Exception e) {
-			Long trafficLogs = getCurrBefore("Files");
+			Long trafficLogs = getCurrBefore(Constant.FILES);
 			storageQuota.setData(ImmutableMap.of("used_size", trafficLogs));
 			storageQuota.setStatus(ImmutableMap.of("files_current", "fail "+e.getMessage()));
 			logger.error("查询 hbase cluster used_size 失败，{}", e.getMessage());
@@ -353,7 +353,7 @@ public class StorageQuotaService {
 	private StorageQuota getHBaseClusterMax() {
 		StorageQuota storageQuota = new StorageQuota();
 		try {
-			String currDir = queryHBaseUrl + "/jmx?qry=Hadoop:service=NameNode,name=NameNodeInfo";
+			String currDir = queryHdfsUrl + "/jmx?qry=Hadoop:service=NameNode,name=NameNodeInfo";
 			String diffResult = HttpClientUtils.httpGet(currDir);
 			Map map = (Map) JsonMapper.fromJsonString(diffResult, Map.class);
 			List<Map> beans = (List<Map>) map.get("beans");
@@ -364,7 +364,7 @@ public class StorageQuotaService {
 			logger.info("查询 hbase cluster max_size 成功,{}", storageQuota);
 			return storageQuota;
 		} catch (Exception e) {
-			Long trafficLogs = getMaxBefore("Files");
+			Long trafficLogs = getMaxBefore(Constant.FILES);
 
 			storageQuota.setData(ImmutableMap.of("max_size", trafficLogs));
 			storageQuota.setStatus(ImmutableMap.of("files_max", "fail "+e.getMessage()));
@@ -379,13 +379,13 @@ public class StorageQuotaService {
 	private StorageQuota getHBaseClusterDiff() {
 		StorageQuota storageQuota = new StorageQuota();
 		try {
-			String currDir = queryHBaseUrl + "/webhdfs/v1" + hbaseHdfsDir + "?op=GETCONTENTSUMMARY ";
+			String currDir = queryHdfsUrl + "/webhdfs/v1" + hbaseHdfsDir + "?op=GETCONTENTSUMMARY ";
 			String diffResult = HttpClientUtils.httpGet(currDir);
 			Map map = (Map) JsonMapper.fromJsonString(diffResult, Map.class);
 			Map contentSummary = (Map) map.get("ContentSummary");
 			Long length = Long.valueOf(String.valueOf(contentSummary.get("length")));
 
-			Long trafficLogs = getCurrBefore("Files");
+			Long trafficLogs = getCurrBefore(Constant.FILES);
 			long diff = getDiffNum(length, trafficLogs);
 			storageQuota.setData(ImmutableMap.of("aggregate_size", diff));
 			storageQuota.setStatus(ImmutableMap.of("files_aggregate", "success"));
@@ -452,11 +452,11 @@ public class StorageQuotaService {
 		try {
 			ZookeeperUtils zk = new ZookeeperUtils();
 	    	//查询
-			String nodeData = zk.getNodeData(zookeeperStoragePath + node, zookeeperServer);
+			String nodeData = zk.getNodeData(ZOOKEEPER_STORAGE_PATH + node, zookeeperServer);
 			//不存在创建一个
 			if(ObjectUtils.isEmpty(nodeData)) {
 				Long lastTime = System.currentTimeMillis()/1000;
-				zk.modifyNode(zookeeperStoragePath + node, String.valueOf(lastTime), zookeeperServer);
+				zk.modifyNode(ZOOKEEPER_STORAGE_PATH + node, String.valueOf(lastTime), zookeeperServer);
 				return lastTime;
 			}
 			Long lastStorage = Long.valueOf(nodeData);
@@ -477,7 +477,7 @@ public class StorageQuotaService {
     public void modifyLastStorage(String node,String data) {
     	ZookeeperUtils zk = new ZookeeperUtils();
     	//是否存在 不存在创建
-    	zk.modifyNode(zookeeperStoragePath + node, data, zookeeperServer);
+    	zk.modifyNode(ZOOKEEPER_STORAGE_PATH + node, data, zookeeperServer);
     }
 	/**
 	 * 数据库连接参数
@@ -542,9 +542,9 @@ public class StorageQuotaService {
 		Long now = System.currentTimeMillis()/1000;
 		
 		Map traffic = new HashMap<>();
-		traffic.put("log_type", "Traffic Logs");
+		traffic.put("log_type", Constant.TRAFFIC_LOGS);
 		traffic.put("time", now);
-		traffic.put("last_storage",getLastStorage("Traffic-Logs"));
+		traffic.put("last_storage",getLastStorage(Constant.ZK_TRAFFIC_LOGS));
 		traffic.putAll(clickHouseCurr.getData());
 		traffic.putAll(clickHouseMax.getData());
 
@@ -557,9 +557,9 @@ public class StorageQuotaService {
 		status.putAll(druidMax.getStatus());
 		
 		Map metrics = new HashMap<>();
-		metrics.put("log_type", "Report and Metrics");
+		metrics.put("log_type", Constant.REPORT_AND_METRICS);
 		metrics.put("time", now);
-		metrics.put("last_storage",getLastStorage("Report-and-Metrics"));
+		metrics.put("last_storage",getLastStorage(Constant.ZK_REPORT_AND_METRICS));
 		metrics.putAll(druidCurr.getData());
 		metrics.putAll(druidDiff.getData());
 		metrics.putAll(druidMax.getData());
@@ -584,9 +584,9 @@ public class StorageQuotaService {
 		status.putAll(hBaseDiff.getStatus());
 
 		Map files = new HashMap<>();
-		files.put("log_type", "Files");
+		files.put("log_type", Constant.FILES);
 		files.put("time", now);
-		files.put("last_storage",getLastStorage("Files"));
+		files.put("last_storage",getLastStorage(Constant.FILES));
 		files.putAll(hBaseCurr.getData());
 		files.putAll(hBaseMax.getData());
 		files.putAll(hBaseDiff.getData());
@@ -620,9 +620,9 @@ public class StorageQuotaService {
 		status.putAll(clickHouseDiff.getStatus());
 
 		Map traffic = new HashMap<>();
-		traffic.put("log_type", "Traffic Logs");
+		traffic.put("log_type", Constant.TRAFFIC_LOGS);
 		traffic.put("time", System.currentTimeMillis()/1000);
-		traffic.put("last_storage",getLastStorage("Traffic-Logs"));
+		traffic.put("last_storage",getLastStorage(Constant.ZK_TRAFFIC_LOGS));
 		traffic.putAll(clickHouseCurr.getData());
 		traffic.putAll(clickHouseMax.getData());
 		traffic.putAll(clickHouseDiff.getData());

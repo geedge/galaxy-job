@@ -40,13 +40,16 @@ public class StorgeConfig {
 	@Value("${storge.analytic.server.delete}")
 	private String analyticServerDelete;// druid 删除节点ip和port
 	
-	@Value("${storge.files.server}")
-	private String filesServer;// 文件服务器 ip:port
+	@Value("${storge.files.hos-server}")
+	private String filesHosServer;// 清库删除文件服务器 ip:port
 	
-	@Value("${storge.files.hbase-linux-dir}")
+	@Value("${storge.files.alone.hbase-dir}")
 	private String hbaseLinuxDir;// 单机数据目录在linux上的位置
 	
-	@Value("${storge.files.hbase-hdfs-dir}")
+	@Value("${storge.files.cluster.hdfs-server}")
+	private String filesHdfsServer;// 存储配额集群查询文件服务器 ip:port
+	
+	@Value("${storge.files.cluster.hdfs-dir}")
 	private String hbaseHdfsDir;// HBase 在HDFS上的路径
 	
 	@Value("${storge.isclusder}")
