@@ -621,7 +621,7 @@ public class StorageQuotaService {
 
 		Map traffic = new HashMap<>();
 		traffic.put("log_type", Constant.TRAFFIC_LOGS);
-		traffic.put("time", System.currentTimeMillis()/1000);
+		traffic.put("time", System.currentTimeMillis()/1000-8*3600);//防止24点执行时，时间算到明天往前退8个小时
 		traffic.put("last_storage",getLastStorage(Constant.ZK_TRAFFIC_LOGS));
 		traffic.putAll(clickHouseCurr.getData());
 		traffic.putAll(clickHouseMax.getData());
