@@ -1,0 +1,39 @@
+## 业务参数
+##指定kafka server的地址，集群配多个，中间，逗号隔开
+spring: 
+  kafka:
+    bootstrap-servers: 192.168.44.12:9092
+
+#####存储配额脚本配置
+storge:
+## 存储配额文件服务器
+  isclusder: false
+  files:
+    hos-server: 192.168.44.12:9098 #hos对象存储，删除清库任务
+    token: c21f969b5f03d33d43e04f8f136e7682
+    alone: 
+      hbase-dir: /home/tsg/galaxy/mobdir #存储配额，单机数据目录在linux上的位置
+    cluster:
+      hdfs-server: 192.168.44.12:50070 #存储配额
+      hdfs-dir: /hbase/hbase-2.2.3/mobdir #存储配额，HBase 在HDFS上的路径
+   
+## 存储配额查询druid
+  analytic:
+    server:
+      select: 192.168.44.12:8082
+      delete: 192.168.40.119:8079
+## 存储配额查询 clickhouse
+  traffic:
+    server: 192.168.44.12:8123
+    datasource: tsg_galaxy_v3
+    username: default
+    password: ceiec2019
+    #clickhouse集群名称
+    clustername: ck_cluster
+    #clickhouse的表
+    system: 
+      parts: "`system`.parts"
+      disks: "`system`.disks"
+      tables: "`system`.tables"
+zookeeper: 
+  server: 192.168.44.12:2181

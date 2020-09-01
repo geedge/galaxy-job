@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.mesalab</groupId>
+        <artifactId>galaxy-job</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>galaxy-job-executor</artifactId>
+    <packaging>jar</packaging>
+
+    <properties>
+        <xxl-job-core.version>2.2.0</xxl-job-core.version>
+        <galaxy.version>1.0.4</galaxy.version>
+        <httpclient.version>4.5.6</httpclient.version>
+        <lombok.version>1.16.20</lombok.version>
+        <docker.build>192.168.40.153</docker.build>
+        <docker.build.port>2375</docker.build.port>
+        <!--docker-registry地址-->
+        <docker.registry>192.168.40.153</docker.registry>
+        <!--docker-registry的端口-->
+        <docker.registry.port>9080</docker.registry.port>
+        <docker.image.prefix>tsg/galaxy/galaxy-job</docker.image.prefix>
+        <skipTests>false</skipTests>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <!-- Import dependency management from Spring Boot (依赖管理：继承一些默认的依赖，工程需要依赖的jar包的管理，申明其他dependency的时候就不需要version) -->
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-parent</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- spring-boot-starter-web (spring-webmvc + tomcat) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.xuxueli</groupId>
+            <artifactId>xxl-job-core</artifactId>
+            <version>${xxl-job-core.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>compile</scope>
+            <version>${lombok.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>${httpclient.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zdjizhi</groupId>
+            <artifactId>galaxy</artifactId>
+            <version>${galaxy.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <finalName>galaxy-job-executor</finalName>
+        <plugins>
+            <!-- spring-boot-maven-plugin (提供了直接运行项目的插件：如果是通过parent方式继承spring-boot-starter-parent则不用此插件) -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>1.0.0</version>
+                <configuration>
+                    <serverId>153-docker-repo</serverId>
+                    <registryUrl>${docker.registry}:${docker.registry.port}</registryUrl>
+                    <!--是否向镜像registry(harbor)中推送镜像,如果为false则需要在mvn命令时添加-DpushImage参数-->
+                    <pushImage>true</pushImage>
+
+                    <imageName>${docker.registry}:${docker.registry.port}/${docker.image.prefix}/${project.artifactId}
+                    </imageName>
+                    <forceTags>true</forceTags>
+
+                    <!--远程docker构建，供dockerfile使用-->
+                    <dockerHost>http://192.168.40.153:2375</dockerHost>
+                    <dockerDirectory>docker</dockerDirectory>
+                    <buildArgs>
+                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73</JDK_IMAGE>
+                        <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
+                    </buildArgs>
+                    <imageTags>
+                        <imageTag>v1.0.3.20200810</imageTag>
+                    </imageTags>
+
+                    <!--将构建jar拷贝到/target/docker 目录下与dockerfile一起-->
+                    <resources>
+                        <resource>
+                            <targetPath>/</targetPath>
+                            <directory>${project.build.directory}</directory>
+                            <include>${project.build.finalName}.jar</include>
+                        </resource>
+
+                        <resource>
+                            <targetPath>/config</targetPath>
+                            <directory>${project.build.directory}/classes/</directory>
+                            <include>**/*.properties</include>
+                            <include>**/*.yml</include>
+                        </resource>
+                        <resource>
+                            <targetPath>/</targetPath>
+                            <directory>${project.build.directory}/classes/</directory>
+                            <include>script/**</include>
+                        </resource>
+                    </resources>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
