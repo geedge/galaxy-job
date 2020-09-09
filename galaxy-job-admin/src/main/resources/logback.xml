@@ -9,7 +9,7 @@
 <configuration scan="true" scanPeriod="60 seconds" debug="false">
 
     <!-- 定义日志文件输入位置 -->
-    <property name="logDir" value="logs"/>
+    <property name="logDir" value="/logs"/>
     <!-- 日志最大的历史30天 -->
     <property name="maxHistory" value="30"/>
 
