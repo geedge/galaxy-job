@@ -106,7 +106,7 @@
             <level>ALL</level>
         </filter>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${logDir}/%d{yyyy-MM-dd}/alaxy-job-admin.log</fileNamePattern>
+            <fileNamePattern>${logDir}/%d{yyyy-MM-dd}/galaxy-job-admin.log</fileNamePattern>
             <maxHistory>${maxHistory}</maxHistory>
         </rollingPolicy>
         <encoder>
