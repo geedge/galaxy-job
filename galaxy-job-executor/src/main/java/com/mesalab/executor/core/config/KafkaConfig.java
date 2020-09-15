@@ -1,7 +1,4 @@
 package com.mesalab.executor.core.config;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +8,9 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @EnableKafka
@@ -23,7 +23,7 @@ public class KafkaConfig {
     public Map<String,Object> producerConfigs(){
     	Map<String,Object> configs = new HashMap<>();
         configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,servers);
-        configs.put(ProducerConfig.RETRIES_CONFIG, 0);
+        configs.put(ProducerConfig.RETRIES_CONFIG, 1);
         configs.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
         configs.put(ProducerConfig.ACKS_CONFIG, "1");
         configs.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 524288);
