@@ -86,6 +86,11 @@
 						<JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73</JDK_IMAGE>
 						<JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
 					</buildArgs>
+					<imageTags>
+						<imageTag>v1.1.20200916</imageTag>
+					</imageTags>
+
+					<!--将构建jar拷贝到/target/docker 目录下与dockerfile一起-->
 					<resources>
 						<resource>
 							<targetPath>/</targetPath>
