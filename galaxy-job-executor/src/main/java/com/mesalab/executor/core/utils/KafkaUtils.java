@@ -1,7 +1,7 @@
 package com.mesalab.executor.core.utils;
 
-import java.util.List;
-
+import com.zdjizhi.utils.JsonMapper;
+import com.zdjizhi.utils.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -9,8 +9,7 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
-import com.zdjizhi.utils.JsonMapper;
-import com.zdjizhi.utils.StringUtil;
+import java.util.List;
 
 public class KafkaUtils {
     private static Logger logger = LoggerFactory.getLogger(KafkaUtils.class);
@@ -18,7 +17,6 @@ public class KafkaUtils {
 
     public void sendMessage(String topic, String data) {
     	if(StringUtil.isNotBlank(data)) {
-    		logger.info("kafka sendMessage start");
     		ListenableFuture<SendResult<Integer, String>> future = kafkaTemplate.send(topic, data);
     		future.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
     			@Override
@@ -31,7 +29,6 @@ public class KafkaUtils {
     				logger.info("kafka sendMessage success topic = {}, data = {}",topic, data);
     			}
     		});
-    		logger.info("kafka sendMessage end");
     	} else {
     		logger.info("kafka can not send message when the data is empty ");
     	}

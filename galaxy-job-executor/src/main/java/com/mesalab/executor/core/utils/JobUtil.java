@@ -1,5 +1,7 @@
 package com.mesalab.executor.core.utils;
 
+import com.mesalab.executor.exception.BusinessException;
+
 public class JobUtil {
 	
 	/**
@@ -12,4 +14,11 @@ public class JobUtil {
 		return message;
 	}
 
+	public static String getErrorMsg(Exception e){
+		System.out.println(e.getMessage());
+		if(e instanceof BusinessException){
+			return ((BusinessException) e).getErrorMessage();
+		}
+		return e.getMessage();
+	}
 }

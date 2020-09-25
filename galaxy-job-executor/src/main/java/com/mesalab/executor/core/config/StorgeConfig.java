@@ -11,7 +11,7 @@ public class StorgeConfig {
 
 	@Value("${storge.traffic.server}")
 	private String trafficServer;// clickhouse要查看的ip
-	
+
 	@Value("${storge.traffic.username}")
 	private String trafficUsername;// clickhouse要查看的username
 	
@@ -21,28 +21,28 @@ public class StorgeConfig {
 	@Value("${storge.traffic.datasource}")
 	private String trafficDatasource;// clickhouse要查看的datasource
 	
-	@Value("${storge.traffic.clustername}")
-	private String trafficClusterName = "ck_cluster";
-	
 	@Value("${storge.traffic.system.parts}")
 	private String systemParts ;
 	
 	@Value("${storge.traffic.system.disks}")
 	private String systemDisks ;
 	
+	@Value("${storge.traffic.system.clusters}")
+	private String systemClusters ;
+
 	@Value("${storge.traffic.system.tables}")
 	private String systemTables ;
-	
-	
+
+
 	@Value("${storge.analytic.server.select}")
 	private String analyticServerSelect;// druid 查询节点ip和port
-	
+
 	@Value("${storge.analytic.server.delete}")
 	private String analyticServerDelete;// druid 删除节点ip和port
-	
+
 	@Value("${storge.files.hos-server}")
 	private String filesHosServer;// 清库删除文件服务器 ip:port
-	
+
 	@Value("${storge.files.alone.hbase-dir}")
 	private String hbaseLinuxDir;// 单机数据目录在linux上的位置
 	
@@ -57,7 +57,6 @@ public class StorgeConfig {
 	
 	@Value("${storge.files.token}")
 	private String filesToken; //登录验证
-	
-	
-	
+
+
 }

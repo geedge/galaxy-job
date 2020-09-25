@@ -10,7 +10,10 @@ public class Constant {
 	// zookeeper /path+node
 	public static final String ZK_TRAFFIC_LOGS = "Traffic-Logs";
 	public static final String ZK_REPORT_AND_METRICS = "Report-and-Metrics";
-	
+
+
+	public static final String HTTP = "http://";
+
 	
 
 }
