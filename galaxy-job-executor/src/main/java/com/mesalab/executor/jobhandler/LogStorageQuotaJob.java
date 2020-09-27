@@ -67,8 +67,8 @@ public class LogStorageQuotaJob {
         systemTables = deletionConfig.getSystemTables();
 
         //druid
-        analyticServerSelect = Joiner.on("").join(Constant.HTTP, deletionConfig.getAnalyticServerSelect(), "/druid/v2/sql");
-        analyticServerDelete = deletionConfig.getAnalyticServerDelete();
+        analyticServerSelect = Joiner.on("").join(Constant.HTTP, deletionConfig.getAnalyticServer(), "/druid/v2/sql");
+        analyticServerDelete = deletionConfig.getAnalyticServer();
 
         //hos
         filesHosServer = deletionConfig.getFilesHosServer();

@@ -34,11 +34,8 @@ public class StorgeConfig {
 	private String systemTables ;
 
 
-	@Value("${storge.analytic.server.select}")
-	private String analyticServerSelect;// druid 查询节点ip和port
-
-	@Value("${storge.analytic.server.delete}")
-	private String analyticServerDelete;// druid 删除节点ip和port
+	@Value("${storge.analytic.server}")
+	private String analyticServer;// druid 节点ip和port
 
 	@Value("${storge.files.hos-server}")
 	private String filesHosServer;// 清库删除文件服务器 ip:port

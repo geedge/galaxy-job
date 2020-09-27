@@ -87,7 +87,7 @@ public class StorageQuotaService {
         systemParts = config.getSystemParts();
         systemDisks = config.getSystemDisks();
 
-        queryDruidUrl = Joiner.on("").join(Constant.HTTP, config.getAnalyticServerSelect(), "/druid/v2/sql");
+        queryDruidUrl = Joiner.on("").join(Constant.HTTP, config.getAnalyticServer(), "/druid/v2/sql");
         queryHdfsUrls = config.getFilesHdfsServer();
         hbaselinuxDir = config.getHbaseLinuxDir();
         hbaseHdfsDir = config.getHbaseHdfsDir();

@@ -19,9 +19,7 @@ storge:
    
 ## 存储配额查询druid
   analytic:
-    server:
-      select: 192.168.40.223:8082
-      delete: 192.168.40.151:8081
+    server: 192.168.40.223:8888
 ## 存储配额查询 clickhouse
   traffic:
     server: 192.168.44.12:8123
