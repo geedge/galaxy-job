@@ -99,7 +99,7 @@
                         <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.1.20200924</imageTag>
+                        <imageTag>v1.1.20200927</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

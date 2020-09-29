@@ -295,12 +295,10 @@ public class LogStorageQuotaJob {
                         for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                             try {
                                 HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
-                                //调用合并接口
-                                // HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?compact"), headers);
                             } catch (Exception e) {
                                 failCount++;
-                                logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, e.getMessage());
-                                XxlJobLogger.log("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, e.getMessage());
+                                logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
+                                XxlJobLogger.log("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
                             }
                         }
                     }
