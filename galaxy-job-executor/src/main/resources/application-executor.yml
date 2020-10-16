@@ -14,7 +14,7 @@ storge:
     alone: 
       hbase-dir: /home/tsg/galaxy/mobdir #存储配额，单机数据目录在linux上的位置
     cluster:
-      hdfs-server: 192.168.44.11:50070,192.168.40.182:50070 #存储配额
+      hdfs-server: 192.168.44.33:50070 #存储配额
       hdfs-dir: /hbase/hbase-2.2.3/mobdir #存储配额，HBase 在HDFS上的路径
    
 ## 存储配额查询druid
@@ -26,11 +26,18 @@ storge:
     datasource: tsg_galaxy_v3
     username: default
     password: ceiec2019
-    #clickhouse的表
+    #clickhouse的表  clickhouse=>cluster
+    #system:
+      #parts: system.parts_cluster
+      #disks: system.disks_cluster
+      #tables: system.tables_cluster
+      #clusters: system.clusters
+    # clickhouse=>stand-alone
     system: 
       parts: system.parts
       disks: system.disks
-      clusters: system.clusters
       tables: system.tables
+      clusters: system.clusters
+#存储配额标准时间zk节点
 zookeeper:
   server: 192.168.44.12:2181
