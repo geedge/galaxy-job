@@ -545,7 +545,11 @@ public class StorageQuotaService {
         Map<String, Integer> status = new HashMap<>();
         status.put("trafficFailCount", getCKStorageJson(data, now));
         status.put("reportFailCount", getDruidStorageJson(data, now));
-        status.put("fileFailCount", getHbaseStorageJson(data, now));
+        if(isCluster){
+            status.put("fileFailCount", getHbaseStorageJson(data, now));
+        } else {
+            status.put("fileFailCount", getHbaseStorageJsonAlone(data, now));
+        }
 
         all.put("data", data);
         all.put("status", status);
@@ -593,27 +597,21 @@ public class StorageQuotaService {
         data.add(metrics);
         return druidErrorCount;
     }
-
+    /*
+     * 集群hbase存储配额
+     **/
     private int getHbaseStorageJson(List<Map> data, Long time) {
         int hbaseErrorCount = 0;
         List<String> queryHdfsUrlList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(queryHdfsUrls);
         for (String queryHdfsUrl : queryHdfsUrlList) {
             try {
                 queryHdfsUrl = Constant.HTTP.concat(queryHdfsUrl);
-                StorageQuota hBaseCurr = new StorageQuota();
-                StorageQuota hBaseMax = new StorageQuota();
-                StorageQuota hBaseDiff = new StorageQuota();
-                if (isCluster) {
-                    hBaseCurr = getHBaseClusterCurr(queryHdfsUrl);
-                    hBaseDiff = getHBaseClusterDiff(queryHdfsUrl);
-                    hBaseMax = getHBaseClusterMax(queryHdfsUrl);
-                } else {
-                    hBaseCurr = getHBaseAloneCurr();
-                    hBaseDiff = getHBaseAloneDiff();
-                    hBaseMax = getHBaseAloneMax();
-                }
+                StorageQuota hBaseCurr = getHBaseClusterCurr(queryHdfsUrl);
+                StorageQuota hBaseMax = getHBaseClusterMax(queryHdfsUrl);
+                StorageQuota hBaseDiff = getHBaseClusterDiff(queryHdfsUrl);
+
                 if (hBaseCurr.getStatus() != null || hBaseDiff.getStatus() != null || hBaseMax.getStatus() != null) {
-                    XxlJobLogger.log("query hbase storage error message, endpoint = {}, hBaseCurr ={} , hBaseDiff={}, hBaseMax={}", queryHdfsUrl, hBaseCurr.getStatus(), hBaseDiff.getStatus(), hBaseMax.getStatus());
+                    XxlJobLogger.log("查询 hbase storage error message, endpoint = {}, hBaseCurr ={} , hBaseDiff={}, hBaseMax={}", queryHdfsUrl, hBaseCurr.getStatus(), hBaseDiff.getStatus(), hBaseMax.getStatus());
                     hbaseErrorCount++;
                 }
                 Map files = new HashMap<>();
@@ -630,6 +628,38 @@ public class StorageQuotaService {
                 hbaseErrorCount++;
             }
         }
+        return hbaseErrorCount;
+    }
+
+    /**
+     * 单机hbase
+     * @param data
+     * @param time
+     * @return
+     */
+    private int getHbaseStorageJsonAlone(List<Map> data, Long time) {
+        int hbaseErrorCount = 0;
+        try {
+                StorageQuota hBaseCurr = getHBaseAloneCurr();
+                StorageQuota hBaseMax = getHBaseAloneMax();
+                StorageQuota hBaseDiff = getHBaseAloneDiff();
+                if (hBaseCurr.getStatus() != null || hBaseDiff.getStatus() != null || hBaseMax.getStatus() != null) {
+                    XxlJobLogger.log("query hbase storage error message, endpoint = {}, hBaseCurr ={} , hBaseDiff={}, hBaseMax={}", hBaseCurr.getStatus(), hBaseDiff.getStatus(), hBaseMax.getStatus());
+                    hbaseErrorCount++;
+                }
+                Map files = new HashMap<>();
+                files.put("log_type", Constant.FILES);
+                files.put("time", time);
+                files.put("last_storage", getLastStorage(Constant.FILES));
+                files.putAll(hBaseCurr.getData());
+                files.putAll(hBaseMax.getData());
+                files.putAll(hBaseDiff.getData());
+                data.add(files);
+            } catch (Exception e) {
+                logger.error("查询单机hbase 存储配额发生错误：endpoint = {}, error = {}",  JobUtil.getErrorMsg(e));
+                XxlJobLogger.log("查询单机hbase 存储配额发生错误：endpoint = {}, error = {}",  JobUtil.getErrorMsg(e));
+                hbaseErrorCount++;
+            }
         return hbaseErrorCount;
     }
 
