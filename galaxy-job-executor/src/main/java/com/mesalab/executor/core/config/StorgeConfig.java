@@ -23,7 +23,10 @@ public class StorgeConfig {
 	
 	@Value("${storge.traffic.system.parts}")
 	private String systemParts ;
-	
+
+	@Value("${storge.traffic.system.partsclusters}")
+	private String systemPartsCluster ;
+
 	@Value("${storge.traffic.system.disks}")
 	private String systemDisks ;
 	

@@ -70,7 +70,7 @@ public class StorageQuotaService {
     private static String trafficUserName;
     private static String trafficPassword;
 
-    private static String systemParts;
+    private static String systemPartsCluster;
     private static String systemDisks;
     private static boolean isCluster;
     private static final String ZOOKEEPER_STORAGE_PATH = "/storage/worker/";
@@ -84,7 +84,7 @@ public class StorageQuotaService {
         trafficUserName = config.getTrafficUsername();
         trafficPassword = config.getTrafficPassword();
         queryClickHouseUrl = Joiner.on("").join(Constant.HTTP, config.getTrafficServer());
-        systemParts = config.getSystemParts();
+        systemPartsCluster = config.getSystemPartsCluster();
         systemDisks = config.getSystemDisks();
 
         queryDruidUrl = Joiner.on("").join(Constant.HTTP, config.getAnalyticServer(), "/druid/v2/sql");
@@ -100,7 +100,7 @@ public class StorageQuotaService {
     private StorageQuota getClickHouseCurr() {
         Map<String, Object> deleteParamMap = getDeleteSource();
         StorageQuota storageQuota = new StorageQuota();
-        String currSql = "SELECT SUM(`bytes_on_disk`) FROM " + systemParts + " WHERE database = '" + database + "';";
+        String currSql = "SELECT SUM(`bytes_on_disk`) FROM " + systemPartsCluster + " WHERE database = '" + database + "';";
         try {
             deleteParamMap.put("query", currSql);
             String currResult = HttpClientUtils
@@ -153,7 +153,7 @@ public class StorageQuotaService {
         String date = DateUtils.getDateOfYesterday("yyyyMMdd");
         Map<String, Object> deleteParamMap = getDeleteSource();
         StorageQuota storageQuota = new StorageQuota();
-        String diffSql = "SELECT SUM(bytes_on_disk) FROM " + systemParts + " WHERE database = '" + database
+        String diffSql = "SELECT SUM(bytes_on_disk) FROM " + systemPartsCluster + " WHERE database = '" + database
                 + "' AND partition = '" + date + "';";
         try {
             deleteParamMap.put("query", diffSql);

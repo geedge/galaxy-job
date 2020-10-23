@@ -133,11 +133,11 @@ public class LogStorageQuotaJob {
                     XxlJobLogger.log("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                 }
             }
+            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
             if (failCount > 0) {
                 throw new BusinessException("reset storage clickhouse ttl error ,failCount " + failCount);
             }
 
-            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
         } catch (BusinessException be) {
             logger.error(be.getErrorMessage());
             XxlJobLogger.log(be.getErrorMessage());
@@ -167,8 +167,9 @@ public class LogStorageQuotaJob {
             }
 
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), false);
             modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
+            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), false);
+
         } catch (BusinessException be) {
             logger.error(be.getErrorMessage());
             XxlJobLogger.log(be.getErrorMessage());
@@ -308,11 +309,11 @@ public class LogStorageQuotaJob {
                     failCount++;
                 }
             }
+            modifyLastStorage(Constant.FILES, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
             if (failCount > 0) {
                 throw new BusinessException(" number of total endpoints " + endpointList.size() + ", number of failed count " + failCount);
             }
 
-            modifyLastStorage(Constant.FILES, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
         } catch (BusinessException be) {
             logger.error(be.getErrorMessage());
             XxlJobLogger.log(be.getErrorMessage());
@@ -368,11 +369,11 @@ public class LogStorageQuotaJob {
                     failCount++;
                 }
             }
+            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, 0);
             if (failCount > 0) {
                 throw new BusinessException("delete storage clickhouse error ,failCount " + failCount);
             }
 
-            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, 0);
         } catch (BusinessException be) {
             logger.error(be.getErrorMessage());
             XxlJobLogger.log(be.getErrorMessage());
@@ -461,10 +462,10 @@ public class LogStorageQuotaJob {
                     failCount++;
                 }
             }
+            modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, 0);
             if (failCount > 0) {
                 throw new BusinessException("delete druid error, fail count " + failCount);
             }
-            modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, 0);
         } catch (BusinessException be) {
             logger.error(be.getErrorMessage());
             XxlJobLogger.log(be.getErrorMessage());
@@ -525,10 +526,10 @@ public class LogStorageQuotaJob {
 
                 }
             }
+            modifyLastStorage(Constant.FILES, 0);
             if (failCount > 0) {
                 throw new BusinessException(" delete files error, failed count " + failCount);
             }
-            modifyLastStorage(Constant.FILES, 0);
         } catch (BusinessException be) {
             logger.error(be.getErrorMessage());
             XxlJobLogger.log(be.getErrorMessage());
