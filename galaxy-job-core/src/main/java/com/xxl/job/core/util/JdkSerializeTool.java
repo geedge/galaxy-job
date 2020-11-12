@@ -55,7 +55,7 @@ public class JdkSerializeTool {
         try {
             // 反序列化
             bais = new ByteArrayInputStream(bytes);
-            ObjectInputStream ois = new ObjectInputStream(bais);
+            ObjectInputStream ois = new AntObjectInputStream(bais);
             return ois.readObject();
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
