@@ -8,7 +8,6 @@ import com.xxl.job.core.biz.model.RegistryParam;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.util.GsonTool;
 import com.xxl.job.core.util.XxlJobRemotingUtil;
-import org.apache.commons.lang.CharEncoding;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,7 +44,7 @@ public class JobApiController {
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, HttpMethod not support.");
         }
-        if (HtmlUtils.htmlEscape(uri, CharEncoding.UTF_8) == null || HtmlUtils.htmlEscape(uri, CharEncoding.UTF_8).trim().length() == 0) {
+        if (HtmlUtils.htmlEscape(uri) == null || HtmlUtils.htmlEscape(uri).trim().length() == 0) {
             return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping empty.");
         }
         if (XxlJobAdminConfig.getAdminConfig().getAccessToken() != null
@@ -55,19 +54,18 @@ public class JobApiController {
         }
 
         // services mapping
-        if ("callback".equals(HtmlUtils.htmlEscape(uri, CharEncoding.UTF_8))) {
-            List<HandleCallbackParam> callbackParamList = GsonTool.fromJson(HtmlUtils.htmlEscape(data, CharEncoding.UTF_8), List.class, HandleCallbackParam.class);
+        if ("callback".equals(HtmlUtils.htmlEscape(uri))) {
+            List<HandleCallbackParam> callbackParamList = GsonTool.fromJson(HtmlUtils.htmlEscape(data), List.class, HandleCallbackParam.class);
             return adminBiz.callback(callbackParamList);
         } else if ("registry".equals(HtmlUtils.htmlUnescape(uri))) {
-            RegistryParam registryParam = GsonTool.fromJson(HtmlUtils.htmlEscape(data, CharEncoding.UTF_8), RegistryParam.class);
+            RegistryParam registryParam = GsonTool.fromJson(HtmlUtils.htmlEscape(data), RegistryParam.class);
             return adminBiz.registry(registryParam);
-        } else if ("registryRemove".equals(HtmlUtils.htmlEscape(uri, CharEncoding.UTF_8))) {
-            RegistryParam registryParam = GsonTool.fromJson(HtmlUtils.htmlEscape(data, CharEncoding.UTF_8), RegistryParam.class);
+        } else if ("registryRemove".equals(HtmlUtils.htmlEscape(uri))) {
+            RegistryParam registryParam = GsonTool.fromJson(HtmlUtils.htmlEscape(data), RegistryParam.class);
             return adminBiz.registryRemove(registryParam);
         } else {
-            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping(" + HtmlUtils.htmlEscape(uri, CharEncoding.UTF_8) + ") not found.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping(" + HtmlUtils.htmlEscape(uri) + ") not found.");
         }
-
     }
 
 }
