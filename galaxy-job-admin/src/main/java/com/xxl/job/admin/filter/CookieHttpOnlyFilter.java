@@ -52,8 +52,7 @@ public class CookieHttpOnlyFilter implements Filter {
 
                 Date date = cal.getTime();
                 Locale locale = Locale.CHINA;
-                SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss",
-                        locale);
+                SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss", locale);
                 builder.append("Expires=" + sdf.format(date));
                 resp.setHeader("Set-Cookie", builder.toString());
             }
