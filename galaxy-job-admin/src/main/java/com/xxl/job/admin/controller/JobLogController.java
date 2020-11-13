@@ -154,7 +154,8 @@ public class JobLogController {
 
             return logResult;
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            String errorMessage = e.getMessage();
+            logger.error("logDetailCat execute error:{}", errorMessage);
             return new ReturnT<>(ReturnT.FAIL_CODE, e.getMessage());
         }
     }

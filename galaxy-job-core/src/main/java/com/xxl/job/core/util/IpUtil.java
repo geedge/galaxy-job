@@ -24,7 +24,6 @@ public class IpUtil {
     private static final Pattern IP_PATTERN = Pattern.compile("\\d{1,3}(\\.\\d{1,3}){3,5}$");
 
 
-
     private static volatile InetAddress LOCAL_ADDRESS = null;
 
     // ---------------------- valid ----------------------
@@ -93,61 +92,6 @@ public class IpUtil {
         return address;
     }
 
-    // ---------------------- find ip ----------------------
-
-
-    private static InetAddress getLocalAddress0() {
-        InetAddress localAddress = null;
-        try {
-            localAddress = InetAddress.getLocalHost();
-            InetAddress addressItem = toValidAddress(localAddress);
-            if (addressItem != null) {
-                return addressItem;
-            }
-        } catch (Throwable e) {
-            logger.error(e.getMessage(), e);
-        }
-
-        try {
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            if (null == interfaces) {
-                return localAddress;
-            }
-            while (interfaces.hasMoreElements()) {
-                try {
-                    NetworkInterface network = interfaces.nextElement();
-                    if (network.isLoopback() || network.isVirtual() || !network.isUp()) {
-                        continue;
-                    }
-                    Enumeration<InetAddress> addresses = network.getInetAddresses();
-                    while (addresses.hasMoreElements()) {
-                        try {
-                            InetAddress addressItem = toValidAddress(addresses.nextElement());
-                            if (addressItem != null) {
-                                try {
-                                    if(addressItem.isReachable(100)){
-                                        return addressItem;
-                                    }
-                                } catch (IOException e) {
-                                    // ignore
-                                }
-                            }
-                        } catch (Throwable e) {
-                            logger.error(e.getMessage(), e);
-                        }
-                    }
-                } catch (Throwable e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
-        } catch (Throwable e) {
-            logger.error(e.getMessage(), e);
-        }
-        return localAddress;
-    }
-
-
-    // ---------------------- tool ----------------------
 
     /**
      * Find first valid IP from local network card
@@ -158,7 +102,7 @@ public class IpUtil {
         if (LOCAL_ADDRESS != null) {
             return LOCAL_ADDRESS;
         }
-        InetAddress localAddress = getLocalAddress0();
+        InetAddress localAddress = getLocalHostExactAddress();
         LOCAL_ADDRESS = localAddress;
         return localAddress;
     }
@@ -168,7 +112,7 @@ public class IpUtil {
      *
      * @return String
      */
-    public static String getIp(){
+    public static String getIp() {
         return getLocalAddress().getHostAddress();
     }
 
@@ -178,19 +122,19 @@ public class IpUtil {
      * @param port
      * @return String
      */
-    public static String getIpPort(int port){
+    public static String getIpPort(int port) {
         String ip = getIp();
         return getIpPort(ip, port);
     }
 
-    public static String getIpPort(String ip, int port){
-        if (ip==null) {
+    public static String getIpPort(String ip, int port) {
+        if (ip == null) {
             return null;
         }
         return ip.concat(":").concat(String.valueOf(port));
     }
 
-    public static Object[] parseIpPort(String address){
+    public static Object[] parseIpPort(String address) {
         String[] array = address.split(":");
 
         String host = array[0];
@@ -199,5 +143,39 @@ public class IpUtil {
         return new Object[]{host, port};
     }
 
+    public static InetAddress getLocalHostExactAddress() {
+        try {
+            InetAddress candidateAddress = null;
+
+            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+            while (networkInterfaces.hasMoreElements()) {
+                NetworkInterface iface = networkInterfaces.nextElement();
+                // 该网卡接口下的ip会有多个，也需要一个个的遍历，找到自己所需要的
+                for (Enumeration<InetAddress> inetAddrs = iface.getInetAddresses(); inetAddrs.hasMoreElements(); ) {
+                    InetAddress inetAddr = inetAddrs.nextElement();
+                    // 排除loopback回环类型地址（不管是IPv4还是IPv6 只要是回环地址都会返回true）
+                    if (!inetAddr.isLoopbackAddress()) {
+                        if (inetAddr.isSiteLocalAddress()) {
+                            // 如果是site-local地址，就是它了 就是我们要找的
+                            // ~~~~~~~~~~~~~绝大部分情况下都会在此处返回你的ip地址值~~~~~~~~~~~~~
+                            return inetAddr;
+                        }
+
+                        // 若不是site-local地址 那就记录下该地址当作候选
+                        if (candidateAddress == null) {
+                            candidateAddress = inetAddr;
+                        }
+
+                    }
+                }
+            }
+
+            // 如果出去loopback回环地之外无其它地址了，那就回退到原始方案吧
+            return candidateAddress == null ? InetAddress.getLocalHost() : candidateAddress;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return null;
+    }
 
 }
