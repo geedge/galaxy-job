@@ -179,7 +179,7 @@ $(function() {
                 rangelength: I18n.system_lengh_limit + "[4-20]"
             },
             password : {
-                required : I18n.system_please_input + I18n.user_password,
+                required : I18n.system_please_input + I18n.user_secret,
                 rangelength: I18n.system_lengh_limit + "[4-20]"
             }
         },

@@ -30,8 +30,8 @@ $(function(){
                 minlength : I18n.login_username_lt_4
             },
             password : {
-            	required  : I18n.login_password_empty  ,
-                minlength : I18n.login_password_lt_4
+            	required  : I18n.login_secret_empty  ,
+                minlength : I18n.login_secret_lt_4
                 /*,maxlength:"登录密码不应超过18位"*/
             }
         }, 
