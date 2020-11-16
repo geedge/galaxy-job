@@ -188,7 +188,7 @@
 //            //String jobClass = jobDetail.getJobClass().getName();
 //
 //		} catch (SchedulerException e) {
-//			logger.error(e.getMessage(), e);
+//			logger.error("errorMessage:{}", e);
 //		}
 //	}
 //
@@ -404,7 +404,7 @@
 //            }
 //
 //        } catch (SchedulerException e) {
-//            logger.error(e.getMessage(), e);
+//            logger.error("errorMessage:{}", e);
 //            return null;
 //        }
 //        return jobList;

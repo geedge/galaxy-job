@@ -60,7 +60,7 @@ public class ExecutorRegistryThread {
                         }
                     } catch (Exception e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
 
                     }
@@ -99,7 +99,7 @@ public class ExecutorRegistryThread {
                     }
                 } catch (Exception e) {
                     if (!toStop) {
-                        logger.error(e.getMessage(), e);
+                        logger.error("errorMessage:{}", e);
                     }
                 }
                 logger.info(">>>>>>>>>>> xxl-job, executor registry thread destory.");
@@ -118,7 +118,7 @@ public class ExecutorRegistryThread {
         try {
             registryThread.join();
         } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
     }
 

@@ -37,7 +37,7 @@ public class I18nUtil {
             EncodedResource encodedResource = new EncodedResource(resource,"UTF-8");
             prop = PropertiesLoaderUtils.loadProperties(encodedResource);
         } catch (IOException e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
         return prop;
     }

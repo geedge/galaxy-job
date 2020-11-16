@@ -45,7 +45,7 @@ public class JobScheduleHelper {
                     TimeUnit.MILLISECONDS.sleep(5000 - System.currentTimeMillis()%1000 );
                 } catch (InterruptedException e) {
                     if (!scheduleThreadToStop) {
-                        logger.error(e.getMessage(), e);
+                        logger.error("errorMessage:{}", e);
                     }
                 }
                 logger.info(">>>>>>>>> init xxl-job admin scheduler success.");
@@ -153,21 +153,21 @@ public class JobScheduleHelper {
                                 conn.commit();
                             } catch (SQLException e) {
                                 if (!scheduleThreadToStop) {
-                                    logger.error(e.getMessage(), e);
+                                    logger.error("errorMessage:{}", e);
                                 }
                             }
                             try {
                                 conn.setAutoCommit(connAutoCommit);
                             } catch (SQLException e) {
                                 if (!scheduleThreadToStop) {
-                                    logger.error(e.getMessage(), e);
+                                    logger.error("errorMessage:{}", e);
                                 }
                             }
                             try {
                                 conn.close();
                             } catch (SQLException e) {
                                 if (!scheduleThreadToStop) {
-                                    logger.error(e.getMessage(), e);
+                                    logger.error("errorMessage:{}", e);
                                 }
                             }
                         }
@@ -178,7 +178,7 @@ public class JobScheduleHelper {
                                 preparedStatement.close();
                             } catch (SQLException e) {
                                 if (!scheduleThreadToStop) {
-                                    logger.error(e.getMessage(), e);
+                                    logger.error("errorMessage:{}", e);
                                 }
                             }
                         }
@@ -193,7 +193,7 @@ public class JobScheduleHelper {
                             TimeUnit.MILLISECONDS.sleep((preReadSuc?1000:PRE_READ_MS) - System.currentTimeMillis()%1000);
                         } catch (InterruptedException e) {
                             if (!scheduleThreadToStop) {
-                                logger.error(e.getMessage(), e);
+                                logger.error("errorMessage:{}", e);
                             }
                         }
                     }
@@ -218,7 +218,7 @@ public class JobScheduleHelper {
                     TimeUnit.MILLISECONDS.sleep(1000 - System.currentTimeMillis()%1000 );
                 } catch (InterruptedException e) {
                     if (!ringThreadToStop) {
-                        logger.error(e.getMessage(), e);
+                        logger.error("errorMessage:{}", e);
                     }
                 }
 
@@ -257,7 +257,7 @@ public class JobScheduleHelper {
                         TimeUnit.MILLISECONDS.sleep(1000 - System.currentTimeMillis()%1000);
                     } catch (InterruptedException e) {
                         if (!ringThreadToStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
                     }
                 }
@@ -300,7 +300,7 @@ public class JobScheduleHelper {
         try {
             TimeUnit.SECONDS.sleep(1);  // wait
         } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
         if (scheduleThread.getState() != Thread.State.TERMINATED){
             // interrupt and wait
@@ -308,7 +308,7 @@ public class JobScheduleHelper {
             try {
                 scheduleThread.join();
             } catch (InterruptedException e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
             }
         }
 
@@ -327,7 +327,7 @@ public class JobScheduleHelper {
             try {
                 TimeUnit.SECONDS.sleep(8);
             } catch (InterruptedException e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
             }
         }
 
@@ -336,7 +336,7 @@ public class JobScheduleHelper {
         try {
             TimeUnit.SECONDS.sleep(1);
         } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
         if (ringThread.getState() != Thread.State.TERMINATED){
             // interrupt and wait
@@ -344,7 +344,7 @@ public class JobScheduleHelper {
             try {
                 ringThread.join();
             } catch (InterruptedException e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
             }
         }
 

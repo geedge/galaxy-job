@@ -97,7 +97,7 @@ public class JobThread extends Thread{
     	try {
 			handler.init();
 		} catch (Throwable e) {
-    		logger.error(e.getMessage(), e);
+    		logger.error("errorMessage:{}", e);
 		}
 
 		// execute
@@ -210,7 +210,7 @@ public class JobThread extends Thread{
 		try {
 			handler.destroy();
 		} catch (Throwable e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		}
 
 		logger.info(">>>>>>>>>>> xxl-job JobThread stoped, hashCode:{}", Thread.currentThread());

@@ -79,7 +79,7 @@ public class DruidNativeQueryJob {
             XxlJobLogger.log(be.getErrorMessage());
             return new ReturnT<String>(be.getErrorCode(), be.getErrorMessage());
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e.getMessage());
             return new ReturnT<String>(IJobHandler.FAIL.getCode(), e.getMessage());
         }

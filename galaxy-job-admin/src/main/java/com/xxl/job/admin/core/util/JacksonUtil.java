@@ -37,11 +37,11 @@ public class JacksonUtil {
     	try {
 			return getInstance().writeValueAsString(obj);
 		} catch (JsonGenerationException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} catch (JsonMappingException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		}
         return null;
     }
@@ -58,11 +58,11 @@ public class JacksonUtil {
     	try {
 			return getInstance().readValue(jsonStr, clazz);
 		} catch (JsonParseException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} catch (JsonMappingException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		}
     	return null;
     }
@@ -81,11 +81,11 @@ public class JacksonUtil {
 			JavaType javaType = getInstance().getTypeFactory().constructParametricType(parametrized, parameterClasses);
 			return getInstance().readValue(jsonStr, javaType);
 		} catch (JsonParseException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} catch (JsonMappingException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		}
 		return null;
 	}

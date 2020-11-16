@@ -205,7 +205,7 @@ public class XxlJobServiceImpl implements XxlJobService {
 				}
 				nextTriggerTime = nextValidTime.getTime();
 			} catch (ParseException e) {
-				logger.error(e.getMessage(), e);
+				logger.error("errorMessage:{}", e);
 				return new ReturnT<String>(ReturnT.FAIL_CODE, I18nUtil.getString("jobinfo_field_cron_unvalid")+" | "+ e.getMessage());
 			}
 		}
@@ -257,7 +257,7 @@ public class XxlJobServiceImpl implements XxlJobService {
 			}
 			nextTriggerTime = nextValidTime.getTime();
 		} catch (ParseException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 			return new ReturnT<String>(ReturnT.FAIL_CODE, I18nUtil.getString("jobinfo_field_cron_unvalid")+" | "+ e.getMessage());
 		}
 

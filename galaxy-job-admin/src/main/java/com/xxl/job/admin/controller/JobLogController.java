@@ -179,7 +179,7 @@ public class JobLogController {
             ExecutorBiz executorBiz = XxlJobScheduler.getExecutorBiz(log.getExecutorAddress());
             runResult = executorBiz.kill(new KillParam(jobInfo.getId()));
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
             runResult = new ReturnT<>(500, e.getMessage());
         }
 

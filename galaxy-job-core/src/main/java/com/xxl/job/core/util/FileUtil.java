@@ -62,13 +62,13 @@ public class FileUtil {
             fos.write(data);
             fos.flush();
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         } finally {
             if (fos != null) {
                 try {
                     fos.close();
                 } catch (IOException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("errorMessage:{}", e);
                 }
             }
         }
@@ -87,14 +87,14 @@ public class FileUtil {
 
             return filecontent;
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
             return null;
         } finally {
             if (in != null) {
                 try {
                     in.close();
                 } catch (IOException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("errorMessage:{}", e);
                 }
             }
         }
@@ -109,7 +109,7 @@ public class FileUtil {
             try {
                 file.createNewFile();
             } catch (IOException e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
                 return;
             }
         }
@@ -127,13 +127,13 @@ public class FileUtil {
             fos.write(content.getBytes("utf-8"));
             fos.flush();
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         } finally {
             if (fos != null) {
                 try {
                     fos.close();
                 } catch (IOException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("errorMessage:{}", e);
                 }
             }
         }
@@ -164,13 +164,13 @@ public class FileUtil {
                 }
             }
         } catch (IOException e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         } finally {
             if (reader != null) {
                 try {
                     reader.close();
                 } catch (IOException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("errorMessage:{}", e);
                 }
             }
         }

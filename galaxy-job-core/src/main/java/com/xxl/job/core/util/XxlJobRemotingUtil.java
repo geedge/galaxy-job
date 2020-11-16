@@ -33,7 +33,7 @@ public class XxlJobRemotingUtil {
 
             connection.setSSLSocketFactory(newFactory);
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
         connection.setHostnameVerifier((hostname, session) -> {
             if (StringUtil.isNullOrEmpty(hostname)) {
@@ -43,7 +43,15 @@ public class XxlJobRemotingUtil {
         });
     }
 
-    private static final TrustManager[] trustAllCerts = new TrustManager[]{new MyX509TrustManager()};
+    private static TrustManager[] trustAllCerts = new TrustManager[0];
+
+    static {
+        try {
+            trustAllCerts = new TrustManager[]{new MyX509TrustManager()};
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
+    }
     // trust-https end
 
 
@@ -132,7 +140,7 @@ public class XxlJobRemotingUtil {
             }
 
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
             return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting error(" + e.getMessage() + "), for url : " + url);
         } finally {
             try {

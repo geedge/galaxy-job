@@ -69,9 +69,9 @@ public class SpringGlueFactory extends GlueFactory {
                 try {
                     field.set(instance, fieldBean);
                 } catch (IllegalArgumentException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("errorMessage:{}", e);
                 } catch (IllegalAccessException e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("errorMessage:{}", e);
                 }
             }
         }

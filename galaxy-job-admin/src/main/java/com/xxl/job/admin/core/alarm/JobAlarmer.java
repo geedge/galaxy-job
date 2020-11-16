@@ -51,7 +51,7 @@ public class JobAlarmer implements ApplicationContextAware, InitializingBean {
                 try {
                     resultItem = alarm.doAlarm(info, jobLog);
                 } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
+                    logger.error("errorMessage:{}", e);
                 }
                 if (!resultItem) {
                     result = false;

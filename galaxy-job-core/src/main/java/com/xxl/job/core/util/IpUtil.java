@@ -173,7 +173,7 @@ public class IpUtil {
             // 如果出去loopback回环地之外无其它地址了，那就回退到原始方案吧
             return candidateAddress == null ? InetAddress.getLocalHost() : candidateAddress;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
         }
         return null;
     }

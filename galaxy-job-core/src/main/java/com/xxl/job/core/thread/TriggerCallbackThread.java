@@ -77,7 +77,7 @@ public class TriggerCallbackThread {
                         }
                     } catch (Exception e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
                     }
                 }
@@ -91,7 +91,7 @@ public class TriggerCallbackThread {
                     }
                 } catch (Exception e) {
                     if (!toStop) {
-                        logger.error(e.getMessage(), e);
+                        logger.error("errorMessage:{}", e);
                     }
                 }
                 logger.info(">>>>>>>>>>> xxl-job, executor callback thread destory.");
@@ -112,7 +112,7 @@ public class TriggerCallbackThread {
                         retryFailCallbackFile();
                     } catch (Exception e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
 
                     }
@@ -120,7 +120,7 @@ public class TriggerCallbackThread {
                         TimeUnit.SECONDS.sleep(RegistryConfig.BEAT_TIMEOUT);
                     } catch (InterruptedException e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
                     }
                 }
@@ -139,7 +139,7 @@ public class TriggerCallbackThread {
             try {
                 triggerCallbackThread.join();
             } catch (InterruptedException e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
             }
         }
 
@@ -149,7 +149,7 @@ public class TriggerCallbackThread {
             try {
                 triggerRetryCallbackThread.join();
             } catch (InterruptedException e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
             }
         }
 

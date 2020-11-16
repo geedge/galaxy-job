@@ -103,7 +103,7 @@ public class XxlJobFileAppender {
 			try {
 				logFile.createNewFile();
 			} catch (IOException e) {
-				logger.error(e.getMessage(), e);
+				logger.error("errorMessage:{}", e);
 				return;
 			}
 		}
@@ -121,13 +121,13 @@ public class XxlJobFileAppender {
 			fos.write(appendLog.getBytes("utf-8"));
 			fos.flush();
 		} catch (Exception e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} finally {
 			if (fos != null) {
 				try {
 					fos.close();
 				} catch (IOException e) {
-					logger.error(e.getMessage(), e);
+					logger.error("errorMessage:{}", e);
 				}
 			}
 		}
@@ -168,13 +168,13 @@ public class XxlJobFileAppender {
 				}
 			}
 		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} finally {
 			if (reader != null) {
 				try {
 					reader.close();
 				} catch (IOException e) {
-					logger.error(e.getMessage(), e);
+					logger.error("errorMessage:{}", e);
 				}
 			}
 		}
@@ -209,13 +209,13 @@ public class XxlJobFileAppender {
 				return sb.toString();
 			}
 		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		} finally {
 			if (reader != null) {
 				try {
 					reader.close();
 				} catch (IOException e) {
-					logger.error(e.getMessage(), e);
+					logger.error("errorMessage:{}", e);
 				}
 			}
 		}

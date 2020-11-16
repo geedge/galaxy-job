@@ -68,7 +68,7 @@ public class JobLogFileCleanThread {
                                     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
                                     logFileCreateDate = simpleDateFormat.parse(childFile.getName());
                                 } catch (ParseException e) {
-                                    logger.error(e.getMessage(), e);
+                                    logger.error("errorMessage:{}", e);
                                 }
                                 if (logFileCreateDate == null) {
                                     continue;
@@ -83,7 +83,7 @@ public class JobLogFileCleanThread {
 
                     } catch (Exception e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
 
                     }
@@ -92,7 +92,7 @@ public class JobLogFileCleanThread {
                         TimeUnit.DAYS.sleep(1);
                     } catch (InterruptedException e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
                     }
                 }
@@ -117,7 +117,7 @@ public class JobLogFileCleanThread {
         try {
             localThread.join();
         } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
     }
 

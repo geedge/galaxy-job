@@ -50,7 +50,7 @@ public class WebExceptionResolver implements HandlerExceptionResolver {
 				response.setContentType("application/json;charset=utf-8");
 				response.getWriter().print(JacksonUtil.writeValueAsString(errorResult));
 			} catch (IOException e) {
-				logger.error(e.getMessage(), e);
+				logger.error("errorMessage:{}", e);
 			}
 			return mv;
 		} else {

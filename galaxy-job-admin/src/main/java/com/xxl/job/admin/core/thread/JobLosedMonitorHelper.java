@@ -66,7 +66,7 @@ public class JobLosedMonitorHelper {
                         TimeUnit.SECONDS.sleep(60);
                     } catch (Exception e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
                     }
 
@@ -88,7 +88,7 @@ public class JobLosedMonitorHelper {
 		try {
 			monitorThread.join();
 		} catch (InterruptedException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		}
 	}
 

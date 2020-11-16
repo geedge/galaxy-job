@@ -81,7 +81,7 @@ public class JobFailMonitorHelper {
                         TimeUnit.SECONDS.sleep(10);
                     } catch (Exception e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
                     }
 
@@ -103,7 +103,7 @@ public class JobFailMonitorHelper {
 		try {
 			monitorThread.join();
 		} catch (InterruptedException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		}
 	}
 

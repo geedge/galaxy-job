@@ -123,7 +123,7 @@ public class JobLogReportHelper {
                         TimeUnit.MINUTES.sleep(1);
                     } catch (Exception e) {
                         if (!toStop) {
-                            logger.error(e.getMessage(), e);
+                            logger.error("errorMessage:{}", e);
                         }
                     }
 
@@ -145,7 +145,7 @@ public class JobLogReportHelper {
         try {
             logrThread.join();
         } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
     }
 

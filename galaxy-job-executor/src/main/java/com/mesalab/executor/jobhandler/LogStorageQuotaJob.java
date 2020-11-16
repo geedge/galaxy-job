@@ -143,7 +143,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
@@ -175,7 +175,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
@@ -206,7 +206,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
@@ -319,7 +319,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
@@ -379,7 +379,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
@@ -471,7 +471,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
@@ -535,7 +535,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
@@ -581,7 +581,7 @@ public class LogStorageQuotaJob {
             XxlJobLogger.log(be.getErrorMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }

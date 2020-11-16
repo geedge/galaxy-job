@@ -104,7 +104,7 @@ public class JobRegistryMonitorHelper {
 		try {
 			registryThread.join();
 		} catch (InterruptedException e) {
-			logger.error(e.getMessage(), e);
+			logger.error("errorMessage:{}", e);
 		}
 	}
 

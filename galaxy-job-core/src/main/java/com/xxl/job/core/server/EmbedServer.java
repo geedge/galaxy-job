@@ -103,7 +103,7 @@ public class EmbedServer {
                         workerGroup.shutdownGracefully();
                         bossGroup.shutdownGracefully();
                     } catch (Exception e) {
-                        logger.error(e.getMessage(), e);
+                        logger.error("errorMessage:{}", e);
                     }
                 }
 
@@ -209,7 +209,7 @@ public class EmbedServer {
                     return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, uri-mapping("+ uri +") not found.");
                 }
             } catch (Exception e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
                 return new ReturnT<String>(ReturnT.FAIL_CODE, "request error:" + ThrowableUtil.toString(e));
             }
         }

@@ -36,13 +36,13 @@ public class JdkSerializeTool {
             byte[] bytes = baos.toByteArray();
             return bytes;
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         } finally {
             try {
                 oos.close();
                 baos.close();
             } catch (IOException e) {
-                logger.error(e.getMessage(), e);
+                logger.error("errorMessage:{}", e);
             }
         }
         return null;
@@ -66,9 +66,9 @@ public class JdkSerializeTool {
             obj = ois.readObject();
             return obj;
         } catch (IOException e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
         } catch (ClassNotFoundException e) {
-            logger.error(e.getMessage());
+            logger.error("errorMessage:{}", e);
         }
         return null;
     }
