@@ -1,20 +1,16 @@
 package com.xxl.job.core.util;
 
 import com.xxl.job.core.biz.model.ReturnT;
-import io.netty.util.internal.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
+import javax.net.ssl.*;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Arrays;
+import java.security.cert.X509Certificate;
 
 /**
  * @author xuxueli 2018-11-25 00:55:31
@@ -22,7 +18,7 @@ import java.util.Arrays;
 public class XxlJobRemotingUtil {
     private static Logger logger = LoggerFactory.getLogger(XxlJobRemotingUtil.class);
     public static final String XXL_JOB_ACCESS_TOKEN = "XXL-JOB-ACCESS-TOKEN";
-    private static String[] VERIFY_HOST_NAME_ARRAY = new String[]{};
+
 
     // trust-https start
     private static void trustAllHosts(HttpsURLConnection connection) {
@@ -33,25 +29,26 @@ public class XxlJobRemotingUtil {
 
             connection.setSSLSocketFactory(newFactory);
         } catch (Exception e) {
-            logger.error("errorMessage:{}", e);
+            logger.error(e.getMessage(), e);
         }
-        connection.setHostnameVerifier((hostname, session) -> {
-            if (StringUtil.isNullOrEmpty(hostname)) {
-                return false;
+        connection.setHostnameVerifier(new HostnameVerifier() {
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
             }
-            return !Arrays.asList(VERIFY_HOST_NAME_ARRAY).contains(hostname);
         });
     }
 
-    private static TrustManager[] trustAllCerts = new TrustManager[0];
-
-    static {
-        try {
-            trustAllCerts = new TrustManager[]{new MyX509TrustManager()};
-        } catch (Exception exception) {
-            exception.printStackTrace();
+    private static final TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+            return new java.security.cert.X509Certificate[]{};
         }
-    }
+
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {
+        }
+
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {
+        }
+    }};
     // trust-https end
 
 
@@ -140,7 +137,7 @@ public class XxlJobRemotingUtil {
             }
 
         } catch (Exception e) {
-            logger.error("errorMessage:{}", e);
+            logger.error(e.getMessage(), e);
             return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting error(" + e.getMessage() + "), for url : " + url);
         } finally {
             try {
