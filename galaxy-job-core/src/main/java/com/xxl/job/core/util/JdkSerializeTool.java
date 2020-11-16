@@ -1,9 +1,14 @@
 package com.xxl.job.core.util;
 
+import com.xxl.job.core.biz.model.HandleCallbackParam;
+import org.apache.commons.io.serialization.ValidatingObjectInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 
 /**
  * @author xuxueli 2020-04-12 0:14:00
@@ -50,21 +55,20 @@ public class JdkSerializeTool {
      * @param bytes
      * @return
      */
-    public static  <T> Object deserialize(byte[] bytes, Class<T> clazz) {
-        ByteArrayInputStream bais = null;
+    public static Object deserialize(byte[] bytes) {
         try {
-            // 反序列化
-            bais = new ByteArrayInputStream(bytes);
-            ObjectInputStream ois = new AntObjectInputStream(bais);
-            return ois.readObject();
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        } finally {
-            try {
-                bais.close();
-            } catch (IOException e) {
-                logger.error(e.getMessage(), e);
-            }
+            Object obj;
+            ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+            // Use ValidatingObjectInputStream instead of InputStream
+            ValidatingObjectInputStream ois = new ValidatingObjectInputStream(bais);
+            //HandleCallbackParam class
+            ois.accept(HandleCallbackParam.class);
+            obj = ois.readObject();
+            return obj;
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+        } catch (ClassNotFoundException e) {
+            logger.error(e.getMessage());
         }
         return null;
     }

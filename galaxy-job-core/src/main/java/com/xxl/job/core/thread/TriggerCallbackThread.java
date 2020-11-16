@@ -236,7 +236,7 @@ public class TriggerCallbackThread {
         // load and clear file, retry
         for (File callbaclLogFile: callbackLogPath.listFiles()) {
             byte[] callbackParamList_bytes = FileUtil.readFileContent(callbaclLogFile);
-            List<HandleCallbackParam> callbackParamList = (List<HandleCallbackParam>) JdkSerializeTool.deserialize(callbackParamList_bytes, List.class);
+            List<HandleCallbackParam> callbackParamList = (List<HandleCallbackParam>) JdkSerializeTool.deserialize(callbackParamList_bytes);
 
             callbaclLogFile.delete();
             doCallback(callbackParamList);
