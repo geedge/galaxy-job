@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * index controller
  *
@@ -150,6 +151,11 @@ public class JobLogController {
                 if (jobLog.getHandleCode() > 0) {
                     logResult.getContent().setEnd(true);
                 }
+                LogResult content = logResult.getContent();
+                String logContent = content.getLogContent();
+                String s = HtmlUtils.htmlEscape(logContent, "UTF-8");
+                content.setLogContent(s);
+                logResult.setContent(content);
             }
 
             return logResult;
@@ -189,9 +195,9 @@ public class JobLogController {
             log.setHandleMsg(HtmlUtils.htmlUnescape(str));
             log.setHandleTime(new Date());
             xxlJobLogDao.updateHandleInfo(log);
-            return new ReturnT<>(runResult.getMsg());
+            return new ReturnT<>(HtmlUtils.htmlEscape(runResult.getMsg(), "UTF-8"));
         } else {
-            return new ReturnT<>(500, runResult.getMsg());
+            return new ReturnT<>(500, HtmlUtils.htmlEscape(runResult.getMsg(), "UTF-8"));
         }
     }
 

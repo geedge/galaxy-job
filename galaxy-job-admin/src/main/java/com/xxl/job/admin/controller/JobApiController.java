@@ -9,10 +9,8 @@ import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.util.GsonTool;
 import com.xxl.job.core.util.XxlJobRemotingUtil;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.HtmlUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -35,15 +33,11 @@ public class JobApiController {
      * @param data
      * @return
      */
-    @RequestMapping("/{uri}")
+    @RequestMapping(value = "/{uri}",method = RequestMethod.POST)
     @ResponseBody
     @PermissionLimit(limit = false)
     public ReturnT<String> api(HttpServletRequest request, @PathVariable("uri") String uri, @RequestBody(required = false) String data) {
 
-        // valid
-        if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            return new ReturnT<>(ReturnT.FAIL_CODE, "HttpMethod not support.");
-        }
         if (uri == null || uri.trim().length() == 0) {
             return new ReturnT<>(ReturnT.FAIL_CODE, "uri-mapping empty.");
         }
@@ -56,18 +50,30 @@ public class JobApiController {
         // services mapping
         if ("callback".equals(uri)) {
             List<HandleCallbackParam> callbackParamList = GsonTool.fromJson(data, List.class, HandleCallbackParam.class);
+            for (int i = 0; i < callbackParamList.size(); i++) {
+                ReturnT<String> executeResult = callbackParamList.get(i).getExecuteResult();
+                if(executeResult!=null&&executeResult.getContent()!=null){
+                    executeResult.setContent(HtmlUtils.htmlEscape(executeResult.getContent()));
+                    callbackParamList.get(i).setExecuteResult(executeResult);
+                }
+            }
             return adminBiz.callback(callbackParamList);
         } else if ("registry".equals(uri)) {
             RegistryParam registryParam = GsonTool.fromJson(data, RegistryParam.class);
-            return adminBiz.registry(registryParam);
+            return adminBiz.registry(htmlEscape(registryParam));
         } else if ("registryRemove".equals(uri)) {
             RegistryParam registryParam = GsonTool.fromJson(data, RegistryParam.class);
-            return adminBiz.registryRemove(registryParam);
+            return adminBiz.registryRemove(htmlEscape(registryParam));
         } else {
             return new ReturnT<>(ReturnT.FAIL_CODE, "unkonw uri");
         }
 
     }
 
-
+    private RegistryParam htmlEscape(RegistryParam registryParam) {
+        registryParam.setRegistryGroup(HtmlUtils.htmlEscape(registryParam.getRegistryGroup(), "UTF-8"));
+        registryParam.setRegistryKey(HtmlUtils.htmlEscape(registryParam.getRegistryKey()));
+        registryParam.setRegistryValue(HtmlUtils.htmlEscape(registryParam.getRegistryValue()));
+        return registryParam;
+    }
 }

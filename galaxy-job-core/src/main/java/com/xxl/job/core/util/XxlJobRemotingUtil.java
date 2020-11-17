@@ -141,7 +141,7 @@ public class XxlJobRemotingUtil {
             }
 
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
             return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting error(" + e.getMessage() + "), for url : " + url);
         } finally {
             try {
@@ -152,7 +152,7 @@ public class XxlJobRemotingUtil {
                     connection.disconnect();
                 }
             } catch (Exception e2) {
-                logger.error(e2.getMessage(), e2);
+                logger.error("errorMessage:{}", e2);
             }
         }
     }

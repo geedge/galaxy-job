@@ -425,7 +425,7 @@ public class LogStorageQuotaJob {
                                 break;
                             }
                         } catch (InterruptedException e) {
-                            logger.error(" query druid error {}", e.getMessage());
+                            logger.error(" query druid error {}", e);
                             XxlJobLogger.log(" query druid error {}", e.getMessage());
                         }
                     }
