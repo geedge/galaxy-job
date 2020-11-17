@@ -1,6 +1,7 @@
 package com.xxl.job.core.util;
 
 import com.xxl.job.core.biz.model.ReturnT;
+import io.netty.util.internal.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +12,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 
 /**
  * @author xuxueli 2018-11-25 00:55:31
@@ -19,6 +21,7 @@ public class XxlJobRemotingUtil {
     private static Logger logger = LoggerFactory.getLogger(XxlJobRemotingUtil.class);
     public static final String XXL_JOB_ACCESS_TOKEN = "XXL-JOB-ACCESS-TOKEN";
 
+    private static String[] VERIFY_HOST_NAME_ARRAY = new String[]{};
 
     // trust-https start
     private static void trustAllHosts(HttpsURLConnection connection) {
@@ -29,12 +32,13 @@ public class XxlJobRemotingUtil {
 
             connection.setSSLSocketFactory(newFactory);
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            logger.error("errorMessage:{}", e);
         }
-        connection.setHostnameVerifier(new HostnameVerifier() {
-            public boolean verify(String hostname, SSLSession session) {
-                return true;
+        connection.setHostnameVerifier((hostname, session) -> {
+            if (StringUtil.isNullOrEmpty(hostname)) {
+                return false;
             }
+            return !Arrays.asList(VERIFY_HOST_NAME_ARRAY).contains(hostname);
         });
     }
 
