@@ -9,6 +9,7 @@ import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.util.GsonTool;
 import com.xxl.job.core.util.XxlJobRemotingUtil;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,36 +38,48 @@ public class JobApiController {
      */
     @RequestMapping("/{uri}")
     @ResponseBody
-    @PermissionLimit(limit=false)
+    @PermissionLimit(limit = false)
     public ReturnT<String> api(HttpServletRequest request, @PathVariable("uri") String uri, @RequestBody(required = false) String data) {
 
         // valid
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, HttpMethod not support.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, HttpMethod not support.");
         }
-        if (uri==null || uri.trim().length()==0) {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, uri-mapping empty.");
+        if (uri == null || uri.trim().length() == 0) {
+            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping empty.");
         }
-        if (XxlJobAdminConfig.getAdminConfig().getAccessToken()!=null
-                && XxlJobAdminConfig.getAdminConfig().getAccessToken().trim().length()>0
+        if (XxlJobAdminConfig.getAdminConfig().getAccessToken() != null
+                && XxlJobAdminConfig.getAdminConfig().getAccessToken().trim().length() > 0
                 && !XxlJobAdminConfig.getAdminConfig().getAccessToken().equals(request.getHeader(XxlJobRemotingUtil.XXL_JOB_ACCESS_TOKEN))) {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "The access token is wrong.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "The access token is wrong.");
         }
 
         // services mapping
-        if ("callback".equals(uri)) {
-            List<HandleCallbackParam> callbackParamList = GsonTool.fromJson(data, List.class, HandleCallbackParam.class);
+        if ("callback".equals(filterParameter(uri))) {
+            List<HandleCallbackParam> callbackParamList = GsonTool.fromJson(filterParameter(data), List.class, HandleCallbackParam.class);
             return adminBiz.callback(callbackParamList);
-        } else if ("registry".equals(uri)) {
-            RegistryParam registryParam = GsonTool.fromJson(data, RegistryParam.class);
+        } else if ("registry".equals(filterParameter(uri))) {
+            RegistryParam registryParam = GsonTool.fromJson(filterParameter(data), RegistryParam.class);
             return adminBiz.registry(registryParam);
-        } else if ("registryRemove".equals(uri)) {
-            RegistryParam registryParam = GsonTool.fromJson(data, RegistryParam.class);
+        } else if ("registryRemove".equals(filterParameter(uri))) {
+            RegistryParam registryParam = GsonTool.fromJson(filterParameter(data), RegistryParam.class);
             return adminBiz.registryRemove(registryParam);
         } else {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, uri-mapping("+ uri +") not found.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping(" + filterParameter(uri) + ") not found.");
         }
 
+    }
+
+    private String filterParameter(String parameter) {
+        final String[] dangerCharacters = {"<", ">", "\"", "\'", "%", "(", ")", "\\", "."};
+        if (StringUtils.isEmpty(parameter)) return null;
+        StringBuffer sb = new StringBuffer(parameter);
+        for (String s : dangerCharacters) {
+            while (sb.indexOf(s) > -1) {
+                sb.deleteCharAt(sb.indexOf(s));
+            }
+        }
+        return sb.toString();
     }
 
 }

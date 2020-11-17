@@ -509,12 +509,6 @@ public class StorageQuotaService {
         return deleteParamMap;
     }
 
-    /**
-     * 解析脚本返回结果
-     *
-     * @param in
-     * @param charset 编码格式
-     */
     private String getProcessMessage(InputStream in, String charset) {
         if (in != null) {
             BufferedReader br = null;
