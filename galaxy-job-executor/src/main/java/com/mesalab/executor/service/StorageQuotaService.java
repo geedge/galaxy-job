@@ -12,7 +12,6 @@ import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
-import com.zdjizhi.utils.StringUtil;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,10 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -515,7 +510,7 @@ public class StorageQuotaService {
      * @param in
      * @param charset 编码格式
      */
-    private String getProcessMessage(InputStream in, String charset) {
+    /*private String getProcessMessage(InputStream in, String charset) {
         if (in != null) {
             BufferedReader br = null;
             StringBuffer buffer = new StringBuffer();
@@ -543,7 +538,7 @@ public class StorageQuotaService {
         } else {
             return "";
         }
-    }
+    }*/
 
     /**
      * 用于组合正常维度的JSON串
