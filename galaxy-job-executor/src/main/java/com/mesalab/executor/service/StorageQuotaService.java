@@ -68,7 +68,7 @@ public class StorageQuotaService {
     private static String queryHdfsUrls;
 
     private static String trafficUserName;
-    private static String trafficPassword;
+    private static String trafficSecret;
 
     private static String systemPartsCluster;
     private static String systemDisks;
@@ -84,16 +84,27 @@ public class StorageQuotaService {
     public StorageQuotaService(StorgeConfig config) {
         database = config.getTrafficDatasource();
         trafficUserName = config.getTrafficUsername();
-        trafficPassword = config.getTrafficPassword();
-        queryClickHouseUrl = Joiner.on("").join(Constant.HTTP, config.getTrafficServer());
+        trafficSecret = config.getTrafficSecret();
+        queryClickHouseUrl = Joiner.on("").join(Constant.SERVER_PROTOCOL, config.getTrafficServer());
         systemPartsCluster = config.getSystemPartsCluster();
         systemDisks = config.getSystemDisks();
 
-        queryDruidUrl = Joiner.on("").join(Constant.HTTP, config.getAnalyticServer(), "/druid/v2/sql");
+        queryDruidUrl = Joiner.on("").join(Constant.SERVER_PROTOCOL, config.getAnalyticServer(), "/druid/v2/sql");
         queryHdfsUrls = config.getFilesHdfsServer();
         hbaselinuxDir = config.getHbaseLinuxDir();
         hbaseHdfsDir = config.getHbaseHdfsDir();
         isCluster = config.getIsClusder();
+    }
+
+    public static String filterParameter(String parameter) {
+        if (StringUtils.isEmpty(parameter)) return null;
+        StringBuffer sb = new StringBuffer(parameter);
+        for (String s : dangerCharacters) {
+            while (sb.indexOf(s) > -1) {
+                sb.deleteCharAt(sb.indexOf(s));
+            }
+        }
+        return sb.toString();
     }
 
     /**
@@ -115,9 +126,9 @@ public class StorageQuotaService {
         } catch (Exception e) {
             Long trafficLogs = getCurrBefore(Constant.TRAFFIC_LOGS);
             storageQuota.setData(ImmutableMap.of("used_size", trafficLogs));
-            storageQuota.setStatus(ImmutableMap.of("traffic_current", "fail " + e.getMessage()));
-            logger.error("查询 clickhouse used_size 失败, {}", e.getMessage());
-            XxlJobLogger.log("查询 clickhouse used_size 失败, {}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("traffic_current", "fail " ));
+            logger.error("查询 clickhouse used_size 失败, {}",e);
+            XxlJobLogger.log("查询 clickhouse used_size 失败, {}",e);
             return storageQuota;
         }
 
@@ -141,9 +152,9 @@ public class StorageQuotaService {
         } catch (Exception e) {
             Long trafficLogs = getMaxBefore(Constant.TRAFFIC_LOGS);
             storageQuota.setData(ImmutableMap.of("max_size", trafficLogs));
-            storageQuota.setStatus(ImmutableMap.of("traffic_max", "fail " + e.getMessage()));
-            logger.error("查询 clickhouse max_size 失败,{}", e.getMessage());
-            XxlJobLogger.log("查询 clickhouse max_size 失败,{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("traffic_max", "fail " ));
+            logger.error("查询 clickhouse max_size 失败,{}",e);
+            XxlJobLogger.log("查询 clickhouse max_size 失败,{}",e);
             return storageQuota;
         }
     }
@@ -167,9 +178,9 @@ public class StorageQuotaService {
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("aggregate_size", 0L));
-            storageQuota.setStatus(ImmutableMap.of("traffic_aggregate", "fail " + e.getMessage()));
-            logger.error("查询clickhouse traffic_aggregate 失败,{}", e.getMessage());
-            XxlJobLogger.log("查询clickhouse traffic_aggregate 失败,{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("traffic_aggregate", "fail " ));
+            logger.error("查询clickhouse traffic_aggregate 失败,{}",e);
+            XxlJobLogger.log("查询clickhouse traffic_aggregate 失败,{}",e);
             return storageQuota;
         }
     }
@@ -192,9 +203,9 @@ public class StorageQuotaService {
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("used_size", 0L));
-            storageQuota.setStatus(ImmutableMap.of("analytic_current", "fail " + e.getMessage()));
-            logger.error("查询 druid used_size 失败,{}", e.getMessage());
-            XxlJobLogger.log("查询 druid used_size 失败,{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("analytic_current", "fail " ));
+            logger.error("查询 druid used_size 失败,{}",e);
+            XxlJobLogger.log("查询 druid used_size 失败,{}",e);
             return storageQuota;
         }
     }
@@ -212,9 +223,9 @@ public class StorageQuotaService {
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("aggregate_size", 0L));
-            storageQuota.setStatus(ImmutableMap.of("analytic_aggregate", "fail " + e.getMessage()));
-            logger.error("查询druid aggregate_size 失败,{}", e.getMessage());
-            XxlJobLogger.log("查询druid aggregate_size 失败,{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("analytic_aggregate", "fail " ));
+            logger.error("查询druid aggregate_size 失败,{}",e);
+            XxlJobLogger.log("查询druid aggregate_size 失败,{}",e);
             return storageQuota;
         }
     }
@@ -234,9 +245,9 @@ public class StorageQuotaService {
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("max_size", 0L));
-            storageQuota.setStatus(ImmutableMap.of("analytic_max", "fail " + e.getMessage()));
-            logger.error("查询 druid max_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 druid max_size 失败，{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("analytic_max", "fail " ));
+            logger.error("查询 druid max_size 失败，{}",e);
+            XxlJobLogger.log("查询 druid max_size 失败，{}",e);
             return storageQuota;
         }
     }
@@ -246,7 +257,7 @@ public class StorageQuotaService {
     /**
      * 获取HBase 单机当前存储大小 若获取失败查询druid内最新的值替补当前值
      */
-    private StorageQuota getHBaseAloneCurr() {
+    /*private StorageQuota getHBaseAloneCurr() {
         StorageQuota storageQuota = new StorageQuota();
         try {
             Process catCommands = Runtime.getRuntime()
@@ -262,17 +273,17 @@ public class StorageQuotaService {
         } catch (Exception e) {
             Long trafficLogs = getCurrBefore(Constant.FILES);
             storageQuota.setData(ImmutableMap.of("used_size", trafficLogs));
-            storageQuota.setStatus(ImmutableMap.of("files_current", "fail " + e.getMessage()));
-            logger.error("查询 hbase alone used_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 hbase alone used_size 失败，{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("files_current", "fail " ));
+            logger.error("查询 hbase alone used_size 失败，{}",e);
+            XxlJobLogger.log("查询 hbase alone used_size 失败，{}",e);
             return storageQuota;
         }
-    }
+    }*/
 
     /**
      * 获取HBase 单机最大存储大小 若获取失败查询druid内最新的值替补当前值
      */
-    private StorageQuota getHBaseAloneMax() {
+    /*private StorageQuota getHBaseAloneMax() {
         StorageQuota storageQuota = new StorageQuota();
         try {
             Process catCommands = Runtime.getRuntime().exec(
@@ -288,17 +299,17 @@ public class StorageQuotaService {
         } catch (Exception e) {
             Long trafficLogs = getMaxBefore(Constant.FILES);
             storageQuota.setData(ImmutableMap.of("max_size", trafficLogs));
-            storageQuota.setStatus(ImmutableMap.of("files_max", "fail " + e.getMessage()));
-            logger.error("查询 hbase alone max_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 hbase alone max_size 失败，{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("files_max", "fail " ));
+            logger.error("查询 hbase alone max_size 失败，{}",e);
+            XxlJobLogger.log("查询 hbase alone max_size 失败，{}",e);
             return storageQuota;
         }
-    }
+    }*/
 
     /**
      * 获取HBase 单机存储差值 若获取失败直接补0
      */
-    private StorageQuota getHBaseAloneDiff() {
+    /*private StorageQuota getHBaseAloneDiff() {
         StorageQuota storageQuota = new StorageQuota();
         try {
             Process catCommands = Runtime.getRuntime()
@@ -315,12 +326,12 @@ public class StorageQuotaService {
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("aggregate_size", 0L));
-            storageQuota.setStatus(ImmutableMap.of("files_aggregate", "fail " + e.getMessage()));
-            logger.error("查询 hbase alone aggregate_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 hbase alone aggregate_size 失败，{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("files_aggregate", "fail " ));
+            logger.error("查询 hbase alone aggregate_size 失败，{}",e);
+            XxlJobLogger.log("查询 hbase alone aggregate_size 失败，{}",e);
             return storageQuota;
         }
-    }
+    }*/
 
 //=========================HBase集群模式=============================
 
@@ -342,9 +353,9 @@ public class StorageQuotaService {
         } catch (Exception e) {
             Long trafficLogs = getCurrBefore(Constant.FILES);
             storageQuota.setData(ImmutableMap.of("used_size", trafficLogs));
-            storageQuota.setStatus(ImmutableMap.of("files_current", "fail " + e.getMessage()));
-            logger.error("查询 hbase cluster used_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 hbase cluster used_size 失败，{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("files_current", "fail " ));
+            logger.error("查询 hbase cluster used_size 失败，{}",e);
+            XxlJobLogger.log("查询 hbase cluster used_size 失败，{}",e);
             return storageQuota;
         }
     }
@@ -368,9 +379,9 @@ public class StorageQuotaService {
             Long trafficLogs = getMaxBefore(Constant.FILES);
 
             storageQuota.setData(ImmutableMap.of("max_size", trafficLogs));
-            storageQuota.setStatus(ImmutableMap.of("files_max", "fail " + e.getMessage()));
-            logger.error("查询 hbase cluster max_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 hbase cluster max_size 失败，{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("files_max", "fail " ));
+            logger.error("查询 hbase cluster max_size 失败，{}",e);
+            XxlJobLogger.log("查询 hbase cluster max_size 失败，{}",e);
             return storageQuota;
         }
     }
@@ -394,9 +405,9 @@ public class StorageQuotaService {
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("aggregate_size", 0L));
-            storageQuota.setStatus(ImmutableMap.of("files_aggregate", "fail " + e.getMessage()));
-            logger.error("查询 hbase cluster aggregate_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 hbase cluster aggregate_size 失败，{}", e.getMessage());
+            storageQuota.setStatus(ImmutableMap.of("files_aggregate", "fail " ));
+            logger.error("查询 hbase cluster aggregate_size 失败，{}",e);
+            XxlJobLogger.log("查询 hbase cluster aggregate_size 失败，{}",e);
             return storageQuota;
         }
     }
@@ -419,8 +430,8 @@ public class StorageQuotaService {
             logger.info("查询 druid 上次 used_size 成功，{}", currSize);
             return currSize;
         } catch (Exception e) {
-            logger.error("查询druid上次 used_size 失败，{}", e.getMessage());
-            XxlJobLogger.log("查询druid上次 used_size 失败，{}", e.getMessage());
+            logger.error("查询druid上次 used_size 失败，{}",e);
+            XxlJobLogger.log("查询druid上次 used_size 失败，{}",e);
             return 0L;
         }
     }
@@ -441,8 +452,8 @@ public class StorageQuotaService {
             logger.info("查询 druid max_size 上次值成功,{}", currSize);
             return currSize;
         } catch (Exception e) {
-            logger.error("查询 druid max_size 上次值失败，{}", e.getMessage());
-            XxlJobLogger.log("查询 druid max_size 上次值失败，{}", e.getMessage());
+            logger.error("查询 druid max_size 上次值失败，{}",e);
+            XxlJobLogger.log("查询 druid max_size 上次值失败，{}",e);
             return 0L;
         }
     }
@@ -468,8 +479,8 @@ public class StorageQuotaService {
 
             return Long.valueOf(nodeData);
         } catch (Exception e) {
-            logger.error("查询标准时间 last_storage 失败,{}", e.getMessage());
-            throw new BusinessException("查询标准时间 last_storage 失败 ," + e.getMessage());
+            logger.error("查询标准时间 last_storage 失败,{}",e);
+            throw new BusinessException("查询标准时间 last_storage 失败 ," );
         }
 
     }
@@ -493,29 +504,38 @@ public class StorageQuotaService {
     private Map<String, Object> getDeleteSource() {
         // sql参数拼接
         Map<String, Object> deleteParamMap = Maps.newHashMap();
-        deleteParamMap.put("password", trafficPassword);
+        deleteParamMap.put("password", trafficSecret);
         deleteParamMap.put("user", trafficUserName);
         return deleteParamMap;
     }
 
+    /**
+     * 解析脚本返回结果
+     *
+     * @param in
+     * @param charset 编码格式
+     */
     private String getProcessMessage(InputStream in, String charset) {
         if (in != null) {
             BufferedReader br = null;
             StringBuffer buffer = new StringBuffer();
             try {
-                br = new BufferedReader(new InputStreamReader(in, StringUtil.isBlank(charset) ? CHART_SET_UTF8 : charset));
-                String line;
+                br = new BufferedReader(
+                        new InputStreamReader(in, StringUtil.isBlank(charset) ? CHART_SET_UTF8 : charset));
+                String line = null;
                 while ((line = br.readLine()) != null) {
                     buffer.append(line);
                 }
             } catch (IOException e) {
-                logger.error("解析返回结果IO错误，{}", e);
+                logger.error("解析返回结果IO错误，{}",e);
+                e.printStackTrace();
             } finally {
                 if (br != null) {
                     try {
                         br.close();
                     } catch (IOException e) {
-                        logger.error("解析返回结果IO错误，{}", e);
+                        logger.error("解析返回结果IO错误，{}",e);
+                        e.printStackTrace();
                     }
                 }
             }
@@ -538,11 +558,11 @@ public class StorageQuotaService {
         Map<String, Integer> status = new HashMap<>();
         status.put("trafficFailCount", getCKStorageJson(data, now));
         status.put("reportFailCount", getDruidStorageJson(data, now));
-        if (isCluster) {
+        if(isCluster){
             status.put("fileFailCount", getHbaseStorageJson(data, now));
-        } else {
+        } /*else {
             status.put("fileFailCount", getHbaseStorageJsonAlone(data, now));
-        }
+        }*/
 
         all.put("data", data);
         all.put("status", status);
@@ -560,7 +580,7 @@ public class StorageQuotaService {
             ckErrorCount++;
         }
 
-        Map<String, Object> traffic = new HashMap<>();
+        Map<String,Object> traffic = new HashMap<>();
         traffic.put("log_type", Constant.TRAFFIC_LOGS);
         traffic.put("time", time);
         traffic.put("last_storage", getLastStorage(Constant.ZK_TRAFFIC_LOGS));
@@ -590,7 +610,6 @@ public class StorageQuotaService {
         data.add(metrics);
         return druidErrorCount;
     }
-
     /*
      * 集群hbase存储配额
      **/
@@ -599,7 +618,7 @@ public class StorageQuotaService {
         List<String> queryHdfsUrlList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(queryHdfsUrls);
         for (String queryHdfsUrl : queryHdfsUrlList) {
             try {
-                queryHdfsUrl = Constant.HTTP.concat(queryHdfsUrl);
+                queryHdfsUrl = Constant.SERVER_PROTOCOL.concat(queryHdfsUrl);
                 StorageQuota hBaseCurr = getHBaseClusterCurr(queryHdfsUrl);
                 StorageQuota hBaseMax = getHBaseClusterMax(queryHdfsUrl);
                 StorageQuota hBaseDiff = getHBaseClusterDiff(queryHdfsUrl);
@@ -617,8 +636,8 @@ public class StorageQuotaService {
                 files.putAll(hBaseDiff.getData());
                 data.add(files);
             } catch (Exception e) {
-                logger.error("查询 hbase 存储配额发生错误：endpoint = {}, error = {}", queryHdfsUrl, e.getMessage());
-                XxlJobLogger.log("查询 hbase 存储配额发生错误：endpoint = {}, error = {}", queryHdfsUrl, e.getMessage());
+                logger.error("查询 hbase 存储配额发生错误：endpoint = {}, error = {}", queryHdfsUrl,e);
+                XxlJobLogger.log("查询 hbase 存储配额发生错误：endpoint = {}, error = {}", queryHdfsUrl,e);
                 hbaseErrorCount++;
             }
         }
@@ -627,12 +646,11 @@ public class StorageQuotaService {
 
     /**
      * 单机hbase
-     *
      * @param data
      * @param time
      * @return
      */
-    private int getHbaseStorageJsonAlone(List<Map> data, Long time) {
+    /*private int getHbaseStorageJsonAlone(List<Map> data, Long time) {
         int hbaseErrorCount = 0;
         try {
             StorageQuota hBaseCurr = getHBaseAloneCurr();
@@ -651,12 +669,12 @@ public class StorageQuotaService {
             files.putAll(hBaseDiff.getData());
             data.add(files);
         } catch (Exception e) {
-            logger.error("查询单机hbase 存储配额发生错误：endpoint = {}, error = {}", e.getMessage());
-            XxlJobLogger.log("查询单机hbase 存储配额发生错误：endpoint = {}, error = {}", e.getMessage());
+            logger.error("查询单机hbase 存储配额发生错误：endpoint = {}, error = {}", e);
+            XxlJobLogger.log("查询单机hbase 存储配额发生错误：endpoint = {}, error = {}", e);
             hbaseErrorCount++;
         }
         return hbaseErrorCount;
-    }
+    }*/
 
     /**
      * 用于组合ClickHouse一天执行一次的JSON串 特殊处理

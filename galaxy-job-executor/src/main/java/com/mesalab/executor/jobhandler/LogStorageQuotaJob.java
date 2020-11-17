@@ -61,13 +61,13 @@ public class LogStorageQuotaJob {
         trafficServer = deletionConfig.getTrafficServer();
         trafficDataSource = deletionConfig.getTrafficDatasource();
         trafficUserName = deletionConfig.getTrafficUsername();
-        trafficPassword = deletionConfig.getTrafficPassword();
+        trafficPassword = deletionConfig.getTrafficSecret();
         systemParts = deletionConfig.getSystemParts();
         systemClusters = deletionConfig.getSystemClusters();
         systemTables = deletionConfig.getSystemTables();
 
         //druid
-        analyticServerSelect = Joiner.on("").join(Constant.HTTP, deletionConfig.getAnalyticServer(), "/druid/v2/sql");
+        analyticServerSelect = Joiner.on("").join(Constant.SERVER_PROTOCOL, deletionConfig.getAnalyticServer(), "/druid/v2/sql");
         analyticServerDelete = deletionConfig.getAnalyticServer();
 
         //hos
@@ -97,13 +97,13 @@ public class LogStorageQuotaJob {
             //根据服务器地址，表，分区去删除数据
             String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", trafficDataSource, ".");
             String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-            List<String> addressForCKs = getAddressForCK(Constant.HTTP.concat(trafficServer));
+            List<String> addressForCKs = getAddressForCK(Constant.SERVER_PROTOCOL.concat(trafficServer));
             int failCount = 0;
             // 指定服务器
             for (String endpoint : addressForCKs) {
                 try {
                     // 指定表
-                    String url = Constant.HTTP.concat(endpoint);
+                    String url = Constant.SERVER_PROTOCOL.concat(endpoint);
                     List<String> tablesForCKs = getTablesForCK(url);
                     for (String table : tablesForCKs) {
                         try {
@@ -216,7 +216,7 @@ public class LogStorageQuotaJob {
         String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", maxdays, "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
 
         //1.物理删除除
-        String deleteUrl = Joiner.on("").join(Constant.HTTP, analyticServerDelete, "/druid/indexer/v1/task");
+        String deleteUrl = Joiner.on("").join(Constant.SERVER_PROTOCOL, analyticServerDelete, "/druid/indexer/v1/task");
         String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
         //起始时间/当前时间-maxDay
         String druidDataStartTime = getDruidDataStartTime();
@@ -269,7 +269,7 @@ public class LogStorageQuotaJob {
             int failCount = 0;
             for (String endpoint : endpointList) {
                 try {
-                    String filesServer = Constant.HTTP.concat(endpoint);
+                    String filesServer = Constant.SERVER_PROTOCOL.concat(endpoint);
                     String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header1);
                     ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
                     logger.info("reset storage files ttl endpoint = {}, bucketList = {} ", endpoint, list);
@@ -326,14 +326,14 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            List<String> addressForCKs = getAddressForCK(Constant.HTTP.concat(trafficServer));
+            List<String> addressForCKs = getAddressForCK(Constant.SERVER_PROTOCOL.concat(trafficServer));
             Map<String, Object> deleteParamMap = getDeleteSource();
             //清库命令参数
             String deleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", trafficDataSource, ".");
             int failCount = 0;
             for (String endpoint : addressForCKs) {
                 try {
-                    String url = Constant.HTTP.concat(endpoint);
+                    String url = Constant.SERVER_PROTOCOL.concat(endpoint);
                     List<String> tablesForCKs = getTablesForCK(url);
                     for (String table : tablesForCKs) {
                         try {
@@ -382,7 +382,7 @@ public class LogStorageQuotaJob {
             }
             String deleteEndDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, 1);
 
-            String deleteendpoint = Constant.HTTP.concat(analyticServerDelete);
+            String deleteendpoint = Constant.SERVER_PROTOCOL.concat(analyticServerDelete);
 
             String deleteStartTime = getDruidDataStartTime();
             //1停止加载
@@ -474,7 +474,7 @@ public class LogStorageQuotaJob {
             int failCount = 0;
             for (String endpoint : endpointList) {
                 try {
-                    String filesServer = Constant.HTTP.concat(endpoint);
+                    String filesServer = Constant.SERVER_PROTOCOL.concat(endpoint);
                     String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header);
                     ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
                     logger.info("delete storage files ttl endpoint = {}, bucket list = {} ", endpoint, list);

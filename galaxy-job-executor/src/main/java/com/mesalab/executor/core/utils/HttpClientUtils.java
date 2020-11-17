@@ -158,7 +158,7 @@ public class HttpClientUtils {
             URL ul = new URL(url);
 
             URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
-            logger.info("http get uri {}",uri);
+            logger.info("http get uri {}",url);
             // 创建GET请求对象
             HttpGet httpGet = new HttpGet(uri);
             
@@ -182,18 +182,18 @@ public class HttpClientUtils {
             }
 
         } catch (URISyntaxException e) {
-            logger.error("URI 转换错误: {}", e.getMessage());
+            logger.error("URI 转换错误: {}", e);
             e.printStackTrace();
         } catch (ClientProtocolException e) {
-            logger.error("协议错误: {}", e.getMessage());
+            logger.error("协议错误: {}", e);
             e.printStackTrace();
 
         } catch (ParseException e) {
-            logger.error("解析错误: {}", e.getMessage());
+            logger.error("解析错误: {}", e);
             e.printStackTrace();
 
         } catch (IOException e) {
-            logger.error("IO错误: {}",e.getMessage());
+            logger.error("IO错误: {}",e);
             e.printStackTrace();
 
         }  finally {
@@ -202,7 +202,7 @@ public class HttpClientUtils {
                     EntityUtils.consume(response.getEntity());
                     response.close();
                 } catch (IOException e) {
-                    logger.error("释放链接错误: {}", e.getMessage());
+                    logger.error("释放链接错误: {}", e);
                     e.printStackTrace();
                 }
             }
@@ -256,19 +256,19 @@ public class HttpClientUtils {
                         "Http post content is :" + msg);
             }
         } catch (URISyntaxException e) {
-        	logger.error("URI 转换错误: {}", e.getMessage());
+        	logger.error("URI 转换错误: {}", e);
             e.printStackTrace();
 
 		} catch (ClientProtocolException e) {
-            logger.error("协议错误: {}", e.getMessage());
+            logger.error("协议错误: {}", e);
             e.printStackTrace();
 
         } catch (ParseException e) {
-        	logger.error("解析错误: {}", e.getMessage());
+        	logger.error("解析错误: {}", e);
             e.printStackTrace();
 
         } catch (IOException e) {
-        	logger.error("IO错误: {}", e.getMessage());
+        	logger.error("IO错误: {}", e);
             e.printStackTrace();
 
         } finally {
@@ -277,7 +277,7 @@ public class HttpClientUtils {
                     EntityUtils.consumeQuietly(response.getEntity());
                     response.close();
                 } catch (IOException e) {
-                	logger.error("释放链接错误: {}", e.getMessage());
+                	logger.error("释放链接错误: {}", e);
                     e.printStackTrace();
                 }
             }
@@ -330,19 +330,19 @@ public class HttpClientUtils {
                         "Http put content is :" + msg);
             }
         } catch (URISyntaxException e) {
-        	logger.error("URI 转换错误: {}", e.getMessage());
+        	logger.error("URI 转换错误: {}", e);
             e.printStackTrace();
 
 		} catch (ClientProtocolException e) {
-            logger.error("协议错误: {}", e.getMessage());
+            logger.error("协议错误: {}", e);
             e.printStackTrace();
 
         } catch (ParseException e) {
-        	logger.error("解析错误: {}", e.getMessage());
+        	logger.error("解析错误: {}", e);
             e.printStackTrace();
 
         } catch (IOException e) {
-        	logger.error("IO错误: {}", e.getMessage());
+        	logger.error("IO错误: {}", e);
             e.printStackTrace();
 
         } finally {
@@ -351,7 +351,7 @@ public class HttpClientUtils {
                     EntityUtils.consumeQuietly(response.getEntity());
                     response.close();
                 } catch (IOException e) {
-                	logger.error("释放链接错误: {}", e.getMessage());
+                	logger.error("释放链接错误: {}", e);
                     e.printStackTrace();
                 }
             }
@@ -403,7 +403,7 @@ public class HttpClientUtils {
                      EntityUtils.consumeQuietly(response.getEntity());
                      response.close();
                  } catch (IOException e) {
-                 	logger.error("释放链接错误: {}", e.getMessage());
+                 	logger.error("释放链接错误: {}", e);
                      e.printStackTrace();
                  }
              }
@@ -430,13 +430,13 @@ public class HttpClientUtils {
             // 获取响应信息
             EntityUtils.consume(response.getEntity());
         } catch (ClientProtocolException e) {
-            logger.error("current file: {},Protocol error:{}", url, e.getMessage());
+            logger.error("current file: {},Protocol error:{}", url, e);
             e.printStackTrace();
         } catch (ParseException e) {
-            logger.error("current file: {}, Parser error:{}", url, e.getMessage());
+            logger.error("current file: {}, Parser error:{}", url, e);
             e.printStackTrace();
         } catch (IOException e) {
-            logger.error("current file: {},IO error:{}", url, e.getMessage());
+            logger.error("current file: {},IO error:{}", url, e);
             e.printStackTrace();
         } finally {
             if (null != response) {
@@ -444,7 +444,7 @@ public class HttpClientUtils {
                     EntityUtils.consume(response.getEntity());
                     response.close();
                 } catch (IOException e) {
-                    logger.error("Release Connection error:{}", e.getMessage());
+                    logger.error("Release Connection error:{}", e);
                     e.printStackTrace();
                 }
             }

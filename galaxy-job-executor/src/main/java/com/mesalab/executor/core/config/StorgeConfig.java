@@ -15,8 +15,8 @@ public class StorgeConfig {
 	@Value("${storge.traffic.username}")
 	private String trafficUsername;// clickhouse要查看的username
 	
-	@Value("${storge.traffic.password}")
-	private String trafficPassword;// clickhouse要查看的password
+	@Value("${storge.traffic.secret}")
+	private String trafficSecret;// clickhouse要查看的password
 	
 	@Value("${storge.traffic.datasource}")
 	private String trafficDatasource;// clickhouse要查看的datasource
