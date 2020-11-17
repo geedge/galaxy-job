@@ -96,17 +96,6 @@ public class StorageQuotaService {
         isCluster = config.getIsClusder();
     }
 
-    public static String filterParameter(String parameter) {
-        if (StringUtils.isEmpty(parameter)) return null;
-        StringBuffer sb = new StringBuffer(parameter);
-        for (String s : dangerCharacters) {
-            while (sb.indexOf(s) > -1) {
-                sb.deleteCharAt(sb.indexOf(s));
-            }
-        }
-        return sb.toString();
-    }
-
     /**
      * 用于获取 ClickHouse 当前存储大小 若获取失败查询druid内最新的值替补当前值
      */
@@ -516,7 +505,7 @@ public class StorageQuotaService {
             try {
                 br = new BufferedReader(new InputStreamReader(in, StringUtil.isBlank(charset) ? CHART_SET_UTF8 : charset));
                 String line;
-                while ((line = filterParameter(br.readLine())) != null) {
+                while ((line = br.readLine()) != null) {
                     buffer.append(line);
                 }
             } catch (IOException e) {
