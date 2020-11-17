@@ -42,10 +42,10 @@ public class JobApiController {
 
         // valid
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, HttpMethod not support.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "HttpMethod not support.");
         }
         if (uri == null || uri.trim().length() == 0) {
-            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping empty.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "uri-mapping empty.");
         }
         if (XxlJobAdminConfig.getAdminConfig().getAccessToken() != null
                 && XxlJobAdminConfig.getAdminConfig().getAccessToken().trim().length() > 0
@@ -64,7 +64,7 @@ public class JobApiController {
             RegistryParam registryParam = GsonTool.fromJson(data, RegistryParam.class);
             return adminBiz.registryRemove(registryParam);
         } else {
-            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "unkonw uri");
         }
 
     }
