@@ -115,22 +115,22 @@ public class LogStorageQuotaJob {
                                     HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
                                 } catch (Exception e) {
                                     failCount++;
-                                    logger.error("clickhouse ttl error endpoint = {}, table = {}, partition = {}, fail message = {}", endpoint, table, partition, JobUtil.getErrorMsg(e));
-                                    XxlJobLogger.log("clickhouse ttl error partitionFailCount={}, endpoint = {}, table = {}, partition = {}, fail message = {}", failCount, endpoint, table, partition, JobUtil.getErrorMsg(e));
+                                    logger.error("clickhouse ttl error endpoint = {}, table = {}, partition = {}, fail message = {}", endpoint, table, partition, e);
+                                    XxlJobLogger.log("clickhouse ttl error partitionFailCount={}, endpoint = {}, table = {}, partition = {}, fail message = {}", failCount, endpoint, table, partition, e);
                                 }
                             }
                             logger.info("clickhouse ttl clickhouse endpoint = {}, table = {}, partition < {}, size = {}, fail count = {}", endpoint, table, deleteMaxDate, partitions.size(), failCount);
                         } catch (Exception e) {
                             failCount++;
-                            logger.error("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
-                            XxlJobLogger.log("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
+                            logger.error("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, e);
+                            XxlJobLogger.log("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, e);
                         }
                     }
                     XxlJobLogger.log("clickhouse ttl endpoint = {}, failCount = {}, tables = {}", endpoint, failCount, tablesForCKs);
                 } catch (Exception e) {
                     failCount++;
-                    logger.error("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
+                    logger.error("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, e);
+                    XxlJobLogger.log("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, e);
                 }
             }
             modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
@@ -138,11 +138,7 @@ public class LogStorageQuotaJob {
                 throw new BusinessException("reset storage clickhouse ttl error ,failCount " + failCount);
             }
 
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
@@ -170,11 +166,7 @@ public class LogStorageQuotaJob {
             modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
             deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), false);
 
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
@@ -201,11 +193,7 @@ public class LogStorageQuotaJob {
             }
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks  WHERE datasource LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
             deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), true);
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
@@ -251,8 +239,8 @@ public class LogStorageQuotaJob {
                 }
             } catch (Exception e) {
                 failCount++;
-                logger.error("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
-                XxlJobLogger.log("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
+                logger.error("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, e);
+                XxlJobLogger.log("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, e);
             }
         }
         if (failCount > 0) {
@@ -298,14 +286,14 @@ public class LogStorageQuotaJob {
                                 HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
                             } catch (Exception e) {
                                 failCount++;
-                                logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
-                                XxlJobLogger.log("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
+                                logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, e);
+                                XxlJobLogger.log("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, e);
                             }
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
+                    logger.error("reset storage files ttl endpoint = {}, fail message = {}", endpoint, e);
+                    XxlJobLogger.log("reset storage files ttl endpoint = {}, fail message = {}", endpoint, e);
                     failCount++;
                 }
             }
@@ -314,11 +302,7 @@ public class LogStorageQuotaJob {
                 throw new BusinessException(" number of total endpoints " + endpointList.size() + ", number of failed count " + failCount);
             }
 
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
@@ -357,15 +341,15 @@ public class LogStorageQuotaJob {
                             logger.info("delete clickhouse endpoint = {}, sql:{}", endpoint, deleteSql.concat(table));
                             HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
                         } catch (Exception e) {
-                            logger.error("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
-                            XxlJobLogger.log("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
+                            logger.error("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, e);
+                            XxlJobLogger.log("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, e);
                             failCount++;
                         }
                     }
                     XxlJobLogger.log("delete storage clickhouse error endpoint = {}, fail count = {}, tables = {}", endpoint, failCount, tablesForCKs);
                 } catch (Exception e) {
-                    logger.error("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, JobUtil.getErrorMsg(e));
+                    logger.error("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, e);
+                    XxlJobLogger.log("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, e);
                     failCount++;
                 }
             }
@@ -374,11 +358,7 @@ public class LogStorageQuotaJob {
                 throw new BusinessException("delete storage clickhouse error ,failCount " + failCount);
             }
 
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
@@ -457,8 +437,8 @@ public class LogStorageQuotaJob {
                     XxlJobLogger.log("delete druid table result message = {}", deleteMessage);
                 } catch (Exception e) {
                     // 表不存在时，查询发生错误，记录下继续执行
-                    logger.error(" query druid error, table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log(" query druid error, endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
+                    logger.error(" query druid error, table = {}, fail message = {}", table, e);
+                    XxlJobLogger.log(" query druid error, endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, e);
                     failCount++;
                 }
             }
@@ -466,11 +446,7 @@ public class LogStorageQuotaJob {
             if (failCount > 0) {
                 throw new BusinessException("delete druid error, fail count " + failCount);
             }
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
@@ -514,15 +490,15 @@ public class LogStorageQuotaJob {
                                 HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
                             } catch (Exception e) {
                                 failCount++;
-                                logger.error("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
-                                XxlJobLogger.log("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
+                                logger.error("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, e);
+                                XxlJobLogger.log("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, e);
                             }
                         }
                     }
                 } catch (Exception e) {
                     failCount++;
-                    logger.error("delete file error endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("delete file error endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
+                    logger.error("delete file error endpoint = {}, fail message={}", endpoint, e);
+                    XxlJobLogger.log("delete file error endpoint = {}, fail message={}", endpoint, e);
 
                 }
             }
@@ -530,11 +506,7 @@ public class LogStorageQuotaJob {
             if (failCount > 0) {
                 throw new BusinessException(" delete files error, failed count " + failCount);
             }
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;
@@ -576,11 +548,7 @@ public class LogStorageQuotaJob {
                 return new ReturnT<String>(IJobHandler.FAIL.getCode(), " query error " + resultMap.get("status"));
             }
 
-        } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e);
             return ReturnT.FAIL;

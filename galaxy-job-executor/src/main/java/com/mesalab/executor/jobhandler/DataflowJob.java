@@ -1,24 +1,22 @@
 package com.mesalab.executor.jobhandler;
 
-import java.util.List;
-import java.util.Map;
-
+import com.mesalab.executor.core.utils.HttpClientUtils;
+import com.mesalab.executor.core.utils.KafkaUtils;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.HttpToKafkaParam;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
-import com.mesalab.executor.core.utils.HttpClientUtils;
-import com.mesalab.executor.core.utils.KafkaUtils;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
-
 import io.netty.handler.codec.http.HttpMethod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class DataflowJob {
@@ -80,10 +78,10 @@ public class DataflowJob {
 
 			return ReturnT.SUCCESS;
 			
-		} catch (BusinessException be) {
-			logger.error(be.getErrorMessage());
-			XxlJobLogger.log(be.getErrorMessage());
-			return new ReturnT<String>(be.getErrorCode(), be.getErrorMessage());
+		} catch (BusinessException e) {
+			logger.error("errorMessage:{}", e);
+			XxlJobLogger.log(e.getMessage());
+			return new ReturnT<String>(e.getCode(), e.getMessage());
 		} catch (Exception e) {
 			logger.error("errorMessage:{}", e);
 			XxlJobLogger.log(e.getMessage());

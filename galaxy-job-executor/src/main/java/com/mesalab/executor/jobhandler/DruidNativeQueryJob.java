@@ -75,9 +75,9 @@ public class DruidNativeQueryJob {
             return ReturnT.SUCCESS;
 
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
-            return new ReturnT<String>(be.getErrorCode(), be.getErrorMessage());
+            logger.error("errorMessage:{}", be);
+            XxlJobLogger.log(be.getMessage());
+            return new ReturnT<String>(be.getCode(), be.getMessage());
         } catch (Exception e) {
             logger.error("errorMessage:{}", e);
             XxlJobLogger.log(e.getMessage());
