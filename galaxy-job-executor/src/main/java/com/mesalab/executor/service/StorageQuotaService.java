@@ -121,7 +121,7 @@ public class StorageQuotaService {
             Long result = Long.valueOf(currResult.trim());
 
             storageQuota.setData(ImmutableMap.of("used_size", result));
-            logger.info("查询 clickhouse used_size 成功, {}", storageQuota);
+            logger.info("查询 clickhouse used_size 成功, {}", result);
             return storageQuota;
         } catch (Exception e) {
             Long trafficLogs = getCurrBefore(Constant.TRAFFIC_LOGS);
@@ -147,7 +147,7 @@ public class StorageQuotaService {
                     .httpGet(HttpClientUtils.getUrlWithParams(queryClickHouseUrl, deleteParamMap));
             long result = Long.parseLong(maxResult.trim());
             storageQuota.setData(ImmutableMap.of("max_size", result));
-            logger.info("查询 clickhouse max_size 成功 ,{}", storageQuota);
+            logger.info("查询 clickhouse max_size 成功 ,{}", result);
             return storageQuota;
         } catch (Exception e) {
             Long trafficLogs = getMaxBefore(Constant.TRAFFIC_LOGS);
@@ -174,7 +174,7 @@ public class StorageQuotaService {
                     .httpGet(HttpClientUtils.getUrlWithParams(queryClickHouseUrl, deleteParamMap));
             long result = Long.parseLong(diffResult.trim());
             storageQuota.setData(ImmutableMap.of("aggregate_size", result));
-            logger.info("查询 clickhouse traffic_aggregate 成功,{}", storageQuota);
+            logger.info("查询 clickhouse traffic_aggregate 成功,{}", result);
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("aggregate_size", 0L));
@@ -199,7 +199,7 @@ public class StorageQuotaService {
             Long currSize = Long.valueOf(String.valueOf(list.get(0).get("curr_size")));
 
             storageQuota.setData(ImmutableMap.of("used_size", currSize));
-            logger.info("查询 druid used_size 成功,{}", storageQuota);
+            logger.info("查询 druid used_size 成功,{}", currSize);
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("used_size", 0L));
@@ -219,7 +219,7 @@ public class StorageQuotaService {
             Long before = getCurrBefore(Constant.REPORT_AND_METRICS);
             long diff = getDiffNum(currSize, before);
             storageQuota.setData(ImmutableMap.of("aggregate_size", diff));
-            logger.info("查询 druid aggregate_size 成功,{}", storageQuota);
+            logger.info("查询 druid aggregate_size 成功,{}", diff);
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("aggregate_size", 0L));
@@ -241,7 +241,7 @@ public class StorageQuotaService {
             List<Map<String, Long>> list = (List) JsonMapper.fromJsonString(maxResult, List.class);
             Long maxSize = list.get(0).get("max_size");
             storageQuota.setData(ImmutableMap.of("max_size", maxSize));
-            logger.info("查询 druid max_size 成功，{}", storageQuota);
+            logger.info("查询 druid max_size 成功，{}", maxSize);
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("max_size", 0L));
@@ -348,7 +348,7 @@ public class StorageQuotaService {
             Long length = Long.valueOf(String.valueOf(contentSummary.get("length")));
 
             storageQuota.setData(ImmutableMap.of("used_size", length));
-            logger.info("查询 hbase cluster used_size 成功，{}", storageQuota);
+            logger.info("查询 hbase cluster used_size 成功，{}", length);
             return storageQuota;
         } catch (Exception e) {
             Long trafficLogs = getCurrBefore(Constant.FILES);
@@ -373,7 +373,7 @@ public class StorageQuotaService {
             Long total = Long.valueOf(String.valueOf(beans.get(0).get("Total")));
 
             storageQuota.setData(ImmutableMap.of("max_size", total));
-            logger.info("查询 hbase cluster max_size 成功,{}", storageQuota);
+            logger.info("查询 hbase cluster max_size 成功,{}", total);
             return storageQuota;
         } catch (Exception e) {
             Long trafficLogs = getMaxBefore(Constant.FILES);
@@ -401,7 +401,7 @@ public class StorageQuotaService {
             Long trafficLogs = getCurrBefore(Constant.FILES);
             long diff = getDiffNum(length, trafficLogs);
             storageQuota.setData(ImmutableMap.of("aggregate_size", diff));
-            logger.info("查询 HBase cluster aggregate_size 成功,{}", storageQuota);
+            logger.info("查询 HBase cluster aggregate_size 成功,{}", diff);
             return storageQuota;
         } catch (Exception e) {
             storageQuota.setData(ImmutableMap.of("aggregate_size", 0L));

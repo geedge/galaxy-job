@@ -4,8 +4,8 @@ import com.xxl.job.admin.core.route.ExecutorRouter;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.biz.model.TriggerParam;
 
+import java.security.SecureRandom;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -25,7 +25,7 @@ public class ExecutorRouteRound extends ExecutorRouter {
 
         // count++
         Integer count = routeCountEachJob.get(jobId);
-        count = (count==null || count>1000000)?(new Random().nextInt(100)):++count;  // 初始化时主动Random一次，缓解首次压力
+        count = (count==null || count>1000000)?(new SecureRandom().nextInt(100)):++count;  // SecureRandom，缓解首次压力
         routeCountEachJob.put(jobId, count);
         return count;
     }

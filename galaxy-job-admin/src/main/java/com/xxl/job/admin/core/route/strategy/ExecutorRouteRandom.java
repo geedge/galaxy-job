@@ -4,15 +4,15 @@ import com.xxl.job.admin.core.route.ExecutorRouter;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.biz.model.TriggerParam;
 
+import java.security.SecureRandom;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Created by xuxueli on 17/3/10.
  */
 public class ExecutorRouteRandom extends ExecutorRouter {
 
-    private static Random localRandom = new Random();
+    private static SecureRandom localRandom = new SecureRandom();
 
     @Override
     public ReturnT<String> route(TriggerParam triggerParam, List<String> addressList) {
