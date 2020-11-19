@@ -212,7 +212,7 @@ public class LogStorageQuotaJob {
     private void deleteDruidTable(String queryTablesSql, Integer maxdays, boolean hotTask) {
         List<String> analyticTables = getAnalyticTables(analyticServerSelect, queryTablesSql);
         //修改规则
-        String changeRulesUrl = Joiner.on("").join("http://", analyticServerDelete, "/druid/coordinator/v1/rules/");
+        String changeRulesUrl = Joiner.on("").join(Constant.SERVER_PROTOCOL, analyticServerDelete, "/druid/coordinator/v1/rules/");
         String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", maxdays, "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
 
         //1.物理删除除

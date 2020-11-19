@@ -51,11 +51,13 @@ public class JobApiController {
         if ("callback".equals(uri)) {
             List<HandleCallbackParam> callbackParamList = GsonTool.fromJson(data, List.class, HandleCallbackParam.class);
             for (int i = 0; i < callbackParamList.size(); i++) {
-                ReturnT<String> executeResult = callbackParamList.get(i).getExecuteResult();
+                HandleCallbackParam handleCallbackParam = callbackParamList.get(i);
+                ReturnT<String> executeResult = handleCallbackParam.getExecuteResult();
                 if(executeResult!=null&&executeResult.getContent()!=null){
                     executeResult.setContent(HtmlUtils.htmlEscape(executeResult.getContent()));
-                    callbackParamList.get(i).setExecuteResult(executeResult);
                 }
+                handleCallbackParam.setExecuteResult(executeResult);
+                callbackParamList.set(i,handleCallbackParam);
             }
             return adminBiz.callback(callbackParamList);
         } else if ("registry".equals(uri)) {

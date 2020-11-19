@@ -158,7 +158,7 @@ public class XxlJobFileAppender {
 		LineNumberReader reader = null;
 		try {
 			//reader = new LineNumberReader(new FileReader(logFile));
-			reader = new LineNumberReader(new InputStreamReader(new FileInputStream(logFile), "utf-8"));
+			reader = new LineNumberReader(new InputStreamReader(new FileInputStream(logFile), "utf-8"),1024*10);
 			String line = null;
 
 			while ((line = reader.readLine())!=null) {
@@ -196,7 +196,7 @@ public class XxlJobFileAppender {
 	 * @param logFile
 	 * @return log line content
 	 */
-	public static String readLines(File logFile){
+	/*public static String readLines(File logFile){
 		BufferedReader reader = null;
 		try {
 			reader = new BufferedReader(new InputStreamReader(new FileInputStream(logFile), "utf-8"));
@@ -220,6 +220,6 @@ public class XxlJobFileAppender {
 			}
 		}
 		return null;
-	}
+	}*/
 
 }

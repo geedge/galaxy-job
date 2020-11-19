@@ -204,11 +204,12 @@ public class XxlJobTrigger {
      */
     public static ReturnT<String> runExecutor(TriggerParam triggerParam, String address){
         ReturnT<String> runResult = null;
+        String xxljobaddr = String.format("for ,%s", " :" + address);
         try {
             ExecutorBiz executorBiz = XxlJobScheduler.getExecutorBiz(address);
             runResult = executorBiz.run(triggerParam);
         } catch (Exception e) {
-            logger.error(">>>>>>>>>>> xxl-job trigger error, please check if the executor[{}] is running.", address, e);
+            logger.error(">>>>>>>>>>> xxl-job trigger error, please check if the executor[{}] is running.", xxljobaddr, e);
             runResult = new ReturnT<String>(ReturnT.FAIL_CODE, ThrowableUtil.toString(e));
         }
 

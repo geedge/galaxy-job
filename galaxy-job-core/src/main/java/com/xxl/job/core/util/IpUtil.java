@@ -3,11 +3,9 @@ package com.xxl.job.core.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.UnknownHostException;
 import java.util.Enumeration;
 import java.util.regex.Pattern;
 
@@ -28,7 +26,7 @@ public class IpUtil {
 
     // ---------------------- valid ----------------------
 
-    private static InetAddress toValidAddress(InetAddress address) {
+    /*private static InetAddress toValidAddress(InetAddress address) {
         if (address instanceof Inet6Address) {
             Inet6Address v6Address = (Inet6Address) address;
             if (isPreferIPV6Address()) {
@@ -39,7 +37,7 @@ public class IpUtil {
             return address;
         }
         return null;
-    }
+    }*/
 
     private static boolean isPreferIPV6Address() {
         return Boolean.getBoolean("java.net.preferIPv6Addresses");
@@ -51,7 +49,7 @@ public class IpUtil {
      * @param address
      * @return
      */
-    private static boolean isValidV4Address(InetAddress address) {
+   /* private static boolean isValidV4Address(InetAddress address) {
         if (address == null || address.isLoopbackAddress()) {
             return false;
         }
@@ -61,7 +59,7 @@ public class IpUtil {
                 && !ANYHOST_VALUE.equals(name)
                 && !LOCALHOST_VALUE.equals(name));
         return result;
-    }
+    }*/
 
 
     /**
@@ -78,7 +76,7 @@ public class IpUtil {
      * @param address the input address
      * @return the normalized address, with scope id converted to int
      */
-    private static InetAddress normalizeV6Address(Inet6Address address) {
+   /* private static InetAddress normalizeV6Address(Inet6Address address) {
         String addr = address.getHostAddress();
         int i = addr.lastIndexOf('%');
         if (i > 0) {
@@ -90,7 +88,7 @@ public class IpUtil {
             }
         }
         return address;
-    }
+    }*/
 
 
     /**

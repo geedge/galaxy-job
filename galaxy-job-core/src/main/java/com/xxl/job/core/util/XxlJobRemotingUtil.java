@@ -69,6 +69,7 @@ public class XxlJobRemotingUtil {
     public static ReturnT postBody(String url, String accessToken, int timeout, Object requestObj, Class returnTargClassOfT) {
         HttpURLConnection connection = null;
         BufferedReader bufferedReader = null;
+        String xxljobaddr = String.format("for ,%s", " :" + url);
         try {
             // connection
             URL realUrl = new URL(url);
@@ -116,14 +117,15 @@ public class XxlJobRemotingUtil {
             outwritestream.flush();
             outwritestream.close();*/
 
+
             // valid StatusCode
             int statusCode = connection.getResponseCode();
             if (statusCode != 200) {
-                return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting fail, StatusCode(" + statusCode + ") invalid. for url : " + url);
+                return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting fail, StatusCode(" + statusCode + ") invalid. for  : " + xxljobaddr);
             }
 
             // result
-            bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()),10*1024);
             StringBuilder result = new StringBuilder();
             String line;
             while ((line = bufferedReader.readLine()) != null) {
@@ -136,13 +138,13 @@ public class XxlJobRemotingUtil {
                 ReturnT returnT = GsonTool.fromJson(resultJson, ReturnT.class, returnTargClassOfT);
                 return returnT;
             } catch (Exception e) {
-                logger.error("xxl-rpc remoting (url=" + url + ") response content invalid(" + resultJson + ").", e);
-                return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting (url=" + url + ") response content invalid(" + resultJson + ").");
+                logger.error("xxl-rpc remoting (url=" + xxljobaddr + ") response content invalid(" + resultJson + ").", e);
+                return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting (url=" + xxljobaddr + ") response content invalid(" + resultJson + ").");
             }
 
         } catch (Exception e) {
             logger.error("errorMessage:{}", e);
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting error(" + e.getMessage() + "), for url : " + url);
+            return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting error(" + e.getMessage() + "), for url : " + xxljobaddr);
         } finally {
             try {
                 if (bufferedReader != null) {
