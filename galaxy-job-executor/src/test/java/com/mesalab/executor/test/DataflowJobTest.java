@@ -31,7 +31,7 @@ public class DataflowJobTest  {
 			 try {
 				new KafkaUtils().sendMessage("TOP-INTERNAL-HOST-LOG", allResults);
 			} catch (Exception e) {
-				e.printStackTrace();
+
 			}
 		 }
 	}

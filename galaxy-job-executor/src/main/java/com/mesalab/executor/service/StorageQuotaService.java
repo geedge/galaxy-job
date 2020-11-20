@@ -523,14 +523,14 @@ public class StorageQuotaService {
                 }
             } catch (IOException e) {
                 logger.error("解析返回结果IO错误，{}",e);
-                e.printStackTrace();
+
             } finally {
                 if (br != null) {
                     try {
                         br.close();
                     } catch (IOException e) {
                         logger.error("解析返回结果IO错误，{}",e);
-                        e.printStackTrace();
+
                     }
                 }
             }

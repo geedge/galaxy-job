@@ -51,10 +51,12 @@ public class ExecutorRegistryThread {
 //                                    logger.debug(">>>>>>>>>>> xxl-job registry success, registryParam:{}, registryResult:{}", new Object[]{registryParam, registryResult});
                                     break;
                                 } else {
-                                    logger.info(">>>>>>>>>>> xxl-job registry fail, registryParam:{}, registryResult:{}", new Object[]{registryParam, registryResult});
+                                    logger.info(">>>>>>>>>>> xxl-job registry fail");
+//                                    logger.info(">>>>>>>>>>> xxl-job registry fail, registryParam:{}, registryResult:{}", new Object[]{registryParam, registryResult});
                                 }
                             } catch (Exception e) {
-                                logger.info(">>>>>>>>>>> xxl-job registry error, registryParam:{}", registryParam, e);
+                                logger.error(">>>>>>>>>>> xxl-job registry error, {} ", e);
+//                                logger.info(">>>>>>>>>>> xxl-job registry error, registryParam:{}", registryParam, e);
                             }
 
                         }
@@ -71,7 +73,7 @@ public class ExecutorRegistryThread {
                         }
                     } catch (InterruptedException e) {
                         if (!toStop) {
-                            logger.warn(">>>>>>>>>>> xxl-job, executor registry thread interrupted, error msg:{}", e.getMessage());
+                            logger.warn(">>>>>>>>>>> xxl-job, executor registry thread interrupted, error msg:{}", e);
                         }
                     }
                 }
@@ -84,14 +86,17 @@ public class ExecutorRegistryThread {
                             ReturnT<String> registryResult = adminBiz.registryRemove(registryParam);
                             if (registryResult!=null && ReturnT.SUCCESS_CODE == registryResult.getCode()) {
                                 registryResult = ReturnT.SUCCESS;
-                                logger.info(">>>>>>>>>>> xxl-job registry-remove success, registryParam:{}, registryResult:{}", new Object[]{registryParam, registryResult});
+                                logger.info(">>>>>>>>>>> xxl-job registry-remove success");
+//                                logger.info(">>>>>>>>>>> xxl-job registry-remove success, registryParam:{}, registryResult:{}", new Object[]{registryParam, registryResult});
                                 break;
                             } else {
-                                logger.info(">>>>>>>>>>> xxl-job registry-remove fail, registryParam:{}, registryResult:{}", new Object[]{registryParam, registryResult});
+//                                logger.info(">>>>>>>>>>> xxl-job registry-remove fail, registryParam:{}, registryResult:{}", new Object[]{registryParam, registryResult});
+                                logger.info(">>>>>>>>>>> xxl-job registry-remove fail");
                             }
                         } catch (Exception e) {
                             if (!toStop) {
-                                logger.info(">>>>>>>>>>> xxl-job registry-remove error, registryParam:{}", registryParam, e);
+                                logger.info(">>>>>>>>>>> xxl-job registry-remove error, registryParam:{}", e);
+//                                logger.info(">>>>>>>>>>> xxl-job registry-remove error, registryParam:{}", registryParam, e);
                             }
 
                         }

@@ -4,6 +4,7 @@ import com.xxl.job.admin.controller.annotation.PermissionLimit;
 import com.xxl.job.admin.core.model.XxlJobUser;
 import com.xxl.job.admin.core.util.I18nUtil;
 import com.xxl.job.admin.service.LoginService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
@@ -22,6 +23,9 @@ public class PermissionInterceptor extends HandlerInterceptorAdapter {
 
 	@Resource
 	private LoginService loginService;
+
+	@Value("${server.servlet.context-path}")
+	private String contextPathXxl;
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -43,7 +47,7 @@ public class PermissionInterceptor extends HandlerInterceptorAdapter {
 		if (needLogin) {
 			XxlJobUser loginUser = loginService.ifLogin(request, response);
 			if (loginUser == null) {
-				response.sendRedirect(request.getContextPath() + "/toLogin");
+				response.sendRedirect(contextPathXxl.concat("/").concat("toLogin"));
 				//request.getRequestDispatcher("/toLogin").forward(request, response);
 				return false;
 			}

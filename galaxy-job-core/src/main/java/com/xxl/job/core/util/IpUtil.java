@@ -5,8 +5,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Enumeration;
 import java.util.regex.Pattern;
 
 /**
@@ -96,14 +94,14 @@ public class IpUtil {
      *
      * @return first valid local IP
      */
-    public static InetAddress getLocalAddress() {
+    /*public static InetAddress getLocalAddress() {
         if (LOCAL_ADDRESS != null) {
             return LOCAL_ADDRESS;
         }
         InetAddress localAddress = getLocalHostExactAddress();
         LOCAL_ADDRESS = localAddress;
         return localAddress;
-    }
+    }*/
 
     /**
      * get ip address
@@ -111,7 +109,9 @@ public class IpUtil {
      * @return String
      */
     public static String getIp() {
-        return getLocalAddress().getHostAddress();
+//        String hostAddress = getLocalAddress().getHostAddress();
+//        return getLocalAddress().getHostAddress();
+        return LOCALHOST_VALUE;
     }
 
     /**
@@ -141,7 +141,7 @@ public class IpUtil {
         return new Object[]{host, port};
     }
 
-    public static InetAddress getLocalHostExactAddress() {
+/*    public static InetAddress getLocalHostExactAddress() {
         try {
             InetAddress candidateAddress = null;
 
@@ -167,13 +167,13 @@ public class IpUtil {
                     }
                 }
             }
-
+            InetAddress localHost = InetAddress.getLocalHost();
             // 如果出去loopback回环地之外无其它地址了，那就回退到原始方案吧
             return candidateAddress == null ? InetAddress.getLocalHost() : candidateAddress;
         } catch (Exception e) {
             logger.error("errorMessage:{}", e);
         }
         return null;
-    }
+    }*/
 
 }

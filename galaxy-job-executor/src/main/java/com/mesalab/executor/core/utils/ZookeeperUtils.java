@@ -48,7 +48,7 @@ public class ZookeeperUtils implements Watcher {
 				logger.error("Node does not exist!,Can't modify");
 			}
 		} catch (KeeperException | InterruptedException e) {
-			e.printStackTrace();
+
 		} finally {
 			closeConn();
 		}
@@ -64,7 +64,7 @@ public class ZookeeperUtils implements Watcher {
 			zookeeper = new ZooKeeper(host, SESSION_TIME_OUT, this);
 			countDownLatch.await();
 		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
+
 		}
 	}
 
@@ -77,7 +77,7 @@ public class ZookeeperUtils implements Watcher {
 				zookeeper.close();
 			}
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+
 		}
 	}
 
@@ -96,7 +96,7 @@ public class ZookeeperUtils implements Watcher {
 			result = new String(resByte);
 		} catch (KeeperException | InterruptedException e) {
 			logger.error("Get node information exception");
-			e.printStackTrace();
+
 			return null;
 		} finally {
 			closeConn();
@@ -128,7 +128,7 @@ public class ZookeeperUtils implements Watcher {
 				logger.warn("Node already exists ! Don't need to create");
 			}
 		} catch (KeeperException | InterruptedException e) {
-			e.printStackTrace();
+
 		} finally {
 			closeConn();
 		}

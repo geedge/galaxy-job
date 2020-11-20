@@ -31,9 +31,10 @@ public class ExecutorRouteConsistentHash extends ExecutorRouter {
         // md5 byte
         MessageDigest md5;
         try {
-            md5 = MessageDigest.getInstance("MD5");
+            md5 = MessageDigest.getInstance("SHA-256");
+//            md5 = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("MD5 not supported", e);
+            throw new RuntimeException("SHA-512 not supported", e);
         }
         md5.reset();
         byte[] keyBytes = null;

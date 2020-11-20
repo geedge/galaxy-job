@@ -1,6 +1,7 @@
 package com.xxl.job.core.log;
 
 import com.xxl.job.core.biz.model.LogResult;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +34,10 @@ public class XxlJobFileAppender {
 	 * 	---/2017-12-25/821.log
 	 *
 	 */
-	private static String logBasePath = "/data/applogs/xxl-job/jobhandler";
-	private static String glueSrcPath = logBasePath.concat("/gluesource");
+//	private static String logBasePath = File.separator.concat("data").concat(File.separator).concat("applogs").concat(File.separator).concat("xxl-job").concat(File.separator).concat("jobhandler");
+	private static String logBasePath = "";
+	private static String glueSrcPath = "";
+//	private static String glueSrcPath = logBasePath.concat(File.separator).concat("gluesource");
 	public static void initLogPath(String logPath){
 		// init
 		if (logPath!=null && logPath.trim().length()>0) {
@@ -72,7 +75,8 @@ public class XxlJobFileAppender {
 
 		// filePath/yyyy-MM-dd
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");	// avoid concurrent problem, can not be static
-		File logFilePath = new File(getLogPath(), sdf.format(triggerDate));
+		String logp = getLogPath();
+		File logFilePath = new File(logp, sdf.format(triggerDate));
 		if (!logFilePath.exists()) {
 			logFilePath.mkdir();
 		}
@@ -155,28 +159,33 @@ public class XxlJobFileAppender {
 		// read file
 		StringBuffer logContentBuffer = new StringBuffer();
 		int toLineNum = 0;
-		LineNumberReader reader = null;
-		try {
-			//reader = new LineNumberReader(new FileReader(logFile));
-			reader = new LineNumberReader(new InputStreamReader(new FileInputStream(logFile), "utf-8"),1024*10);
-			String line = null;
+		final int MAX_STR_LEN = 100_000_000;
+		try(BoundedInputStream boundedInputStream = new BoundedInputStream(new FileInputStream(logFile), 30000 * 1024);
+			LineNumberReader reader = new LineNumberReader(new InputStreamReader(boundedInputStream, "utf-8"),1024*10);) {
 
+			/*String line = null;
 			while ((line = reader.readLine())!=null) {
 				toLineNum = reader.getLineNumber();		// [from, to], start as 1
 				if (toLineNum >= fromLineNum) {
 					logContentBuffer.append(line).append("\n");
 				}
+			}*/
+
+			int intC;
+			while ((intC = reader.read()) != -1) {
+				char c = (char) intC;
+				if (c == '\n') {
+					break;
+				}
+				if (logContentBuffer.length() >= MAX_STR_LEN) {
+					throw new RuntimeException("input too long");
+				}
+				logContentBuffer.append(c);
 			}
+
+
 		} catch (IOException e) {
 			logger.error("errorMessage:{}", e);
-		} finally {
-			if (reader != null) {
-				try {
-					reader.close();
-				} catch (IOException e) {
-					logger.error("errorMessage:{}", e);
-				}
-			}
 		}
 
 		// result

@@ -33,6 +33,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -183,18 +184,18 @@ public class HttpClientUtils {
 
         } catch (URISyntaxException e) {
             logger.error("URI 转换错误: {}", e);
-            e.printStackTrace();
+
         } catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e);
-            e.printStackTrace();
+
 
         } catch (ParseException e) {
             logger.error("解析错误: {}", e);
-            e.printStackTrace();
+
 
         } catch (IOException e) {
             logger.error("IO错误: {}",e);
-            e.printStackTrace();
+
 
         }  finally {
             if (null != response) {
@@ -203,7 +204,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                     logger.error("释放链接错误: {}", e);
-                    e.printStackTrace();
+
                 }
             }
         }
@@ -241,7 +242,10 @@ public class HttpClientUtils {
             }
             
             if(StringUtil.isNotBlank(requestBody)) {
-            	httpPost.setEntity(new ByteArrayEntity(requestBody.getBytes("utf-8")));
+                if(requestBody!=null){
+                    byte[] bytes = requestBody.getBytes(StandardCharsets.UTF_8);
+                    httpPost.setEntity(new ByteArrayEntity(bytes));
+                }
             }
             
             response = httpClient.execute(httpPost);
@@ -249,7 +253,7 @@ public class HttpClientUtils {
             // 获取响应实体
             HttpEntity entity = response.getEntity();
             // 获取响应信息
-            msg = EntityUtils.toString(entity, "UTF-8");
+            msg = EntityUtils.toString(entity, StandardCharsets.UTF_8);
             
             if (statusCode != HttpStatus.SC_OK) {
                 throw new BusinessException(response.getStatusLine().getStatusCode(),
@@ -257,19 +261,19 @@ public class HttpClientUtils {
             }
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e);
-            e.printStackTrace();
+
 
 		} catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e);
-            e.printStackTrace();
+
 
         } catch (ParseException e) {
         	logger.error("解析错误: {}", e);
-            e.printStackTrace();
+
 
         } catch (IOException e) {
         	logger.error("IO错误: {}", e);
-            e.printStackTrace();
+
 
         } finally {
             if (null != response) {
@@ -278,7 +282,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                 	logger.error("释放链接错误: {}", e);
-                    e.printStackTrace();
+
                 }
             }
         }
@@ -315,7 +319,10 @@ public class HttpClientUtils {
             }
             
             if(StringUtil.isNotBlank(requestBody)) {
-            	httpPut.setEntity(new ByteArrayEntity(requestBody.getBytes("utf-8")));
+                if(requestBody!=null){
+                    byte[] bytes = requestBody.getBytes(StandardCharsets.UTF_8);
+                    httpPut.setEntity(new ByteArrayEntity(bytes));
+                }
             }
             
             response = httpClient.execute(httpPut);
@@ -323,7 +330,7 @@ public class HttpClientUtils {
             // 获取响应实体
             HttpEntity entity = response.getEntity();
             // 获取响应信息
-            msg = EntityUtils.toString(entity, "UTF-8");
+            msg = EntityUtils.toString(entity, StandardCharsets.UTF_8);
             
             if (statusCode != HttpStatus.SC_OK) {
                 throw new BusinessException(response.getStatusLine().getStatusCode(),
@@ -331,19 +338,19 @@ public class HttpClientUtils {
             }
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e);
-            e.printStackTrace();
+
 
 		} catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e);
-            e.printStackTrace();
+
 
         } catch (ParseException e) {
         	logger.error("解析错误: {}", e);
-            e.printStackTrace();
+
 
         } catch (IOException e) {
         	logger.error("IO错误: {}", e);
-            e.printStackTrace();
+
 
         } finally {
             if (null != response) {
@@ -352,7 +359,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                 	logger.error("释放链接错误: {}", e);
-                    e.printStackTrace();
+
                 }
             }
         }
@@ -388,7 +395,7 @@ public class HttpClientUtils {
             // 获取响应实体
             HttpEntity entity = response.getEntity();
             // 获取响应信息
-            msg = EntityUtils.toString(entity, "UTF-8");
+            msg = EntityUtils.toString(entity, StandardCharsets.UTF_8);
             
             if (statusCode != HttpStatus.SC_OK) {
                 throw new BusinessException(response.getStatusLine().getStatusCode(),
@@ -396,7 +403,7 @@ public class HttpClientUtils {
             }
             
         } catch (Exception e) {    
-            e.printStackTrace();    
+
         }finally{    
         	 if (null != response) {
                  try {
@@ -404,7 +411,7 @@ public class HttpClientUtils {
                      response.close();
                  } catch (IOException e) {
                  	logger.error("释放链接错误: {}", e);
-                     e.printStackTrace();
+
                  }
              }
          } 
@@ -431,13 +438,13 @@ public class HttpClientUtils {
             EntityUtils.consume(response.getEntity());
         } catch (ClientProtocolException e) {
             logger.error("current file: {},Protocol error:{}", url, e);
-            e.printStackTrace();
+
         } catch (ParseException e) {
             logger.error("current file: {}, Parser error:{}", url, e);
-            e.printStackTrace();
+
         } catch (IOException e) {
             logger.error("current file: {},IO error:{}", url, e);
-            e.printStackTrace();
+
         } finally {
             if (null != response) {
                 try {
@@ -445,7 +452,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                     logger.error("Release Connection error:{}", e);
-                    e.printStackTrace();
+
                 }
             }
             return result;

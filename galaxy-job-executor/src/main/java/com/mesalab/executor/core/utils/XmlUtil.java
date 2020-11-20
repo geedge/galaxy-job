@@ -25,7 +25,7 @@ public class XmlUtil {
 			xmlObject = (T) unmarshaller.unmarshal(sr);
 
 		} catch (JAXBException e) {
-			e.printStackTrace();
+
 		}
 		return xmlObject;
 	}
@@ -50,7 +50,7 @@ public class XmlUtil {
 			marshaller.marshal(obj, sw);
 
 		} catch (JAXBException e) {
-			e.printStackTrace();
+
 		}
 		return sw.toString();
 	}

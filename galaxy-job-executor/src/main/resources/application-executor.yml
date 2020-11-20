@@ -37,3 +37,6 @@ storge:
       clusters: system.clusters
 zookeeper:
   server: 192.168.40.203:2181
+
+server:
+  protocol: http://

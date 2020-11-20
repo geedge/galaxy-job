@@ -6,6 +6,7 @@ import com.xxl.job.admin.core.util.I18nUtil;
 import com.xxl.job.admin.core.util.JacksonUtil;
 import com.xxl.job.admin.dao.XxlJobUserDao;
 import com.xxl.job.core.biz.model.ReturnT;
+import com.xxl.job.core.util.XxlJobRemotingUtil;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.DigestUtils;
 
@@ -31,12 +32,17 @@ public class LoginService {
         String tokenHex = new BigInteger(tokenJson.getBytes()).toString(16);
         return tokenHex;
     }
-    private XxlJobUser parseToken(String tokenHex){
+    private XxlJobUser parseToken(String th){
         XxlJobUser xxlJobUser = null;
-        if (tokenHex != null) {
-            String tokenJson = new String(new BigInteger(tokenHex, 16).toByteArray());      // username_password(md5)
-            xxlJobUser = JacksonUtil.readValue(tokenJson, XxlJobUser.class);
+        if (th != null) {
+            String tj = new String(new BigInteger(th, 16).toByteArray());
+
+            xxlJobUser = JacksonUtil.readValue(tj, XxlJobUser.class);
         }
+
+
+
+
         return xxlJobUser;
     }
 
@@ -54,7 +60,7 @@ public class LoginService {
             return new ReturnT<String>(500, I18nUtil.getString("login_param_unvalid"));
         }
         String passwordMd5 = DigestUtils.md5DigestAsHex(password.getBytes());
-        if (!passwordMd5.equals(xxlJobUser.getPassword())) {
+        if (passwordMd5==null||xxlJobUser.getPassword()==null||!XxlJobRemotingUtil.isEqual(passwordMd5,xxlJobUser.getPassword())) {
             return new ReturnT<String>(500, I18nUtil.getString("login_param_unvalid"));
         }
 
@@ -94,7 +100,7 @@ public class LoginService {
             if (cookieUser != null) {
                 XxlJobUser dbUser = xxlJobUserDao.loadByUserName(cookieUser.getUsername());
                 if (dbUser != null) {
-                    if (cookieUser.getPassword().equals(dbUser.getPassword())) {
+                    if (cookieUser.getPassword()!=null&&dbUser.getPassword()!=null&& XxlJobRemotingUtil.isEqual(cookieUser.getPassword(),dbUser.getPassword())) {
                         return dbUser;
                     }
                 }
@@ -102,6 +108,4 @@ public class LoginService {
         }
         return null;
     }
-
-
 }

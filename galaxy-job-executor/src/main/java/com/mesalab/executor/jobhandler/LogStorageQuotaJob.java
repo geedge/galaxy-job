@@ -112,7 +112,7 @@ public class LogStorageQuotaJob {
                             for (String partition : partitions) {
                                 try {
                                     deleteParamMap.put("query", Joiner.on("").join(prefixDeleteSql, table, " DROP PARTITION ", partition));
-                                    HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
+                                    HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
                                 } catch (Exception e) {
                                     failCount++;
                                     logger.error("clickhouse ttl error endpoint = {}, table = {}, partition = {}, fail message = {}", endpoint, table, partition, e);
@@ -339,7 +339,7 @@ public class LogStorageQuotaJob {
                         try {
                             deleteParamMap.put("query", deleteSql.concat(table));
                             logger.info("delete clickhouse endpoint = {}, sql:{}", endpoint, deleteSql.concat(table));
-                            HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
+                            HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
                         } catch (Exception e) {
                             logger.error("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, e);
                             XxlJobLogger.log("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, e);

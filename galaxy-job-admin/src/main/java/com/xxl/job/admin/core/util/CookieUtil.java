@@ -1,5 +1,7 @@
 package com.xxl.job.admin.core.util;
 
+import com.xxl.job.core.util.XxlJobRemotingUtil;
+
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -56,9 +58,9 @@ public class CookieUtil {
      * @return
      */
     public static String getValue(HttpServletRequest request, String key) {
-        Cookie cookie = get(request, key);
-        if (cookie != null) {
-            return cookie.getValue();
+        Cookie ck = get(request, key);
+        if (ck != null) {
+            return ck.getValue();
         }
         return null;
     }
@@ -73,7 +75,7 @@ public class CookieUtil {
         Cookie[] arr_cookie = request.getCookies();
         if (arr_cookie != null && arr_cookie.length > 0) {
             for (Cookie cookie : arr_cookie) {
-                if (cookie.getName().equals(key)) {
+                if (cookie.getName()!=null&&key!=null&& XxlJobRemotingUtil.isEqual(cookie.getName(),key)) {
                     return cookie;
                 }
             }

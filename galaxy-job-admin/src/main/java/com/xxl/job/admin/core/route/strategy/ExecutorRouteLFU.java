@@ -4,6 +4,7 @@ import com.xxl.job.admin.core.route.ExecutorRouter;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.biz.model.TriggerParam;
 
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -38,7 +39,7 @@ public class ExecutorRouteLFU extends ExecutorRouter {
         // put new
         for (String address: addressList) {
             if (!lfuItemMap.containsKey(address) || lfuItemMap.get(address) >1000000 ) {
-                lfuItemMap.put(address, new Random().nextInt(addressList.size()));  // 初始化时主动Random一次，缓解首次压力
+                lfuItemMap.put(address, new SecureRandom().nextInt(addressList.size()));  // 初始化时主动Random一次，缓解首次压力
             }
         }
         // remove old

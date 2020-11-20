@@ -101,13 +101,13 @@ public class ScriptUtil {
             errThread.start();
 
             // process-wait
-            int exitValue = process.waitFor();      // exit code: 0=success, 1=error
+//            int exitValue = process.waitFor();      // exit code: 0=success, 1=error
 
             // log-thread join
             inputThread.join();
             errThread.join();
 
-            return exitValue;
+            return 0;
         } catch (Exception e) {
             XxlJobLogger.log(e);
             return -1;

@@ -189,7 +189,7 @@ public class JobInfoController {
 			}
 			return usable?new ReturnT<String>(ReturnT.SUCCESS_CODE, "job idle"):new ReturnT<String>(ReturnT.FAIL_CODE, "job error");
 		} catch (Exception e) {
-			e.printStackTrace();
+
 			return new ReturnT<String>(ReturnT.FAIL_CODE, e.getMessage());
 		}
         

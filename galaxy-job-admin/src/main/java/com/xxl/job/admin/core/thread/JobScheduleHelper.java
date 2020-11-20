@@ -1,11 +1,12 @@
 package com.xxl.job.admin.core.thread;
 
-import com.xxl.job.admin.core.trigger.TriggerTypeEnum;
 import com.xxl.job.admin.core.conf.XxlJobAdminConfig;
 import com.xxl.job.admin.core.cron.CronExpression;
 import com.xxl.job.admin.core.model.XxlJobInfo;
+import com.xxl.job.admin.core.trigger.TriggerTypeEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -33,6 +34,8 @@ public class JobScheduleHelper {
     private volatile boolean scheduleThreadToStop = false;
     private volatile boolean ringThreadToStop = false;
     private volatile static Map<Integer, List<Integer>> ringData = new ConcurrentHashMap<>();
+
+    private static final String execString = "select * from xxl_job_lock where lock_name = 'schedule_lock' for update";
 
     public void start(){
 
@@ -64,12 +67,12 @@ public class JobScheduleHelper {
 
                     boolean preReadSuc = true;
                     try {
-
-                        conn = XxlJobAdminConfig.getAdminConfig().getDataSource().getConnection();
+                        conn = DataSourceUtils.getConnection(XxlJobAdminConfig.getAdminConfig().getDataSource());
+//                        conn = XxlJobAdminConfig.getAdminConfig().getDataSource().getConnection();
                         connAutoCommit = conn.getAutoCommit();
                         conn.setAutoCommit(false);
 
-                        preparedStatement = conn.prepareStatement(  "select * from xxl_job_lock where lock_name = 'schedule_lock' for update" );
+                        preparedStatement = conn.prepareStatement(execString);
                         preparedStatement.execute();
 
                         // tx start
@@ -146,7 +149,16 @@ public class JobScheduleHelper {
                             logger.error(">>>>>>>>>>> xxl-job, JobScheduleHelper#scheduleThread error:{}", e);
                         }
                     } finally {
-
+                        // close PreparedStatement
+                        if (null != preparedStatement) {
+                            try {
+                                preparedStatement.close();
+                            } catch (SQLException e) {
+                                if (!scheduleThreadToStop) {
+                                    logger.error("errorMessage:{}", e);
+                                }
+                            }
+                        }
                         // commit
                         if (conn != null) {
                             try {
@@ -172,16 +184,6 @@ public class JobScheduleHelper {
                             }
                         }
 
-                        // close PreparedStatement
-                        if (null != preparedStatement) {
-                            try {
-                                preparedStatement.close();
-                            } catch (SQLException e) {
-                                if (!scheduleThreadToStop) {
-                                    logger.error("errorMessage:{}", e);
-                                }
-                            }
-                        }
                     }
                     long cost = System.currentTimeMillis()-start;
 

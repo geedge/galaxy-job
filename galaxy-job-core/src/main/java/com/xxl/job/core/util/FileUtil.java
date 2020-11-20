@@ -81,6 +81,9 @@ public class FileUtil {
 
         FileInputStream in = null;
         try {
+            if(file==null){
+                return null;
+            }
             in = new FileInputStream(file);
             in.read(filecontent);
             in.close();
