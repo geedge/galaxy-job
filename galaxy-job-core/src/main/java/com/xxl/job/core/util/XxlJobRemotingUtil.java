@@ -30,8 +30,9 @@ public class XxlJobRemotingUtil {
             SSLContext sc = SSLContext.getInstance("TLS");
             sc.init(null, null, new java.security.SecureRandom());
             SSLSocketFactory newFactory = sc.getSocketFactory();
-
-            connection.setSSLSocketFactory(newFactory);
+            if (newFactory != null) {
+                connection.setSSLSocketFactory(newFactory);
+            }
         } catch (Exception e) {
             logger.error("errorMessage:{}", e);
         }
@@ -105,10 +106,10 @@ public class XxlJobRemotingUtil {
             if (requestObj != null) {
                 String requestBody = GsonTool.toJson(requestObj);
 
-               try( DataOutputStream dataOutputStream = new DataOutputStream(connection.getOutputStream())){
-                dataOutputStream.write(requestBody.getBytes("UTF-8"));
-                dataOutputStream.flush();
-               }
+                try (DataOutputStream dataOutputStream = new DataOutputStream(connection.getOutputStream())) {
+                    dataOutputStream.write(requestBody.getBytes("UTF-8"));
+                    dataOutputStream.flush();
+                }
             }
 
             /*byte[] requestBodyBytes = requestBody.getBytes("UTF-8");
@@ -124,9 +125,9 @@ public class XxlJobRemotingUtil {
 //                return new ReturnT<String>(ReturnT.FAIL_CODE, "xxl-rpc remoting fail, StatusCode(" + statusCode + ") invalid. for  : " + xxljobaddr);
 //            }
 
-            boundedInput = new BoundedInputStream(connection.getInputStream(), 30000*1024);//限制最大读取字节数
+            boundedInput = new BoundedInputStream(connection.getInputStream(), 30000 * 1024);//限制最大读取字节数
             // result
-            bufferedReader = new BufferedReader(new InputStreamReader(boundedInput),10*1024);
+            bufferedReader = new BufferedReader(new InputStreamReader(boundedInput), 10 * 1024);
             StringBuilder result = new StringBuilder();
             String line;
             /*while ((line = bufferedReader.readLine()) != null) {
@@ -165,7 +166,7 @@ public class XxlJobRemotingUtil {
                 if (bufferedReader != null) {
                     bufferedReader.close();
                 }
-                if(boundedInput!=null){
+                if (boundedInput != null) {
                     boundedInput.close();
                 }
                 if (connection != null) {
@@ -176,8 +177,9 @@ public class XxlJobRemotingUtil {
             }
         }
     }
+
     public static boolean isEqual(String astr, String bstr) {
-        if(astr==null||bstr==null){
+        if (astr == null || bstr == null) {
             return false;
         }
         byte[] a = astr.getBytes();

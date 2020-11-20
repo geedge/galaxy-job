@@ -35,14 +35,10 @@ public class LoginService {
     private XxlJobUser parseToken(String th){
         XxlJobUser xxlJobUser = null;
         if (th != null) {
-            String tj = new String(new BigInteger(th, 16).toByteArray());
-
+            BigInteger bigInteger = new BigInteger(th, 16);
+            String tj = new String(bigInteger.toByteArray());
             xxlJobUser = JacksonUtil.readValue(tj, XxlJobUser.class);
         }
-
-
-
-
         return xxlJobUser;
     }
 

@@ -72,21 +72,21 @@ public class XxlJobFileAppender {
 	 * @return
 	 */
 	public static String makeLogFileName(Date triggerDate, long logId) {
-
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		// filePath/yyyy-MM-dd
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");	// avoid concurrent problem, can not be static
+		/*SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");	// avoid concurrent problem, can not be static
 		String logp = getLogPath();
 		File logFilePath = new File(logp, sdf.format(triggerDate));
 		if (!logFilePath.exists()) {
 			logFilePath.mkdir();
-		}
+		}*/
 
 		// filePath/yyyy-MM-dd/9999.log
-		String logFileName = logFilePath.getPath()
+		/*String logFileName = logFilePath.getPath()
 				.concat(File.separator)
 				.concat(String.valueOf(logId))
-				.concat(".log");
-		return logFileName;
+				.concat(".log");*/
+		return sdf.format(triggerDate).concat(".log");
 	}
 
 	/**

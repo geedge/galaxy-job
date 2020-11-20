@@ -26,21 +26,22 @@ public class MethodJobHandler extends IJobHandler {
 
     @Override
     public ReturnT<String> execute(String param) throws Exception {
-        return (ReturnT<String>) method.invoke(target, new Object[]{param});
+        /*return (ReturnT<String>) method.invoke(target, new Object[]{param});*/
+        return null;
     }
 
     @Override
     public void init() throws InvocationTargetException, IllegalAccessException {
-        if(initMethod != null) {
+        /*if(initMethod != null) {
             initMethod.invoke(target);
-        }
+        }*/
     }
 
     @Override
     public void destroy() throws InvocationTargetException, IllegalAccessException {
-        if(destroyMethod != null) {
+        /*if(destroyMethod != null) {
             destroyMethod.invoke(target);
-        }
+        }*/
     }
 
     @Override

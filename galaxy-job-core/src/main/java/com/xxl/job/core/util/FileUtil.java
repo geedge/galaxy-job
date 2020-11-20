@@ -75,7 +75,7 @@ public class FileUtil {
 
     }
 
-    public static byte[] readFileContent(File file) {
+   /* public static byte[] readFileContent(File file) {
         Long filelength = file.length();
         byte[] filecontent = new byte[filelength.intValue()];
 
@@ -101,7 +101,7 @@ public class FileUtil {
                 }
             }
         }
-    }
+    }*/
 
 
     /*public static void appendFileLine(String fileName, String content) {
