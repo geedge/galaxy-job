@@ -22,13 +22,13 @@ public class CookieInterceptor extends HandlerInterceptorAdapter {
 			ModelAndView mv) throws Exception {
 
 		// cookie
-		if (mv!=null && request.getCookies()!=null && request.getCookies().length>0) {
+//		if (mv!=null && request.getCookies()!=null && request.getCookies().length>0) {
 //			HashMap<String, Cookie> cookieMap = new HashMap<String, Cookie>();
 //			for (Cookie ck : request.getCookies()) {
 //				cookieMap.put(ck.getName(), ck);
 //			}
 //			mv.addObject("cookieMap", cookieMap);
-		}
+//		}
 
 		// static method
 		if (mv != null) {
