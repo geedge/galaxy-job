@@ -1,10 +1,30 @@
 package com.mesalab.executor.core.utils;
 
-import com.mesalab.executor.core.config.HttpConfig;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+
 import com.mesalab.executor.exception.BusinessException;
-import com.zdjizhi.utils.StringUtil;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.*;
+import org.apache.http.Header;
+import org.apache.http.HeaderElement;
+import org.apache.http.HeaderElementIterator;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.NoHttpResponseException;
+import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
@@ -87,9 +107,6 @@ public class HttpClientUtils {
                 if (exception instanceof SSLHandshakeException) {// 不要重试SSL握手异常
                     return false;
                 }
-                if (exception instanceof InterruptedIOException) {// 超时
-                    return true;
-                }
                 if (exception instanceof UnknownHostException) {// 目标服务器不可达
                     return false;
                 }
@@ -98,6 +115,12 @@ public class HttpClientUtils {
                 }
                 if (exception instanceof SSLException) {// ssl握手异常
                     return false;
+                }
+                if(exception instanceof HttpHostConnectException){//连接被拒绝
+                    return false;
+                }
+                if (exception instanceof InterruptedIOException) {// 超时
+                    return true;
                 }
                 HttpClientContext clientContext = HttpClientContext.adapt(context);
                 HttpRequest request = clientContext.getRequest();
