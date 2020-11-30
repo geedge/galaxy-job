@@ -283,29 +283,34 @@ public class LogStorageQuotaJob {
                 try {
                     String filesServer = Constant.HTTP.concat(endpoint);
                     String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header1);
-                    ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
-                    logger.info("reset storage files ttl endpoint = {}, bucketList = {} ", endpoint, list);
-                    XxlJobLogger.log("reset storage files ttl endpoint = {}, bucketList = {} ", endpoint, list);
-                    if (ObjectUtils.allNotNull(list, list.getBuckets(), list.getBuckets().getBucket())) {
-                        ListAllMyBucketsResult.Buckets buckets = list.getBuckets();
-                        List<ListAllMyBucketsResult.Buckets.Bucket> bucketList = buckets.getBucket();
+                    if(httpGetRes!=null&&!"-1".equals(httpGetRes)){
+                        ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
+                        logger.info("reset storage files ttl endpoint = {}, bucketList = {} ", endpoint, list);
+                        if (ObjectUtils.allNotNull(list, list.getBuckets(), list.getBuckets().getBucket())) {
+                            ListAllMyBucketsResult.Buckets buckets = list.getBuckets();
+                            List<ListAllMyBucketsResult.Buckets.Bucket> bucketList = buckets.getBucket();
 
-                        LifecycleConfiguration lc = new LifecycleConfiguration();
-                        lc.getRule().setExpiration(new LifecycleConfiguration.Expiration(String.valueOf(paramsMap.get("maxdays"))));
+                            LifecycleConfiguration lc = new LifecycleConfiguration();
+                            lc.getRule().setExpiration(new LifecycleConfiguration.Expiration(String.valueOf(paramsMap.get("maxdays"))));
 
-                        for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
-                            try {
-                                HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
-                            } catch (Exception e) {
-                                failCount++;
-                                logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
-                                XxlJobLogger.log("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
+                            for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
+                                try {
+                                    HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
+                                } catch (Exception e) {
+                                    failCount++;
+                                    logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
+                                    XxlJobLogger.log("failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
+                                }
                             }
                         }
+                    } else {
+                        failCount++;
+                        logger.error("reset storage files ttl failCount = {}, endpoint = {} , fail message = I/O exception", failCount, endpoint);
+                        XxlJobLogger.log("endpoint = {} , fail message = I/O exception", failCount, endpoint);
                     }
                 } catch (Exception e) {
                     logger.error("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
+                    XxlJobLogger.log("endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                     failCount++;
                 }
             }

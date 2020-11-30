@@ -1,42 +1,19 @@
 package com.mesalab.executor.core.utils;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InterruptedIOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.UnknownHostException;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
-
+import com.mesalab.executor.core.config.HttpConfig;
 import com.mesalab.executor.exception.BusinessException;
+import com.zdjizhi.utils.StringUtil;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.Header;
-import org.apache.http.HeaderElement;
-import org.apache.http.HeaderElementIterator;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.NoHttpResponseException;
-import org.apache.http.ParseException;
+import org.apache.http.*;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.*;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.conn.HttpClientConnectionManager;
+import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -48,8 +25,17 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mesalab.executor.core.config.HttpConfig;
-import com.zdjizhi.utils.StringUtil;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class HttpClientUtils {
     /** 全局连接池对象 */
@@ -101,17 +87,20 @@ public class HttpClientUtils {
                 if (exception instanceof SSLHandshakeException) {// 不要重试SSL握手异常
                     return false;
                 }
-                if (exception instanceof InterruptedIOException) {// 超时
-                    return true;
-                }
                 if (exception instanceof UnknownHostException) {// 目标服务器不可达
                     return false;
                 }
                 if (exception instanceof ConnectTimeoutException) {// 连接被拒绝
                     return false;
                 }
+                if (exception instanceof HttpHostConnectException) {// 连接被拒绝
+                    return false;
+                }
                 if (exception instanceof SSLException) {// ssl握手异常
                     return false;
+                }
+                if (exception instanceof InterruptedIOException) {// 超时
+                    return true;
                 }
                 HttpClientContext clientContext = HttpClientContext.adapt(context);
                 HttpRequest request = clientContext.getRequest();
@@ -198,19 +187,12 @@ public class HttpClientUtils {
 
         } catch (URISyntaxException e) {
             logger.error("URI 转换错误: {}", e.getMessage());
-            e.printStackTrace();
         } catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } catch (ParseException e) {
             logger.error("解析错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } catch (IOException e) {
             logger.error("IO错误: {}",e.getMessage());
-            e.printStackTrace();
-
         }  finally {
             if (null != response) {
                 try {
@@ -218,7 +200,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                     logger.error("释放链接错误: {}", e.getMessage());
-                    e.printStackTrace();
+
                 }
             }
         }
@@ -272,20 +254,12 @@ public class HttpClientUtils {
             }
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e.getMessage());
-            e.printStackTrace();
-
 		} catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } catch (ParseException e) {
         	logger.error("解析错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } catch (IOException e) {
         	logger.error("IO错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } finally {
             if (null != response) {
                 try {
@@ -293,7 +267,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                 	logger.error("释放链接错误: {}", e.getMessage());
-                    e.printStackTrace();
+
                 }
             }
         }
@@ -346,20 +320,12 @@ public class HttpClientUtils {
             }
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e.getMessage());
-            e.printStackTrace();
-
 		} catch (ClientProtocolException e) {
             logger.error("协议错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } catch (ParseException e) {
         	logger.error("解析错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } catch (IOException e) {
         	logger.error("IO错误: {}", e.getMessage());
-            e.printStackTrace();
-
         } finally {
             if (null != response) {
                 try {
@@ -367,7 +333,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                 	logger.error("释放链接错误: {}", e.getMessage());
-                    e.printStackTrace();
+
                 }
             }
         }
@@ -410,16 +376,24 @@ public class HttpClientUtils {
                         "Http post content is :" + msg);
             }
             
-        } catch (Exception e) {    
-            e.printStackTrace();    
-        }finally{    
+        } catch (URISyntaxException e) {
+            logger.error("URI 转换错误: {}", e.getMessage());
+        } catch (ClientProtocolException e) {
+            logger.error("协议错误: {}", e.getMessage());
+        } catch (ParseException e) {
+            logger.error("解析错误: {}", e.getMessage());
+
+        } catch (IOException e) {
+            logger.error("IO错误: {}", e.getMessage());
+
+        }finally{
         	 if (null != response) {
                  try {
                      EntityUtils.consumeQuietly(response.getEntity());
                      response.close();
                  } catch (IOException e) {
                  	logger.error("释放链接错误: {}", e.getMessage());
-                     e.printStackTrace();
+
                  }
              }
          } 
@@ -446,13 +420,13 @@ public class HttpClientUtils {
             EntityUtils.consume(response.getEntity());
         } catch (ClientProtocolException e) {
             logger.error("current file: {},Protocol error:{}", url, e.getMessage());
-            e.printStackTrace();
+
         } catch (ParseException e) {
             logger.error("current file: {}, Parser error:{}", url, e.getMessage());
-            e.printStackTrace();
+
         } catch (IOException e) {
             logger.error("current file: {},IO error:{}", url, e.getMessage());
-            e.printStackTrace();
+
         } finally {
             if (null != response) {
                 try {
@@ -460,7 +434,7 @@ public class HttpClientUtils {
                     response.close();
                 } catch (IOException e) {
                     logger.error("Release Connection error:{}", e.getMessage());
-                    e.printStackTrace();
+
                 }
             }
             return result;
