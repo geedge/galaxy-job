@@ -1,30 +1,10 @@
 package com.mesalab.executor.core.utils;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InterruptedIOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.UnknownHostException;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
-
+import com.mesalab.executor.core.config.HttpConfig;
 import com.mesalab.executor.exception.BusinessException;
+import com.zdjizhi.utils.StringUtil;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.Header;
-import org.apache.http.HeaderElement;
-import org.apache.http.HeaderElementIterator;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.NoHttpResponseException;
-import org.apache.http.ParseException;
+import org.apache.http.*;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
@@ -33,6 +13,7 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.conn.HttpClientConnectionManager;
+import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -425,9 +406,15 @@ public class HttpClientUtils {
                         "Http post content is :" + msg);
             }
             
-        } catch (Exception e) {    
-
-        }finally{    
+        } catch (URISyntaxException e) {
+            logger.error("URI 转换错误: {}", e);
+        } catch (ClientProtocolException e) {
+            logger.error("协议错误: {}", e);
+        } catch (ParseException e) {
+            logger.error("解析错误: {}", e);
+        } catch (IOException e) {
+            logger.error("IO错误: {}", e);
+        }finally{
         	 if (null != response) {
                  try {
                      EntityUtils.consumeQuietly(response.getEntity());
