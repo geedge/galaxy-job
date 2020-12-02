@@ -139,8 +139,8 @@ public class LogStorageQuotaJob {
             }
 
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -171,8 +171,8 @@ public class LogStorageQuotaJob {
             deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), false);
 
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -202,8 +202,8 @@ public class LogStorageQuotaJob {
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks  WHERE datasource LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
             deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), true);
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -275,8 +275,8 @@ public class LogStorageQuotaJob {
             }
             List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(filesHosServer);
 
-            Header header1 = new BasicHeader("Token", filesToken);
-            Header header2 = new BasicHeader(HttpHeaders.CONTENT_TYPE, "text/xml");
+            Header header1 = new BasicHeader(Constant.TOKEN, filesToken);
+            Header header2 = new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML);
             Header[] headers = {header1, header2};
             int failCount = 0;
             for (String endpoint : endpointList) {
@@ -306,7 +306,7 @@ public class LogStorageQuotaJob {
                     } else {
                         failCount++;
                         logger.error("reset storage files ttl failCount = {}, endpoint = {} , fail message = I/O exception", failCount, endpoint);
-                        XxlJobLogger.log("endpoint = {} , fail message = I/O exception", failCount, endpoint);
+                        XxlJobLogger.log("endpoint = {} , fail message = I/O exception", endpoint);
                     }
                 } catch (Exception e) {
                     logger.error("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
@@ -320,8 +320,8 @@ public class LogStorageQuotaJob {
             }
 
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -380,8 +380,8 @@ public class LogStorageQuotaJob {
             }
 
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -472,8 +472,8 @@ public class LogStorageQuotaJob {
                 throw new BusinessException("delete druid error, fail count " + failCount);
             }
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -497,7 +497,7 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            Header header = new BasicHeader("Token", filesToken);
+            Header header = new BasicHeader(Constant.TOKEN, filesToken);
             List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(filesHosServer);
 
             int failCount = 0;
@@ -505,29 +505,35 @@ public class LogStorageQuotaJob {
                 try {
                     String filesServer = Constant.HTTP.concat(endpoint);
                     String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header);
-                    ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
-                    logger.info("delete storage files ttl endpoint = {}, bucket list = {} ", endpoint, list);
-                    XxlJobLogger.log("query file endpoint = {}, bucket list = {} ", endpoint, list);
 
-                    if (ObjectUtils.allNotNull(list, list.getBuckets(), list.getBuckets().getBucket())) {
-                        ListAllMyBucketsResult.Buckets buckets = list.getBuckets();
-                        List<ListAllMyBucketsResult.Buckets.Bucket> bucketList = buckets.getBucket();
-                        XxlJobLogger.log("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
-                        logger.info("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
-                        for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
-                            try {
-                                HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
-                            } catch (Exception e) {
-                                failCount++;
-                                logger.error("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
-                                XxlJobLogger.log("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
+                    if(httpGetRes!=null&&!"-1".equals(httpGetRes)){
+                        ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
+                        logger.info("delete storage files ttl endpoint = {}, bucket list = {} ", endpoint, list);
+                        XxlJobLogger.log("endpoint = {}, bucket list = {} ", endpoint, list);
+                        if (ObjectUtils.allNotNull(list, list.getBuckets(), list.getBuckets().getBucket())) {
+                            ListAllMyBucketsResult.Buckets buckets = list.getBuckets();
+                            List<ListAllMyBucketsResult.Buckets.Bucket> bucketList = buckets.getBucket();
+                            XxlJobLogger.log("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
+                            logger.info("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
+                            for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
+                                try {
+                                    HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
+                                } catch (Exception e) {
+                                    failCount++;
+                                    logger.error("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
+                                    XxlJobLogger.log("endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
+                                }
                             }
                         }
+                    } else {
+                        failCount++;
+                        logger.error("delete file error failCount = {}, endpoint = {} , fail message = I/O exception", failCount, endpoint);
+                        XxlJobLogger.log("endpoint = {} , fail message = I/O exception",endpoint);
                     }
                 } catch (Exception e) {
                     failCount++;
                     logger.error("delete file error endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("delete file error endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
+                    XxlJobLogger.log("endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
 
                 }
             }
@@ -536,8 +542,8 @@ public class LogStorageQuotaJob {
                 throw new BusinessException(" delete files error, failed count " + failCount);
             }
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -574,7 +580,7 @@ public class LogStorageQuotaJob {
 
             //发送到kafka
             new KafkaUtils().sendMessage(String.valueOf(paramsMap.get("topic")), (List<Object>) resultMap.get("data"));
-            XxlJobLogger.log("send message to kafka, topic is {}", paramsMap.get("topic"));
+            XxlJobLogger.log("kafka topic is {}", paramsMap.get("topic"));
             //查询存在问题会返回status>0
             int status = ((Map<String, Integer>) resultMap.get("status")).values().stream().mapToInt(Integer::intValue).sum();
             if (status > 0) {
@@ -582,8 +588,8 @@ public class LogStorageQuotaJob {
             }
 
         } catch (BusinessException be) {
-            logger.error(be.getErrorMessage());
-            XxlJobLogger.log(be.getErrorMessage());
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         } catch (Exception e) {
             logger.error(e.getMessage());

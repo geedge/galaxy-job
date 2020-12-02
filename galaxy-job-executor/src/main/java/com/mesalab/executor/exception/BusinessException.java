@@ -19,48 +19,48 @@ public class BusinessException extends RuntimeException {
     /**
      * 异常代码
      */
-    private int errorCode = BaseResultEnum.SERVER_ERROR.getCode();
+    private int code = BaseResultEnum.SERVER_ERROR.getCode();
     /**
      * 异常信息
      */
-    private String errorMessage;
+    private String message;
 
-    public BusinessException(String errorMessage) {
-        this.errorCode = BaseResultEnum.SERVER_ERROR.getCode();
-        this.errorMessage = errorMessage;
+    public BusinessException(String message) {
+        this.code = BaseResultEnum.SERVER_ERROR.getCode();
+        this.message = message;
     }
 
 
-    public BusinessException(String errorMessage, Throwable e) {
-        super(errorMessage, e);
-        this.errorCode = BaseResultEnum.SERVER_ERROR.getCode();
+    public BusinessException(String message, Throwable e) {
+        super(message, e);
+        this.code = BaseResultEnum.SERVER_ERROR.getCode();
     }
 
-    public BusinessException(int errorCode, String errorMessage, Throwable e) {
-        super(errorMessage, e);
-        this.errorCode = errorCode;
+    public BusinessException(int code, String message, Throwable e) {
+        super(message, e);
+        this.code = code;
     }
     
     public BusinessException(Throwable e) {
         super(e.getMessage(), e);
-        this.errorCode = BaseResultEnum.SERVER_ERROR.getCode();
-        this.errorMessage = e.getMessage();
+        this.code = BaseResultEnum.SERVER_ERROR.getCode();
+        this.message = e.getMessage();
     }
 
-	public int getErrorCode() {
-		return errorCode;
+	public int getCode() {
+		return code;
 	}
 
-	public void setErrorCode(int errorCode) {
-		this.errorCode = errorCode;
+	public void setCode(int code) {
+		this.code = code;
 	}
 
-	public String getErrorMessage() {
-		return JobUtil.formatJobLog(errorMessage);
+	public String getMessage() {
+		return JobUtil.formatJobLog(message);
 	}
 
-	public void setErrorMessage(String errorMessage) {
-		this.errorMessage = errorMessage;
+	public void setMessage(String message) {
+		this.message = message;
 	}
 
 }

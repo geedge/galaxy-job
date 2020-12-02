@@ -15,9 +15,8 @@ public class JobUtil {
 	}
 
 	public static String getErrorMsg(Exception e){
-		System.out.println(e.getMessage());
 		if(e instanceof BusinessException){
-			return ((BusinessException) e).getErrorMessage();
+			return ((BusinessException) e).getMessage();
 		}
 		return e.getMessage();
 	}
