@@ -1,9 +1,15 @@
 package com.mesalab.executor.core.config;
 
+import com.google.common.base.Splitter;
+import com.zdjizhi.utils.StringUtil;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
-import lombok.Data;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Data
 @Configuration
@@ -45,5 +51,43 @@ public class StorgeConfig {
 	@Value("${storge.files.token}")
 	private String filesToken; //登录验证
 
+	public String getFilesHosServer() {
+		return getServer();
+	}
 
+	private String getServer() {
+		return getServer(filesHosServer);
+	}
+
+	public String getTrafficServer() {
+		return getServer(trafficServer);
+	}
+	public String getAnalyticServer() {
+		return getServer(analyticServer);
+	}
+
+	public Map<String,String> getFilesDataCenter() {
+		return getDCMap(filesHosServer);
+	}
+
+	public Map<String,String> getTrafficDataCenter() {
+		return getDCMap(trafficServer);
+	}
+	public Map<String,String> getAnalyticDataCenter() {
+		return getDCMap(analyticServer);
+	}
+	private String getServer(String dcStr) {
+		return Splitter.on(",").trimResults().splitToList(dcStr).stream().map(x -> x.substring(x.indexOf("|") + 1)).filter(x -> StringUtil.isNotEmpty(x)).collect(Collectors.joining(","));
+	}
+
+	private Map<String, String> getDCMap(String dcStr) {
+		Map<String, String> map = new HashMap();
+		Splitter.on(",").trimResults().splitToList(dcStr).stream().forEach(x -> {
+			List<String> dc = Splitter.on("|").trimResults().splitToList(x);
+			if (dc.size() == 2 && StringUtil.isNotBlank(dc.get(1))) {
+				map.put(dc.get(0), dc.get(1));
+			}
+		});
+		return map;
+	}
 }

@@ -569,14 +569,7 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            //调用查询方法单机，集群
-            Map resultMap = null;
-
-            if ("false".equals(paramsMap.get("ckDayGrowth"))) {
-                resultMap = storageQuotaService.getDiskJson();
-            } else {
-                resultMap = storageQuotaService.getDayJson();
-            }
+            Map resultMap = storageQuotaService.getDiskJson("true".equals(paramsMap.get("ckDayGrowth")));
 
             //发送到kafka
             new KafkaUtils().sendMessage(String.valueOf(paramsMap.get("topic")), (List<Object>) resultMap.get("data"));
