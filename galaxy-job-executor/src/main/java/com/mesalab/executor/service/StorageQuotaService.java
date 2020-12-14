@@ -196,12 +196,6 @@ public class StorageQuotaService {
         String currResult = HttpClientUtils.httpPost(Constant.HTTP.concat(druidServer).concat(DRUID_PATH), currSql);
         List<Map> list = (List) JsonMapper.fromJsonString(currResult, List.class);
         if(list!=null&&list.size()==0){
-            String currDaySql = "{\"query\":\"SELECT used_size FROM sys_storage_log WHERE log_type = '" + logType
-                    + "' and data_center = '"+ key +"' and __time >= CURRENT_DATE ORDER BY __time DESC LIMIT 1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-            String currDayResult = HttpClientUtils.httpPost(Constant.HTTP.concat(druidServer).concat(DRUID_PATH), currDaySql);
-            list = (List) JsonMapper.fromJsonString(currDayResult, List.class);
-        }
-        if(list!=null&&list.size()==0){
             return 0L;
         }
         Object used = list.get(0).get("used_size");
@@ -386,6 +380,9 @@ public class StorageQuotaService {
      * @return 差值
      */
     private Long getDiffNum(Long now, Long before) {
+        if(before<=0){
+            return 0L;
+        }
         long diff = now - before;
         if (diff >= 0) {
             return diff;

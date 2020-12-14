@@ -113,11 +113,6 @@
                             <include>**/*.properties</include>
                             <include>**/*.yml</include>
                         </resource>
-                        <resource>
-                            <targetPath>/</targetPath>
-                            <directory>${project.build.directory}/classes/</directory>
-                            <include>script/**</include>
-                        </resource>
                     </resources>
                 </configuration>
             </plugin>

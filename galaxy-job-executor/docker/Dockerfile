@@ -4,7 +4,6 @@ MAINTAINER Galaxy
 VOLUME /tmp
 WORKDIR /home/tsg/galaxy/galaxy-job/galaxy-job-executor
 COPY config config
-COPY script script
 ARG JAR_FILE
 COPY ${JAR_FILE} galaxy-job-executor.jar
 #dockercompose set JAVA_OPTS
