@@ -82,6 +82,39 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>com.mesalab.xjar-maven-plugin</groupId>
+                <artifactId>mesalab-xjar-maven-plugin</artifactId>
+                <version>1.0.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <!-- <phase>package</phase>-->
+                        <phase>install</phase>
+                        <configuration>
+                            <password>111111</password>
+                            <excludes>
+                                <!--<exclude>
+                                    static/**
+                                </exclude>
+                                <exclude>
+                                    templates/**
+                                </exclude>-->
+                                <exclude>
+                                    resources/**
+                                </exclude>
+                                <exclude>
+                                    META-INF/resources/**
+                                </exclude>
+                            </excludes>
+                        </configuration>
+
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
                 <groupId>com.spotify</groupId>
                 <artifactId>docker-maven-plugin</artifactId>
                 <version>1.0.0</version>
@@ -95,17 +128,18 @@
                     <dockerHost>http://192.168.40.153:2375</dockerHost>
                     <dockerDirectory>docker</dockerDirectory>
                     <buildArgs>
-                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73</JDK_IMAGE>
-                        <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
+                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73-go</JDK_IMAGE>
+                        <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.201023-rc1</imageTag>
+                        <imageTag>v1.3.20210223</imageTag>
                     </imageTags>
                     <resources>
                         <resource>
                             <targetPath>/</targetPath>
                             <directory>${project.build.directory}</directory>
-                            <include>${project.build.finalName}.jar</include>
+                            <include>${project.build.finalName}.xjar</include>
+                            <include>xjar.go</include>
                         </resource>
                         <resource>
                             <targetPath>/config</targetPath>
@@ -116,6 +150,7 @@
                     </resources>
                 </configuration>
             </plugin>
+
         </plugins>
     </build>
 </project>
