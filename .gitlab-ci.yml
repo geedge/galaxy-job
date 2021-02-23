@@ -29,13 +29,13 @@ clean:
 deploy:
   stage: deploy
   script:
-    - echo 'exec mvn package & docker build'
+    - echo 'exec mvn install & docker build'
     - echo  'tag:' $CI_COMMIT_TAG
     - cd galaxy-job-admin
-    - mvn clean package -Dmaven.test.skip=true docker:build -DdockerImageTags=$CI_COMMIT_TAG
+    - mvn clean install -Dmaven.test.skip=true docker:build -DdockerImageTags=$CI_COMMIT_TAG
     - cd ..
     - cd galaxy-job-executor
-    - mvn clean package -Dmaven.test.skip=true docker:build -DdockerImageTags=$CI_COMMIT_TAG
+    - mvn clean install -Dmaven.test.skip=true docker:build -DdockerImageTags=$CI_COMMIT_TAG
   when: on_success
   only:
     - tags
