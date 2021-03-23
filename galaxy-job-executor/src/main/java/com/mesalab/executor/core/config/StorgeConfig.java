@@ -1,5 +1,6 @@
 package com.mesalab.executor.core.config;
 
+import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.google.common.base.Splitter;
 import com.zdjizhi.utils.StringUtil;
 import lombok.Data;
@@ -15,40 +16,40 @@ import java.util.stream.Collectors;
 @Configuration
 public class StorgeConfig {
 
-	@Value("${storge.traffic.server}")
+	@NacosValue(value = "${storge.traffic.server}",autoRefreshed = true)
 	private String trafficServer;// clickhouse要查看的ip
 
-	@Value("${storge.traffic.username}")
+	@NacosValue(value = "${storge.traffic.username}",autoRefreshed = true)
 	private String trafficUsername;// clickhouse要查看的username
 	
-	@Value("${storge.traffic.password}")
+	@NacosValue(value = "${storge.traffic.password}",autoRefreshed = true)
 	private String trafficPassword;// clickhouse要查看的password
 	
-	@Value("${storge.traffic.datasource}")
+	@NacosValue(value = "${storge.traffic.datasource}",autoRefreshed = true)
 	private String trafficDatasource;// clickhouse要查看的datasource
 	
-	@Value("${storge.traffic.system.parts}")
+	@NacosValue(value = "${storge.traffic.system.parts}",autoRefreshed = true)
 	private String systemParts ;
 
-	@Value("${storge.traffic.system.partsclusters}")
+	@NacosValue(value = "${storge.traffic.system.partsclusters}",autoRefreshed = true)
 	private String systemPartsCluster ;
 
-	@Value("${storge.traffic.system.disks}")
+	@NacosValue(value = "${storge.traffic.system.disks}",autoRefreshed = true)
 	private String systemDisks ;
 	
-	@Value("${storge.traffic.system.clusters}")
+	@NacosValue(value = "${storge.traffic.system.clusters}",autoRefreshed = true)
 	private String systemClusters ;
 
-	@Value("${storge.traffic.system.tables}")
+	@NacosValue(value = "${storge.traffic.system.tables}",autoRefreshed = true)
 	private String systemTables ;
 
-	@Value("${storge.analytic.server}")
+	@NacosValue(value = "${storge.analytic.server}",autoRefreshed = true)
 	private String analyticServer;// druid 节点ip和port
 
-	@Value("${storge.files.hos-server}")
+	@NacosValue(value = "${storge.files.hos-server}",autoRefreshed = true)
 	private String filesHosServer;// 清库删除文件服务器 ip:port
 
-	@Value("${storge.files.token}")
+	@NacosValue(value = "${storge.files.token}",autoRefreshed = true)
 	private String filesToken; //登录验证
 
 	public String getFilesHosServer() {

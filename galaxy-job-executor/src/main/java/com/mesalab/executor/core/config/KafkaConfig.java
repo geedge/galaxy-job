@@ -1,4 +1,5 @@
 package com.mesalab.executor.core.config;
+import com.alibaba.nacos.api.config.annotation.NacosValue;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +17,7 @@ import java.util.Map;
 @EnableKafka
 public class KafkaConfig {
 
-	@Value("${spring.kafka.bootstrap-servers}")
+	@NacosValue(value = "${spring.kafka.bootstrap-servers}",autoRefreshed = true)
 	private String servers;
 	 
     @Bean

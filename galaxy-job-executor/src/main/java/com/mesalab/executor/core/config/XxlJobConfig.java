@@ -1,5 +1,6 @@
 package com.mesalab.executor.core.config;
 
+import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.xxl.job.core.executor.impl.XxlJobSpringExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,28 +17,28 @@ import org.springframework.context.annotation.Configuration;
 public class XxlJobConfig {
     private Logger logger = LoggerFactory.getLogger(XxlJobConfig.class);
 
-    @Value("${xxl.job.admin.addresses}")
+    @NacosValue(value = "${xxl.job.admin.addresses}",autoRefreshed = true)
     private String adminAddresses;
 
-    @Value("${xxl.job.accessToken}")
+    @NacosValue(value = "${xxl.job.accessToken}",autoRefreshed = true)
     private String accessToken;
 
-    @Value("${xxl.job.executor.appname}")
+    @NacosValue(value = "${xxl.job.executor.appname}",autoRefreshed = true)
     private String appname;
 
-    @Value("${xxl.job.executor.address}")
+    @NacosValue(value = "${xxl.job.executor.address}",autoRefreshed = true)
     private String address;
 
-    @Value("${xxl.job.executor.ip}")
+    @NacosValue(value = "${xxl.job.executor.ip}",autoRefreshed = true)
     private String ip;
 
-    @Value("${xxl.job.executor.port}")
+    @NacosValue(value = "${xxl.job.executor.port}",autoRefreshed = true)
     private int port;
 
-    @Value("${xxl.job.executor.logpath}")
+    @NacosValue(value = "${xxl.job.executor.logpath}",autoRefreshed = true)
     private String logPath;
 
-    @Value("${xxl.job.executor.logretentiondays}")
+    @NacosValue(value = "${xxl.job.executor.logretentiondays}",autoRefreshed = true)
     private int logRetentionDays;
 
 
