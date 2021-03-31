@@ -1,10 +1,10 @@
 package com.mesalab.executor.core.config;
 
 import com.alibaba.nacos.api.config.annotation.NacosValue;
-import lombok.Getter;
+import lombok.Data;
 import org.springframework.stereotype.Component;
 
-@Getter
+@Data
 @Component
 public class HttpConfig {
     /**
