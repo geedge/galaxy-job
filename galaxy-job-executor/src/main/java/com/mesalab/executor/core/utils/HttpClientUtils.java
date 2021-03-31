@@ -43,15 +43,17 @@ public class HttpClientUtils {
 
     private static Logger logger = LoggerFactory.getLogger(HttpClientUtils.class);
 
+    private static HttpConfig httpConfig = (HttpConfig) SpringContextUtil.getBean("httpConfig");
+
     /**
      * 静态代码块配置连接池信息
      */
     static {
 
         // 设置最大连接数
-        connManager.setMaxTotal(HttpConfig.maxConnectionNum);
+        connManager.setMaxTotal(httpConfig.getMaxConnectionNum());
         // 设置每个连接的路由数
-        connManager.setDefaultMaxPerRoute(HttpConfig.maxPerRoute);
+        connManager.setDefaultMaxPerRoute(httpConfig.getMaxPerRoute());
 
     }
 
@@ -63,11 +65,11 @@ public class HttpClientUtils {
         // 创建Http请求配置参数
         RequestConfig requestConfig = RequestConfig.custom()
                 // 获取连接超时时间
-                .setConnectionRequestTimeout(HttpConfig.serverRequestTimeOut)
+                .setConnectionRequestTimeout(httpConfig.getServerRequestTimeOut())
                 // 请求超时时间
-                .setConnectTimeout(HttpConfig.serverConnectTimeOut)
+                .setConnectTimeout(httpConfig.getServerConnectTimeOut())
                 // 响应超时时间
-                .setSocketTimeout(HttpConfig.serverResponseTimeOut)
+                .setSocketTimeout(httpConfig.getServerResponseTimeOut())
                 .build();
 
         /**
