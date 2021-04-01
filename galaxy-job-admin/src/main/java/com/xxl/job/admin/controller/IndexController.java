@@ -7,6 +7,7 @@ import com.xxl.job.core.biz.model.ReturnT;
 import org.springframework.beans.propertyeditors.CustomDateEditor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -61,9 +62,9 @@ public class IndexController {
 	@RequestMapping(value="login", method=RequestMethod.POST)
 	@ResponseBody
 	@PermissionLimit(limit=false)
-	public ReturnT<String> loginDo(HttpServletRequest request, HttpServletResponse response, String userName, String password, String ifRemember){
+	public ReturnT<String> loginDo(HttpServletRequest request, HttpServletResponse response, String userName, String password, String pin, String ifRemember){
 		boolean ifRem = (ifRemember!=null && ifRemember.trim().length()>0 && "on".equals(ifRemember))?true:false;
-		return loginService.login(request, response, userName, password, ifRem);
+		return loginService.login(request, response, userName, StringUtils.isEmpty(pin)?password:pin, ifRem);
 	}
 	
 	@RequestMapping(value="logout", method=RequestMethod.POST)
