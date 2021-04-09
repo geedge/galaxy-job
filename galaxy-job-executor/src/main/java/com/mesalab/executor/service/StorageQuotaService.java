@@ -152,7 +152,14 @@ public class StorageQuotaService {
         String maxSql = "{\"query\":\"SELECT SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
         String maxResult = HttpClientUtils.httpPost(UrlUtil.getUrl(point).concat(DRUID_PATH), maxSql);
         List<Map<String, Object>> list = (List) JsonMapper.fromJsonString(maxResult, List.class);
-        Long maxSize = Long.valueOf(String.valueOf(list.get(0).get("max_size")));
+        Long maxSize = 0L;
+        if(list!=null&&list.get(0)!=null){
+            Map<String, Object> map = list.get(0);
+            if(map!=null&&map.get("max_size")!=null){
+                maxSize = Long.valueOf(String.valueOf(map.get("max_size")));
+
+            }
+        }
         logger.info("query druid max_size success,{}", maxSize);
         return maxSize;
     }
