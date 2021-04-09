@@ -1,10 +1,8 @@
 package com.mesalab.executor.core.config;
 
+import cn.hutool.log.Log;
 import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.xxl.job.core.executor.impl.XxlJobSpringExecutor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,8 +13,8 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class XxlJobConfig {
-    private Logger logger = LoggerFactory.getLogger(XxlJobConfig.class);
-
+//    private Logger logger = LoggerFactory.getLogger(XxlJobConfig.class);
+    Log logger = Log.get();
     @NacosValue(value = "${xxl.job.admin.addresses}",autoRefreshed = true)
     private String adminAddresses;
 

@@ -12,11 +12,10 @@ public class Constant {
 	public static final String ZK_REPORT_AND_METRICS = "Report-and-Metrics";
 
 
-	public static final String HTTP = "http://";
 	public static final String TOKEN = "Token";
 	public static final String TEXT_XML = "text/xml";
 
 
-	
+
 
 }

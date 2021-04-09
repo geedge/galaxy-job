@@ -1,5 +1,8 @@
 package com.mesalab.executor.jobhandler;
 
+import cn.hutool.log.Log;
+import com.mesalab.executor.core.utils.HttpClientUtils;
+import com.mesalab.executor.core.utils.KafkaUtils;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.DruidNativeParam;
 import com.mesalab.executor.pojo.DruidNativeQueryResultParam;
@@ -8,16 +11,12 @@ import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
-import com.mesalab.executor.core.utils.HttpClientUtils;
-import com.mesalab.executor.core.utils.KafkaUtils;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.chrono.ISOChronology;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ import java.util.Map;
 
 @Component
 public class DruidNativeQueryJob {
-    private static Logger logger = LoggerFactory.getLogger(DruidNativeQueryJob.class);
+    private Log logger = Log.get();
 
     /**
      * 调度模型:httpDruidNativeQueryToKafka
@@ -78,10 +77,6 @@ public class DruidNativeQueryJob {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
             return new ReturnT<String>(be.getCode(), be.getMessage());
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e.getMessage());
-            return new ReturnT<String>(IJobHandler.FAIL.getCode(), e.getMessage());
         }
     }
 

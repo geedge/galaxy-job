@@ -1,9 +1,8 @@
 package com.mesalab.executor.core.utils;
 
+import cn.hutool.log.Log;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.util.concurrent.ListenableFuture;
@@ -12,7 +11,7 @@ import org.springframework.util.concurrent.ListenableFutureCallback;
 import java.util.List;
 
 public class KafkaUtils {
-    private static Logger logger = LoggerFactory.getLogger(KafkaUtils.class);
+    private Log logger = Log.get();
     public KafkaTemplate kafkaTemplate = (KafkaTemplate) SpringContextUtil.getBean("kafkaTemplate");
 
     public void sendMessage(String topic, String data) {

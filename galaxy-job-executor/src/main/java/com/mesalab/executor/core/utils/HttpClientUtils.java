@@ -1,5 +1,6 @@
 package com.mesalab.executor.core.utils;
 
+import cn.hutool.log.Log;
 import com.mesalab.executor.core.config.HttpConfig;
 import com.mesalab.executor.exception.BusinessException;
 import com.zdjizhi.utils.StringUtil;
@@ -12,7 +13,6 @@ import org.apache.http.client.methods.*;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -22,8 +22,6 @@ import org.apache.http.message.BasicHeaderElementIterator;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -34,14 +32,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class HttpClientUtils {
     /** 全局连接池对象 */
     private static final PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager();
 
-    private static Logger logger = LoggerFactory.getLogger(HttpClientUtils.class);
+    private static Log logger = Log.get();
 
     private static HttpConfig httpConfig = (HttpConfig) SpringContextUtil.getBean("httpConfig");
 
@@ -238,9 +236,12 @@ public class HttpClientUtils {
                     logger.info("request header : {}",h);
                 }
             }
-            
+
             if(StringUtil.isNotBlank(requestBody)) {
-            	httpPost.setEntity(new ByteArrayEntity(requestBody.getBytes("utf-8")));
+                if(requestBody!=null){
+                    byte[] bytes = requestBody.getBytes(StandardCharsets.UTF_8);
+                    httpPost.setEntity(new ByteArrayEntity(bytes));
+                }
             }
             
             response = httpClient.execute(httpPost);
@@ -304,7 +305,7 @@ public class HttpClientUtils {
                     logger.info("request header : {}",h);
                 }
             }
-            
+
             if(StringUtil.isNotBlank(requestBody)) {
             	httpPut.setEntity(new ByteArrayEntity(requestBody.getBytes("utf-8")));
             }
@@ -445,7 +446,7 @@ public class HttpClientUtils {
 
 
 
-    public static class IdleConnectionMonitorThread extends Thread {
+/*    public static class IdleConnectionMonitorThread extends Thread {
 
         private final HttpClientConnectionManager connMgr;
         private volatile boolean shutdown;
@@ -469,7 +470,7 @@ public class HttpClientUtils {
                     }
                 }
             } catch (InterruptedException ex) {
-                ex.printStackTrace();
+                logger.error(ex.getMessage());
             }
         }
 
@@ -480,7 +481,7 @@ public class HttpClientUtils {
             }
         }
 
-    }
+    }*/
 
     /**
      * 拼装url
@@ -497,7 +498,7 @@ public class HttpClientUtils {
                 query.deleteCharAt(query.length() - 1);
             }
             return url + "?" + query.toString();
-        } catch (Exception e) {
+        } catch (BusinessException e) {
             throw e;
         }
     }

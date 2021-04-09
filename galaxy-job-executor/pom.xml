@@ -75,6 +75,11 @@
             <artifactId>nacos-config-spring-boot-starter</artifactId>
             <version>${nacos.config.version}</version>
         </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.5.2</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -92,7 +97,6 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>com.mesalab.xjar-maven-plugin</groupId>
                 <artifactId>mesalab-xjar-maven-plugin</artifactId>
@@ -139,11 +143,12 @@
                     <dockerHost>http://192.168.40.153:2375</dockerHost>
                     <dockerDirectory>docker</dockerDirectory>
                     <buildArgs>
-                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73-go</JDK_IMAGE>
+                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73-jre</JDK_IMAGE>
+                        <GO_IMAGE>192.168.40.153:9080/common/golang:1.15.6</GO_IMAGE>
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.20210302</imageTag>
+                        <imageTag>v1.3.210330-eal4</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

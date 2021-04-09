@@ -1,24 +1,17 @@
 package com.mesalab.executor.core.utils;
 
+import cn.hutool.log.Log;
+import com.google.common.base.Splitter;
+import org.apache.zookeeper.*;
+import org.apache.zookeeper.data.ACL;
+import org.apache.zookeeper.data.Stat;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.log4j.Logger;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.data.ACL;
-import org.apache.zookeeper.data.Stat;
-
-import com.google.common.base.Splitter;
-
 public class ZookeeperUtils implements Watcher {
-	private static Logger logger = Logger.getLogger(ZookeeperUtils.class);
-
+	private Log logger = Log.get();
 	private ZooKeeper zookeeper;
 
 	private static final int SESSION_TIME_OUT = 10000;//ms
@@ -48,7 +41,7 @@ public class ZookeeperUtils implements Watcher {
 				logger.error("Node does not exist!,Can't modify");
 			}
 		} catch (KeeperException | InterruptedException e) {
-			e.printStackTrace();
+			logger.error(e);
 		} finally {
 			closeConn();
 		}
@@ -64,7 +57,7 @@ public class ZookeeperUtils implements Watcher {
 			zookeeper = new ZooKeeper(host, SESSION_TIME_OUT, this);
 			countDownLatch.await();
 		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 	}
 
@@ -77,7 +70,7 @@ public class ZookeeperUtils implements Watcher {
 				zookeeper.close();
 			}
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 	}
 
@@ -93,10 +86,10 @@ public class ZookeeperUtils implements Watcher {
 		connectZookeeper(zookeeperIp);
 		try {
 			byte[] resByte = zookeeper.getData(path, true, stat);
-			result = new String(resByte);
+			result = new String(resByte, 0, resByte.length);
 		} catch (KeeperException | InterruptedException e) {
 			logger.error("Get node information exception");
-			e.printStackTrace();
+			logger.error(e);
 			return null;
 		} finally {
 			closeConn();
@@ -128,7 +121,7 @@ public class ZookeeperUtils implements Watcher {
 				logger.warn("Node already exists ! Don't need to create");
 			}
 		} catch (KeeperException | InterruptedException e) {
-			e.printStackTrace();
+			logger.error(e);
 		} finally {
 			closeConn();
 		}

@@ -1,5 +1,6 @@
 package com.mesalab.executor.service;
 
+import cn.hutool.log.Log;
 import com.google.common.collect.Maps;
 import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.*;
@@ -10,8 +11,6 @@ import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -31,11 +30,7 @@ import java.util.Map;
 @Service
 public class StorageQuotaService {
 
-    private static Logger logger = LoggerFactory.getLogger(StorageQuotaService.class);
-    /**
-     * 调用Linux命令返回日志编码
-     */
-    private static final String CHART_SET_UTF8 = "UTF-8";
+    private Log logger = Log.get();
     /**
      * Druid rest地址
      */
@@ -54,7 +49,7 @@ public class StorageQuotaService {
     private static String filesToken;
 
     private static String trafficUserName;
-    private static String trafficPassword;
+    private static String trafficUserKey;
 
     private static String systemPartsCluster;
     private static String systemDisks;
@@ -70,7 +65,7 @@ public class StorageQuotaService {
     public StorageQuotaService(StorgeConfig config) {
         database = config.getTrafficDatasource();
         trafficUserName = config.getTrafficUsername();
-        trafficPassword = config.getTrafficPassword();
+        trafficUserKey = config.getTrafficUserKey();
         clickHouseServer = config.getTrafficDataCenter();
         systemPartsCluster = config.getSystemPartsCluster();
         systemDisks = config.getSystemDisks();
@@ -89,7 +84,7 @@ public class StorageQuotaService {
         Map<String, Object> deleteParamMap = getDeleteSource();
         String currSql = "SELECT SUM(`bytes_on_disk`) FROM " + systemPartsCluster + " WHERE database = '" + database + "';";
         deleteParamMap.put("query", currSql);
-        String currResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(Constant.HTTP.concat(point), deleteParamMap));
+        String currResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(point), deleteParamMap));
         Long result = Long.valueOf(currResult.trim());
         logger.info("query clickhouse success, used_size={}", result);
         return result;
@@ -104,7 +99,7 @@ public class StorageQuotaService {
         String maxSql = "SELECT SUM(`total_space`) FROM ".concat(systemDisks).concat(";");
         deleteParamMap.put("query", maxSql);
         String maxResult = HttpClientUtils
-                .httpGet(HttpClientUtils.getUrlWithParams(Constant.HTTP.concat(point), deleteParamMap));
+                .httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(point), deleteParamMap));
         long result = Long.parseLong(maxResult.trim());
         logger.info("query clickhouse max_size success ,{}", result);
         return result;
@@ -120,7 +115,7 @@ public class StorageQuotaService {
                 .concat("' AND partition = '").concat(date).concat("';");
         deleteParamMap.put("query", diffSql);
         String diffResult = HttpClientUtils
-                .httpGet(HttpClientUtils.getUrlWithParams(Constant.HTTP.concat(point), deleteParamMap));
+                .httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(point), deleteParamMap));
         long result = Long.parseLong(diffResult.trim());
         logger.info("query clickhouse success aggregate_size={}", result);
         return result;
@@ -133,13 +128,19 @@ public class StorageQuotaService {
      */
     private Long getDruidUsed(String point) {
         String currSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_available=1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-        String currResult = HttpClientUtils.httpPost(Constant.HTTP.concat(point).concat(DRUID_PATH), currSql);
+        String currResult = HttpClientUtils.httpPost(UrlUtil.getUrl(point).concat(DRUID_PATH), currSql);
         List<Map<String, Object>> list = (List) JsonMapper.fromJsonString(currResult, List.class);
         if(list!=null&&list.size()==0){
             return 0L;
         }
-        Long currSize = Long.valueOf(String.valueOf(list.get(0).get("used_size")));
+        Long currSize = 0L;
+        if(list!=null&&list.get(0)!=null){
+            Map<String, Object> map = list.get(0);
+            if(map!=null&&map.get("used_size")!=null){
+                currSize = Long.valueOf(String.valueOf(map.get("used_size")));
 
+            }
+        }
         logger.info("query druid used_size success,{}", currSize);
         return currSize;
     }
@@ -149,10 +150,9 @@ public class StorageQuotaService {
      */
     private Long getDruidMax(String point) {
         String maxSql = "{\"query\":\"SELECT SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-        String maxResult = HttpClientUtils.httpPost(Constant.HTTP.concat(point).concat(DRUID_PATH), maxSql);
-        List<Map<String, Long>> list = (List) JsonMapper.fromJsonString(maxResult, List.class);
-        Long maxSize = list.get(0).get("max_size");
-
+        String maxResult = HttpClientUtils.httpPost(UrlUtil.getUrl(point).concat(DRUID_PATH), maxSql);
+        List<Map<String, Object>> list = (List) JsonMapper.fromJsonString(maxResult, List.class);
+        Long maxSize = Long.valueOf(String.valueOf(list.get(0).get("max_size")));
         logger.info("query druid max_size success,{}", maxSize);
         return maxSize;
     }
@@ -161,7 +161,7 @@ public class StorageQuotaService {
      */
     private Map getHBaseStorage(String key,String point) {
         Header[] headers = {new BasicHeader(Constant.TOKEN, filesToken), new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML)};
-        String result = HttpClientUtils.httpGet(Constant.HTTP.concat(point).concat(FILE_STORAGE_PATH), headers);
+        String result = HttpClientUtils.httpGet(UrlUtil.getUrl(point).concat(FILE_STORAGE_PATH), headers);
         if("-1".equals(result)){
             throw new RuntimeException("hos server error");
         }
@@ -193,16 +193,19 @@ public class StorageQuotaService {
     private Long getCurrBefore(String logType, String key) {
         String currSql = "{\"query\":\"SELECT used_size FROM sys_storage_log WHERE log_type = '" + logType
                 + "' and data_center = '"+ key +"' and __time >= CURRENT_TIMESTAMP - INTERVAL '"+ STORAGE_LIMITATION +"' MINUTE ORDER BY __time DESC LIMIT 1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-        String currResult = HttpClientUtils.httpPost(Constant.HTTP.concat(druidServer).concat(DRUID_PATH), currSql);
+        String currResult = HttpClientUtils.httpPost(UrlUtil.getUrl(druidServer).concat(DRUID_PATH), currSql);
         List<Map> list = (List) JsonMapper.fromJsonString(currResult, List.class);
         if(list!=null&&list.size()==0){
             return 0L;
         }
-        Object used = list.get(0).get("used_size");
-        if(ObjectUtils.isEmpty(used)){
-            return 0L;
+        Long historyUsed = 0L;
+        if(list!=null&&list.get(0)!=null){
+            Map<String, Object> map = list.get(0);
+            if(map!=null&&map.get("used_size")!=null){
+                historyUsed = Long.valueOf(String.valueOf(map.get("used_size")));
+
+            }
         }
-        Long historyUsed = Long.valueOf(String.valueOf(used));
         logger.info("query {} history used_size success,{}",logType, historyUsed);
         return historyUsed;
     }
@@ -227,7 +230,7 @@ public class StorageQuotaService {
             logger.info("query standard time last_storage success,{}", lastStorage);
 
             return Long.valueOf(nodeData);
-        } catch (Exception e) {
+        } catch (BusinessException e) {
             logger.error("query standard time last_storage fail,{}", JobUtil.getErrorMsg(e));
             throw new BusinessException("query standard time last_storage fail ," + JobUtil.getErrorMsg(e));
         }
@@ -253,7 +256,7 @@ public class StorageQuotaService {
     private Map<String, Object> getDeleteSource() {
         // sql参数拼接
         Map<String, Object> deleteParamMap = Maps.newHashMap();
-        deleteParamMap.put("password", trafficPassword);
+        deleteParamMap.put("password", trafficUserKey);
         deleteParamMap.put("user", trafficUserName);
         return deleteParamMap;
     }
@@ -298,13 +301,13 @@ public class StorageQuotaService {
                         traffic.put("aggregate_size",getClickHouseDiff(dc.getValue()));
                     }
                     data.add(traffic);
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     logger.error("clickhouse storage error {}", JobUtil.getErrorMsg(e));
                     XxlJobLogger.log("clickhouse storage error {}", JobUtil.getErrorMsg(e));
                     errorCount++;
                 }
             }
-        } catch (Exception e) {
+        } catch (BusinessException e) {
             logger.error("clickhouse storage error {}", JobUtil.getErrorMsg(e));
             XxlJobLogger.log("clickhouse storage error {}", JobUtil.getErrorMsg(e));
             errorCount++;
@@ -328,13 +331,13 @@ public class StorageQuotaService {
                     metrics.put("used_size",druidUsed);
                     metrics.put("aggregate_size", getDiffNum(druidUsed, getCurrBefore(Constant.REPORT_AND_METRICS,dc.getKey())));
                     data.add(metrics);
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     logger.error("druid storage endpoint={}, error {}",dc.getValue(), JobUtil.getErrorMsg(e));
                     XxlJobLogger.log("druid storage endpoint={},error {}",dc.getValue(), JobUtil.getErrorMsg(e));
                     errorCount++;
                 }
             }
-        } catch (Exception e) {
+        } catch (BusinessException e) {
             logger.error("druid storage error {}", JobUtil.getErrorMsg(e));
             XxlJobLogger.log("druid storage error {}", JobUtil.getErrorMsg(e));
             errorCount++;
@@ -357,13 +360,13 @@ public class StorageQuotaService {
                     files.put("data_center",entry.getKey());
                     files.putAll(getHBaseStorage(entry.getKey(),entry.getValue()));
                     data.add(files);
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     logger.error("file storage endpoint={},error={}", entry.getValue(), JobUtil.getErrorMsg(e));
                     XxlJobLogger.log("file storage endpoint={},error={}", entry.getValue(), JobUtil.getErrorMsg(e));
                     errorCount++;
                 }
             }
-        } catch (Exception e) {
+        } catch (BusinessException e) {
             logger.error("file storage error {}", JobUtil.getErrorMsg(e));
             XxlJobLogger.log("file storage error {}", JobUtil.getErrorMsg(e));
             errorCount++;

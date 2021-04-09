@@ -1,5 +1,6 @@
 package com.mesalab.executor.jobhandler;
 
+import cn.hutool.log.Log;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.KafkaUtils;
 import com.mesalab.executor.exception.BusinessException;
@@ -11,8 +12,6 @@ import com.xxl.job.core.log.XxlJobLogger;
 import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
 import io.netty.handler.codec.http.HttpMethod;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -20,7 +19,7 @@ import java.util.Map;
 
 @Component
 public class DataflowJob {
-	private static Logger logger = LoggerFactory.getLogger(DataflowJob.class);
+	private Log logger = Log.get();
 
 
 	/**
@@ -82,10 +81,6 @@ public class DataflowJob {
 			logger.error(be.getMessage());
 			XxlJobLogger.log(be.getMessage());
 			return new ReturnT<String>(be.getCode(), be.getMessage());
-		} catch (Exception e) {
-			logger.error(e.getMessage());
-			XxlJobLogger.log(e.getMessage());
-			return new ReturnT<String>(IJobHandler.FAIL.getCode(), e.getMessage());
 		}
 	}
 

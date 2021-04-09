@@ -4,7 +4,6 @@ import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.google.common.base.Splitter;
 import com.zdjizhi.utils.StringUtil;
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.HashMap;
@@ -23,8 +22,8 @@ public class StorgeConfig {
 	private String trafficUsername;// clickhouse要查看的username
 	
 	@NacosValue(value = "${storge.traffic.password}",autoRefreshed = true)
-	private String trafficPassword;// clickhouse要查看的password
-	
+	private String trafficUserKey;// clickhouse要查看的password
+
 	@NacosValue(value = "${storge.traffic.datasource}",autoRefreshed = true)
 	private String trafficDatasource;// clickhouse要查看的datasource
 	

@@ -1,5 +1,8 @@
 package com.mesalab.executor.jobhandler;
 
+import cn.hutool.core.net.url.UrlBuilder;
+import cn.hutool.core.thread.ThreadUtil;
+import cn.hutool.log.Log;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -14,26 +17,31 @@ import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
-import com.zdjizhi.utils.*;
+import com.zdjizhi.utils.DateUtils;
+import com.zdjizhi.utils.JsonMapper;
+import com.zdjizhi.utils.StringUtil;
+import com.zdjizhi.utils.TimeConstants;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Component
 public class LogStorageQuotaJob {
 
-    private static Logger logger = LoggerFactory.getLogger(LogStorageQuotaJob.class);
+    private Log logger = Log.get();
 
     private static String trafficDataSource;
     private static String trafficUserName;
-    private static String trafficPassword;
+    private static String trafficUserKey;
 
     private static String trafficServer;
     private static final String trafficPort = "8123";
@@ -61,13 +69,13 @@ public class LogStorageQuotaJob {
         trafficServer = deletionConfig.getTrafficServer();
         trafficDataSource = deletionConfig.getTrafficDatasource();
         trafficUserName = deletionConfig.getTrafficUsername();
-        trafficPassword = deletionConfig.getTrafficPassword();
+        trafficUserKey = deletionConfig.getTrafficUserKey();
         systemParts = deletionConfig.getSystemParts();
         systemClusters = deletionConfig.getSystemClusters();
         systemTables = deletionConfig.getSystemTables();
 
         //druid
-        analyticServerSelect = Joiner.on("").join(Constant.HTTP, deletionConfig.getAnalyticServer(), "/druid/v2/sql");
+        analyticServerSelect = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/v2/sql");
         analyticServerDelete = deletionConfig.getAnalyticServer();
 
         //hos
@@ -97,13 +105,14 @@ public class LogStorageQuotaJob {
             //根据服务器地址，表，分区去删除数据
             String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", trafficDataSource, ".");
             String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-            List<String> addressForCKs = getAddressForCK(Constant.HTTP.concat(trafficServer));
+            UrlBuilder urlBuilder = UrlBuilder.ofHttp(trafficServer, StandardCharsets.UTF_8);
+            List<String> addressForCKs = getAddressForCK(urlBuilder.toString());
             int failCount = 0;
             // 指定服务器
             for (String endpoint : addressForCKs) {
                 try {
                     // 指定表
-                    String url = Constant.HTTP.concat(endpoint);
+                    String url = UrlUtil.getUrl(endpoint);
                     List<String> tablesForCKs = getTablesForCK(url);
                     for (String table : tablesForCKs) {
                         try {
@@ -112,22 +121,22 @@ public class LogStorageQuotaJob {
                             for (String partition : partitions) {
                                 try {
                                     deleteParamMap.put("query", Joiner.on("").join(prefixDeleteSql, table, " DROP PARTITION ", partition));
-                                    HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
-                                } catch (Exception e) {
+                                    HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
+                                } catch (BusinessException e) {
                                     failCount++;
                                     logger.error("clickhouse ttl error endpoint = {}, table = {}, partition = {}, fail message = {}", endpoint, table, partition, JobUtil.getErrorMsg(e));
                                     XxlJobLogger.log("clickhouse ttl error partitionFailCount={}, endpoint = {}, table = {}, partition = {}, fail message = {}", failCount, endpoint, table, partition, JobUtil.getErrorMsg(e));
                                 }
                             }
                             logger.info("clickhouse ttl clickhouse endpoint = {}, table = {}, partition < {}, size = {}, fail count = {}", endpoint, table, deleteMaxDate, partitions.size(), failCount);
-                        } catch (Exception e) {
+                        } catch (BusinessException e) {
                             failCount++;
                             logger.error("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
                             XxlJobLogger.log("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
                         }
                     }
                     XxlJobLogger.log("clickhouse ttl endpoint = {}, failCount = {}, tables = {}", endpoint, failCount, tablesForCKs);
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     failCount++;
                     logger.error("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                     XxlJobLogger.log("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
@@ -141,10 +150,6 @@ public class LogStorageQuotaJob {
         } catch (BusinessException be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
@@ -174,10 +179,6 @@ public class LogStorageQuotaJob {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
-            return ReturnT.FAIL;
         }
 
         return ReturnT.SUCCESS;
@@ -205,10 +206,6 @@ public class LogStorageQuotaJob {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
-            return ReturnT.FAIL;
         }
 
         return ReturnT.SUCCESS;
@@ -224,11 +221,11 @@ public class LogStorageQuotaJob {
     private void deleteDruidTable(String queryTablesSql, Integer maxdays, boolean hotTask) {
         List<String> analyticTables = getAnalyticTables(analyticServerSelect, queryTablesSql);
         //修改规则
-        String changeRulesUrl = Joiner.on("").join("http://", analyticServerDelete, "/druid/coordinator/v1/rules/");
+        String changeRulesUrl = UrlUtil.getUrl(analyticServerDelete, "/druid/coordinator/v1/rules/");
         String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", maxdays, "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
 
         //1.物理删除除
-        String deleteUrl = Joiner.on("").join(Constant.HTTP, analyticServerDelete, "/druid/indexer/v1/task");
+        String deleteUrl = UrlUtil.getUrl(analyticServerDelete, "/druid/indexer/v1/task");
         String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
         //起始时间/当前时间-maxDay
         String druidDataStartTime = getDruidDataStartTime();
@@ -249,7 +246,7 @@ public class LogStorageQuotaJob {
                     String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam + table + suffixDeleteParam);
                     XxlJobLogger.log("reset storage days druid result endpoint = {}, table = {}, message :{}", analyticServerDelete, table, deleteMessage);
                 }
-            } catch (Exception e) {
+            } catch (BusinessException e) {
                 failCount++;
                 logger.error("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
                 XxlJobLogger.log("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
@@ -281,7 +278,7 @@ public class LogStorageQuotaJob {
             int failCount = 0;
             for (String endpoint : endpointList) {
                 try {
-                    String filesServer = Constant.HTTP.concat(endpoint);
+                    String filesServer = UrlUtil.getUrl(endpoint);
                     String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header1);
                     if(httpGetRes!=null&&!"-1".equals(httpGetRes)){
                         ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
@@ -296,7 +293,7 @@ public class LogStorageQuotaJob {
                             for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                                 try {
                                     HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
-                                } catch (Exception e) {
+                                } catch (BusinessException e) {
                                     failCount++;
                                     logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
                                     XxlJobLogger.log("failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
@@ -308,7 +305,7 @@ public class LogStorageQuotaJob {
                         logger.error("reset storage files ttl failCount = {}, endpoint = {} , fail message = I/O exception", failCount, endpoint);
                         XxlJobLogger.log("endpoint = {} , fail message = I/O exception", endpoint);
                     }
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     logger.error("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                     XxlJobLogger.log("endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                     failCount++;
@@ -322,10 +319,6 @@ public class LogStorageQuotaJob {
         } catch (BusinessException be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
@@ -347,28 +340,28 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            List<String> addressForCKs = getAddressForCK(Constant.HTTP.concat(trafficServer));
+            List<String> addressForCKs = getAddressForCK(UrlUtil.getUrl(trafficServer));
             Map<String, Object> deleteParamMap = getDeleteSource();
             //清库命令参数
             String deleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", trafficDataSource, ".");
             int failCount = 0;
             for (String endpoint : addressForCKs) {
                 try {
-                    String url = Constant.HTTP.concat(endpoint);
+                    String url = UrlUtil.getUrl(endpoint);
                     List<String> tablesForCKs = getTablesForCK(url);
                     for (String table : tablesForCKs) {
                         try {
                             deleteParamMap.put("query", deleteSql.concat(table));
                             logger.info("delete clickhouse endpoint = {}, sql:{}", endpoint, deleteSql.concat(table));
-                            HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), null);
-                        } catch (Exception e) {
+                            HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
+                        } catch (BusinessException e) {
                             logger.error("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
                             XxlJobLogger.log("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
                             failCount++;
                         }
                     }
                     XxlJobLogger.log("delete storage clickhouse error endpoint = {}, fail count = {}, tables = {}", endpoint, failCount, tablesForCKs);
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     logger.error("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                     XxlJobLogger.log("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                     failCount++;
@@ -382,10 +375,6 @@ public class LogStorageQuotaJob {
         } catch (BusinessException be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
 
@@ -407,7 +396,7 @@ public class LogStorageQuotaJob {
             }
             String deleteEndDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, 1);
 
-            String deleteendpoint = Constant.HTTP.concat(analyticServerDelete);
+            String deleteendpoint = UrlUtil.getUrl(analyticServerDelete);
 
             String deleteStartTime = getDruidDataStartTime();
             //1停止加载
@@ -439,19 +428,14 @@ public class LogStorageQuotaJob {
                         String httpPostResult = HttpClientUtils.httpPost(analyticServerSelect, countTableDataSql);
                         List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
                         count = Integer.valueOf(String.valueOf(list.get(0).get("EXPR$0")));
-                        try {
-                            if (count > 0) {
-                                //每次停留5秒判断是否删除结束
-                                Thread.sleep(5000L);
-                            }
-                            if (System.currentTimeMillis() > endTime) {
-                                logger.error("delete druid time out error, table = {} ", table);
-                                XxlJobLogger.log("delete druid time out error, table = {} ", table);
-                                break;
-                            }
-                        } catch (InterruptedException e) {
-                            logger.error(" query druid error {}", e.getMessage());
-                            XxlJobLogger.log(" query druid error {}", e.getMessage());
+                        if (count > 0) {
+                            //每次停留5秒判断是否删除结束
+                            ThreadUtil.sleep(5000L);
+                        }
+                        if (System.currentTimeMillis() > endTime) {
+                            logger.error("delete druid time out error, table = {} ", table);
+                            XxlJobLogger.log("delete druid time out error, table = {} ", table);
+                            break;
                         }
                     }
                     XxlJobLogger.log("delete druid table second command table = {}, sql = {}", table, prefixDeleteParam + table + suffixDeleteParam);
@@ -460,7 +444,7 @@ public class LogStorageQuotaJob {
                     HttpClientUtils.httpPost(changeRulesUrl + table, resetRulesParam);
 
                     XxlJobLogger.log("delete druid table result message = {}", deleteMessage);
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     // 表不存在时，查询发生错误，记录下继续执行
                     logger.error(" query druid error, table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
                     XxlJobLogger.log(" query druid error, endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
@@ -474,10 +458,6 @@ public class LogStorageQuotaJob {
         } catch (BusinessException be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
 
@@ -503,7 +483,7 @@ public class LogStorageQuotaJob {
             int failCount = 0;
             for (String endpoint : endpointList) {
                 try {
-                    String filesServer = Constant.HTTP.concat(endpoint);
+                    String filesServer = UrlUtil.getUrl(endpoint);
                     String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header);
 
                     if(httpGetRes!=null&&!"-1".equals(httpGetRes)){
@@ -518,7 +498,7 @@ public class LogStorageQuotaJob {
                             for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                                 try {
                                     HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
-                                } catch (Exception e) {
+                                } catch (BusinessException e) {
                                     failCount++;
                                     logger.error("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
                                     XxlJobLogger.log("endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
@@ -530,7 +510,7 @@ public class LogStorageQuotaJob {
                         logger.error("delete file error failCount = {}, endpoint = {} , fail message = I/O exception", failCount, endpoint);
                         XxlJobLogger.log("endpoint = {} , fail message = I/O exception",endpoint);
                     }
-                } catch (Exception e) {
+                } catch (BusinessException e) {
                     failCount++;
                     logger.error("delete file error endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
                     XxlJobLogger.log("endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
@@ -544,10 +524,6 @@ public class LogStorageQuotaJob {
         } catch (BusinessException be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
@@ -584,10 +560,6 @@ public class LogStorageQuotaJob {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e);
-            return ReturnT.FAIL;
         }
 
         return ReturnT.SUCCESS;
@@ -606,7 +578,7 @@ public class LogStorageQuotaJob {
         //删除sql参数拼接
         Map<String, Object> deleteParamMap = Maps.newHashMap();
         deleteParamMap.put("database", trafficDataSource);
-        deleteParamMap.put("password", trafficPassword);
+        deleteParamMap.put("password", trafficUserKey);
         deleteParamMap.put("user", trafficUserName);
         return deleteParamMap;
     }

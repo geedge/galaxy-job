@@ -6,7 +6,9 @@ import com.mesalab.executor.GalaxyExecutorApplication;
 import com.mesalab.executor.jobhandler.LogStorageQuotaJob;
 import com.mesalab.executor.service.StorageQuotaService;
 import com.zdjizhi.utils.DateUtils;
+import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = { GalaxyExecutorApplication.class })
+@Slf4j
 public class StorageQuotaTest {
 
 	  @Autowired StorageQuotaService storageQuotaService;
@@ -73,13 +76,13 @@ public class StorageQuotaTest {
 			}
 			return null;
 		}).filter(Objects::nonNull).collect(Collectors.toList());
-		System.err.println(collect);
+		log.info(JsonMapper.toJsonString(collect));
 	}
 
 	@Test
 	public void test(){
 		String date = DateUtils.getDateOfYesterday("yyyyMMdd");
 		long yyyyMMdd = DateUtils.convertStringToTimestamp(date, "yyyyMMdd");
-		System.out.println(yyyyMMdd);
+		log.info(String.valueOf(yyyyMMdd));
 	}
 }
