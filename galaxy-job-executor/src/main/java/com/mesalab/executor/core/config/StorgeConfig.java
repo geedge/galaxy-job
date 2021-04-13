@@ -51,6 +51,15 @@ public class StorgeConfig {
 	@NacosValue(value = "${storge.files.token}",autoRefreshed = true)
 	private String filesToken; //登录验证
 
+	@NacosValue(value = "${storge.files.delete.exclusion}",autoRefreshed = true)
+	private String filesExclusion;
+
+	@NacosValue(value = "${storge.analytic.delete.exclusion}",autoRefreshed = true)
+	private String analyticExclusion;
+
+	@NacosValue(value = "${storge.taffic.delete.exclusion}",autoRefreshed = true)
+	private String tafficExclusion;
+
 	public String getFilesHosServer() {
 		return getServer();
 	}
@@ -90,4 +99,12 @@ public class StorgeConfig {
 		});
 		return map;
 	}
+
+	public String getNotInSql(String field, String exclusion){
+		if(StringUtil.isEmpty(exclusion)){
+			return "";
+		}
+		return Splitter.on(",").trimResults().splitToList(exclusion).stream().filter(x ->StringUtil.isNotEmpty(x)).collect(Collectors.joining("','"," and "+ field +" not in ('","')"));
+	}
+
 }

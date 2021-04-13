@@ -11,7 +11,6 @@ import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -31,28 +30,7 @@ import java.util.Map;
 public class StorageQuotaService {
 
     private Log logger = Log.get();
-    /**
-     * Druid rest地址
-     */
-    private static String druidServer;
-    private static Map<String,String> druidDataCenter;
-    /**
-     * ClickHouse rest地址
-     */
-    private static Map<String,String> clickHouseServer;
 
-    private static String database;
-    /**
-     * hos地址
-     */
-    private static Map<String,String> filesHosServer;
-    private static String filesToken;
-
-    private static String trafficUserName;
-    private static String trafficUserKey;
-
-    private static String systemPartsCluster;
-    private static String systemDisks;
     private static final String ZOOKEEPER_STORAGE_PATH = "/storage/worker/";
     private static final String FILE_STORAGE_PATH = "/admin/diskspace";
     private static final String DRUID_PATH = "/druid/v2/sql";
@@ -60,29 +38,14 @@ public class StorageQuotaService {
 
     @Value("${zookeeper.server}")
     private String zookeeperServer;
-
-    @Autowired
-    public StorageQuotaService(StorgeConfig config) {
-        database = config.getTrafficDatasource();
-        trafficUserName = config.getTrafficUsername();
-        trafficUserKey = config.getTrafficUserKey();
-        clickHouseServer = config.getTrafficDataCenter();
-        systemPartsCluster = config.getSystemPartsCluster();
-        systemDisks = config.getSystemDisks();
-
-        druidServer = config.getAnalyticServer();
-        druidDataCenter = config.getAnalyticDataCenter();
-
-        filesHosServer = config.getFilesDataCenter();
-        filesToken = config.getFilesToken();
-    }
+    private static  StorgeConfig storgeConfig =  (StorgeConfig)SpringContextUtil.getBean("storgeConfig");
 
     /**
      * 用于获取 ClickHouse 当前存储大小 若获取 failquerydruid内最新的值替补当前值
      */
     private Long getClickHouseCurr(String point) {
         Map<String, Object> deleteParamMap = getDeleteSource();
-        String currSql = "SELECT SUM(`bytes_on_disk`) FROM " + systemPartsCluster + " WHERE database = '" + database + "';";
+        String currSql = "SELECT SUM(`bytes_on_disk`) FROM " + storgeConfig.getSystemPartsCluster() + " WHERE database = '" + storgeConfig.getTrafficDatasource() + "';";
         deleteParamMap.put("query", currSql);
         String currResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(point), deleteParamMap));
         Long result = Long.valueOf(currResult.trim());
@@ -96,7 +59,7 @@ public class StorageQuotaService {
      */
     private Long getClickHouseMax(String point) {
         Map<String, Object> deleteParamMap = getDeleteSource();
-        String maxSql = "SELECT SUM(`total_space`) FROM ".concat(systemDisks).concat(";");
+        String maxSql = "SELECT SUM(`total_space`) FROM ".concat(storgeConfig.getSystemDisks()).concat(";");
         deleteParamMap.put("query", maxSql);
         String maxResult = HttpClientUtils
                 .httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(point), deleteParamMap));
@@ -111,7 +74,7 @@ public class StorageQuotaService {
     private Long getClickHouseDiff(String point) {
         String date = DateUtils.getDateOfYesterday("yyyyMMdd");
         Map<String, Object> deleteParamMap = getDeleteSource();
-        String diffSql = "SELECT SUM(bytes_on_disk) FROM ".concat(systemPartsCluster).concat(" WHERE database = '" ).concat(database)
+        String diffSql = "SELECT SUM(bytes_on_disk) FROM ".concat(storgeConfig.getSystemPartsCluster()).concat(" WHERE database = '" ).concat(storgeConfig.getTrafficDatasource())
                 .concat("' AND partition = '").concat(date).concat("';");
         deleteParamMap.put("query", diffSql);
         String diffResult = HttpClientUtils
@@ -167,7 +130,7 @@ public class StorageQuotaService {
      * 获取hos前存储大小 若获取 failquerydruid内最新的值替补当前值
      */
     private Map getHBaseStorage(String key,String point) {
-        Header[] headers = {new BasicHeader(Constant.TOKEN, filesToken), new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML)};
+        Header[] headers = {new BasicHeader(Constant.TOKEN, storgeConfig.getFilesToken()), new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML)};
         String result = HttpClientUtils.httpGet(UrlUtil.getUrl(point).concat(FILE_STORAGE_PATH), headers);
         if("-1".equals(result)){
             throw new RuntimeException("hos server error");
@@ -200,7 +163,7 @@ public class StorageQuotaService {
     private Long getCurrBefore(String logType, String key) {
         String currSql = "{\"query\":\"SELECT used_size FROM sys_storage_log WHERE log_type = '" + logType
                 + "' and data_center = '"+ key +"' and __time >= CURRENT_TIMESTAMP - INTERVAL '"+ STORAGE_LIMITATION +"' MINUTE ORDER BY __time DESC LIMIT 1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-        String currResult = HttpClientUtils.httpPost(UrlUtil.getUrl(druidServer).concat(DRUID_PATH), currSql);
+        String currResult = HttpClientUtils.httpPost(UrlUtil.getUrl(storgeConfig.getAnalyticServer()).concat(DRUID_PATH), currSql);
         List<Map> list = (List) JsonMapper.fromJsonString(currResult, List.class);
         if(list!=null&&list.size()==0){
             return 0L;
@@ -263,8 +226,8 @@ public class StorageQuotaService {
     private Map<String, Object> getDeleteSource() {
         // sql参数拼接
         Map<String, Object> deleteParamMap = Maps.newHashMap();
-        deleteParamMap.put("password", trafficUserKey);
-        deleteParamMap.put("user", trafficUserName);
+        deleteParamMap.put("password", storgeConfig.getTrafficUserKey());
+        deleteParamMap.put("user", storgeConfig.getTrafficUsername());
         return deleteParamMap;
     }
     /**
@@ -295,7 +258,7 @@ public class StorageQuotaService {
     private int getCKStorageJson(List<Map> data, Long time, boolean day) {
         int errorCount = 0;
         try {
-            for (Map.Entry<String, String> dc : clickHouseServer.entrySet()) {
+            for (Map.Entry<String, String> dc : storgeConfig.getTrafficDataCenter().entrySet()) {
                 try {
                     Map<String,Object> traffic = new HashMap<>();
                     traffic.put("log_type", Constant.TRAFFIC_LOGS);
@@ -325,7 +288,7 @@ public class StorageQuotaService {
     private int getDruidStorageJson(List<Map> data, Long time) {
         int errorCount = 0;
         try {
-            for (Map.Entry<String, String> dc : druidDataCenter.entrySet()) {
+            for (Map.Entry<String, String> dc : storgeConfig.getAnalyticDataCenter().entrySet()) {
                 try {
                     Map metrics = new HashMap<>();
                     metrics.put("log_type", Constant.REPORT_AND_METRICS);
@@ -358,7 +321,7 @@ public class StorageQuotaService {
     private int getFileStorageJson(List<Map> data, Long time) {
         int errorCount = 0;
         try {
-            for (Map.Entry<String, String> entry : filesHosServer.entrySet()) {
+            for (Map.Entry<String, String> entry : storgeConfig.getFilesDataCenter().entrySet()) {
                 try {
                     Map files = new HashMap<>();
                     files.put("log_type", Constant.FILES);

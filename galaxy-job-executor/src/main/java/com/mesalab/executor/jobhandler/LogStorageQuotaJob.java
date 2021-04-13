@@ -3,6 +3,7 @@ package com.mesalab.executor.jobhandler;
 import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.thread.ThreadUtil;
 import cn.hutool.log.Log;
+import com.alibaba.nacos.spring.context.annotation.config.NacosPropertySource;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -35,53 +36,18 @@ import java.util.Map;
 import java.util.Objects;
 
 @Component
+@NacosPropertySource(dataId = "galaxy-job-executor",autoRefreshed = true)
 public class LogStorageQuotaJob {
 
     private Log logger = Log.get();
 
-    private static String trafficDataSource;
-    private static String trafficUserName;
-    private static String trafficUserKey;
-
-    private static String trafficServer;
+    private static final String analyticUrl = "/druid/v2/sql";
     private static final String trafficPort = "8123";
-    private static String analyticServerSelect;
-    private static String analyticServerDelete;
-
-    private static String systemParts;
-    private static String systemClusters;
-    private static String systemTables;
-
-    private static String filesHosServer;
-    private static String filesToken;
-
-
-    @Autowired
-    StorgeConfig storgeConfig;
 
     @Autowired
     StorageQuotaService storageQuotaService;
 
-
-    @Autowired
-    public LogStorageQuotaJob(StorgeConfig deletionConfig) {
-        //clickhouse
-        trafficServer = deletionConfig.getTrafficServer();
-        trafficDataSource = deletionConfig.getTrafficDatasource();
-        trafficUserName = deletionConfig.getTrafficUsername();
-        trafficUserKey = deletionConfig.getTrafficUserKey();
-        systemParts = deletionConfig.getSystemParts();
-        systemClusters = deletionConfig.getSystemClusters();
-        systemTables = deletionConfig.getSystemTables();
-
-        //druid
-        analyticServerSelect = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/v2/sql");
-        analyticServerDelete = deletionConfig.getAnalyticServer();
-
-        //hos
-        filesHosServer = deletionConfig.getFilesHosServer();
-        filesToken = deletionConfig.getFilesToken();
-    }
+    private static  StorgeConfig deletionConfig =  (StorgeConfig)SpringContextUtil.getBean("storgeConfig");
 
     //*********************************************设置存储策略**********************************************************
 
@@ -103,9 +69,9 @@ public class LogStorageQuotaJob {
             Map<String, Object> deleteParamMap = getDeleteSource();
 
             //根据服务器地址，表，分区去删除数据
-            String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", trafficDataSource, ".");
+            String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", deletionConfig.getTrafficDatasource(), ".");
             String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-            UrlBuilder urlBuilder = UrlBuilder.ofHttp(trafficServer, StandardCharsets.UTF_8);
+            UrlBuilder urlBuilder = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8);
             List<String> addressForCKs = getAddressForCK(urlBuilder.toString());
             int failCount = 0;
             // 指定服务器
@@ -113,11 +79,11 @@ public class LogStorageQuotaJob {
                 try {
                     // 指定表
                     String url = UrlUtil.getUrl(endpoint);
-                    List<String> tablesForCKs = getTablesForCK(url);
+                    List<String> tablesForCKs = getTablesForCK(url,deletionConfig.getNotInSql("name",deletionConfig.getTafficExclusion()));
                     for (String table : tablesForCKs) {
                         try {
                             //指定分区
-                            List<String> partitions = getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + systemParts + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
+                            List<String> partitions = getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemParts() + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
                             for (String partition : partitions) {
                                 try {
                                     deleteParamMap.put("query", Joiner.on("").join(prefixDeleteSql, table, " DROP PARTITION ", partition));
@@ -171,7 +137,7 @@ public class LogStorageQuotaJob {
                 return IJobHandler.FAIL;
             }
 
-            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%' "+deletionConfig.getNotInSql("datasource",deletionConfig.getAnalyticExclusion())+" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
             modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
             deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), false);
 
@@ -200,7 +166,7 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks  WHERE datasource LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks  WHERE datasource LIKE '%hot%' "+deletionConfig.getNotInSql("datasource",deletionConfig.getAnalyticExclusion())+" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
             deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), true);
         } catch (BusinessException be) {
             logger.error(be.getMessage());
@@ -219,13 +185,13 @@ public class LogStorageQuotaJob {
      * @return void
      **/
     private void deleteDruidTable(String queryTablesSql, Integer maxdays, boolean hotTask) {
-        List<String> analyticTables = getAnalyticTables(analyticServerSelect, queryTablesSql);
+        List<String> analyticTables = getAnalyticTables(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryTablesSql);
         //修改规则
-        String changeRulesUrl = UrlUtil.getUrl(analyticServerDelete, "/druid/coordinator/v1/rules/");
+        String changeRulesUrl = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/rules/");
         String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", maxdays, "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
 
         //1.物理删除除
-        String deleteUrl = UrlUtil.getUrl(analyticServerDelete, "/druid/indexer/v1/task");
+        String deleteUrl = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/indexer/v1/task");
         String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
         //起始时间/当前时间-maxDay
         String druidDataStartTime = getDruidDataStartTime();
@@ -241,15 +207,15 @@ public class LogStorageQuotaJob {
                     HttpClientUtils.httpPost(changeRulesUrl + table, changeRulesParam);
                 }
                 if (druidDataStartTime.compareTo(deleteMaxDate) < 0) {
-                    XxlJobLogger.log("reset storage days druid command endpoint = {}, table = {}, sql = {}", analyticServerDelete, table, prefixDeleteParam + table + suffixDeleteParam);
-                    logger.info("reset storage days druid second command endpoint = {}, table = {}, sql = {}", analyticServerDelete, table, prefixDeleteParam + table + suffixDeleteParam);
+                    XxlJobLogger.log("reset storage days druid command endpoint = {}, table = {}, sql = {}", deletionConfig.getAnalyticServer(), table, prefixDeleteParam + table + suffixDeleteParam);
+                    logger.info("reset storage days druid second command endpoint = {}, table = {}, sql = {}", deletionConfig.getAnalyticServer(), table, prefixDeleteParam + table + suffixDeleteParam);
                     String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam + table + suffixDeleteParam);
-                    XxlJobLogger.log("reset storage days druid result endpoint = {}, table = {}, message :{}", analyticServerDelete, table, deleteMessage);
+                    XxlJobLogger.log("reset storage days druid result endpoint = {}, table = {}, message :{}", deletionConfig.getAnalyticServer(), table, deleteMessage);
                 }
             } catch (BusinessException e) {
                 failCount++;
-                logger.error("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
-                XxlJobLogger.log("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
+                logger.error("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
+                XxlJobLogger.log("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
             }
         }
         if (failCount > 0) {
@@ -270,9 +236,9 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(filesHosServer);
-
-            Header header1 = new BasicHeader(Constant.TOKEN, filesToken);
+            List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesHosServer());
+            List<String> whiteList =StringUtil.isEmpty(deletionConfig.getFilesExclusion())?null:Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesExclusion());
+            Header header1 = new BasicHeader(Constant.TOKEN, deletionConfig.getFilesToken());
             Header header2 = new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML);
             Header[] headers = {header1, header2};
             int failCount = 0;
@@ -292,6 +258,9 @@ public class LogStorageQuotaJob {
 
                             for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                                 try {
+                                    if(ObjectUtils.isNotEmpty(whiteList)&&whiteList.contains(bucket.getName())){
+                                        continue;
+                                    }
                                     HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
                                 } catch (BusinessException e) {
                                     failCount++;
@@ -340,15 +309,15 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            List<String> addressForCKs = getAddressForCK(UrlUtil.getUrl(trafficServer));
+            List<String> addressForCKs = getAddressForCK(UrlUtil.getUrl(deletionConfig.getTrafficServer()));
             Map<String, Object> deleteParamMap = getDeleteSource();
             //清库命令参数
-            String deleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", trafficDataSource, ".");
+            String deleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", deletionConfig.getTrafficDatasource(), ".");
             int failCount = 0;
             for (String endpoint : addressForCKs) {
                 try {
                     String url = UrlUtil.getUrl(endpoint);
-                    List<String> tablesForCKs = getTablesForCK(url);
+                    List<String> tablesForCKs = getTablesForCK(url,"");
                     for (String table : tablesForCKs) {
                         try {
                             deleteParamMap.put("query", deleteSql.concat(table));
@@ -396,7 +365,7 @@ public class LogStorageQuotaJob {
             }
             String deleteEndDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, 1);
 
-            String deleteendpoint = UrlUtil.getUrl(analyticServerDelete);
+            String deleteendpoint = UrlUtil.getUrl(deletionConfig.getAnalyticServer());
 
             String deleteStartTime = getDruidDataStartTime();
             //1停止加载
@@ -411,21 +380,21 @@ public class LogStorageQuotaJob {
             String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
             //清库时注意不操作hot结尾的表
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-            List<String> analyticTables = getAnalyticTables(analyticServerSelect, queryTablesSql);
+            List<String> analyticTables = getAnalyticTables(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryTablesSql);
             int failCount = 0;
             for (String table : analyticTables) {
                 try {
                     //每个表限制操作时间五分钟，开始计时
                     long startTime = System.currentTimeMillis();
                     long endTime = startTime + 1000 * 60 * 5;
-                    XxlJobLogger.log("delete druid table first command , endpoint = {}, table = {}, sql = {}", analyticServerDelete, table, changeRulesParam);
+                    XxlJobLogger.log("delete druid table first command , endpoint = {}, table = {}, sql = {}", deletionConfig.getAnalyticServer(), table, changeRulesParam);
                     HttpClientUtils.httpPost(changeRulesUrl + table, changeRulesParam);
 
                     //查询表数据是否删除 固定key EXPR$0
-                    String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time >= '", deleteStartTime, "' AND __time <= '", getDruidDataEndTime(analyticServerSelect), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
+                    String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time >= '", deleteStartTime, "' AND __time <= '", getDruidDataEndTime(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl)), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
                     int count = 1;
                     while (count > 0) {
-                        String httpPostResult = HttpClientUtils.httpPost(analyticServerSelect, countTableDataSql);
+                        String httpPostResult = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), countTableDataSql);
                         List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
                         count = Integer.valueOf(String.valueOf(list.get(0).get("EXPR$0")));
                         if (count > 0) {
@@ -447,7 +416,7 @@ public class LogStorageQuotaJob {
                 } catch (BusinessException e) {
                     // 表不存在时，查询发生错误，记录下继续执行
                     logger.error(" query druid error, table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log(" query druid error, endpoint = {}, table = {}, fail message = {}", analyticServerDelete, table, JobUtil.getErrorMsg(e));
+                    XxlJobLogger.log(" query druid error, endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
                     failCount++;
                 }
             }
@@ -477,9 +446,8 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            Header header = new BasicHeader(Constant.TOKEN, filesToken);
-            List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(filesHosServer);
-
+            Header header = new BasicHeader(Constant.TOKEN, deletionConfig.getFilesToken());
+            List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesHosServer());
             int failCount = 0;
             for (String endpoint : endpointList) {
                 try {
@@ -577,9 +545,9 @@ public class LogStorageQuotaJob {
     private Map<String, Object> getDeleteSource() {
         //删除sql参数拼接
         Map<String, Object> deleteParamMap = Maps.newHashMap();
-        deleteParamMap.put("database", trafficDataSource);
-        deleteParamMap.put("password", trafficUserKey);
-        deleteParamMap.put("user", trafficUserName);
+        deleteParamMap.put("database", deletionConfig.getTrafficDatasource());
+        deleteParamMap.put("password", deletionConfig.getTrafficUserKey());
+        deleteParamMap.put("user", deletionConfig.getTrafficUsername());
         return deleteParamMap;
     }
 
@@ -623,7 +591,7 @@ public class LogStorageQuotaJob {
      **/
     private List<String> getAddressForCK(String url) {
         List<String> endpointList = new ArrayList<>();
-        endpointList.addAll(getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT concat(host_address,':','" + trafficPort + "') as endpoint FROM ", systemClusters, " FORMAT JSON;")));
+        endpointList.addAll(getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT concat(host_address,':','" + trafficPort + "') as endpoint FROM ", deletionConfig.getSystemClusters(), " FORMAT JSON;")));
         return endpointList;
     }
 
@@ -632,8 +600,8 @@ public class LogStorageQuotaJob {
      *
      * @return List<String>
      */
-    private List<String> getTablesForCK(String url) {
-        return getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT(name) FROM ", systemTables, " WHERE database = '", trafficDataSource, "' AND engine in  ('MergeTree','ReplicatedMergeTree') FORMAT JSON;"));
+    private List<String> getTablesForCK(String url,String condition) {
+        return getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT(name) FROM ", deletionConfig.getSystemTables(), " WHERE database = '", deletionConfig.getTrafficDatasource(), "' AND engine in  ('MergeTree','ReplicatedMergeTree')", condition==null?"":condition, " FORMAT JSON;"));
     }
 
     //公共查询clickhouse
@@ -658,7 +626,7 @@ public class LogStorageQuotaJob {
     private String getDruidDataStartTime() {
         //查询druid数据库的数据的开始时间
         String queryAnalyticStartTimeSql = "{\"query\":\"SELECT \\\"start\\\" FROM sys.segments WHERE \\\"start\\\" <= '" + DateUtils.getSomeDate(DateUtils.YYYY_MM_DD, 1) + "' order by \\\"start\\\" limit 1\"}";//durid 清库的起始时间
-        String httpPost = HttpClientUtils.httpPost(analyticServerSelect, queryAnalyticStartTimeSql);
+        String httpPost = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryAnalyticStartTimeSql);
         //查询表数据url
         List<Map> startTimeList = (List) JsonMapper.fromJsonString(httpPost, List.class);
         return ObjectUtils.isEmpty(startTimeList) ? DateUtils.getCurrentDate() : DateUtils.getFormatDate(DateUtils.convertStringToDate(String.valueOf(startTimeList.get(0).get("start")), "yyyy-MM-dd'T'HH:mm:ss.SSSZ"), DateUtils.YYYY_MM_DD);
