@@ -3,7 +3,6 @@ package com.mesalab.executor.jobhandler;
 import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.thread.ThreadUtil;
 import cn.hutool.log.Log;
-import com.alibaba.nacos.spring.context.annotation.config.NacosPropertySource;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -36,7 +35,6 @@ import java.util.Map;
 import java.util.Objects;
 
 @Component
-@NacosPropertySource(dataId = "galaxy-job-executor",autoRefreshed = true)
 public class LogStorageQuotaJob {
 
     private Log logger = Log.get();
