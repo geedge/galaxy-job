@@ -1,7 +1,13 @@
 package com.mesalab.executor.jobhandler;
 
 import cn.hutool.log.Log;
+import com.alibaba.fastjson.JSONObject;
+import com.google.common.base.Joiner;
+import com.mesalab.executor.core.config.StorgeConfig;
+import com.mesalab.executor.core.config.XxlJobConfig;
 import com.mesalab.executor.core.utils.HttpClientUtils;
+import com.mesalab.executor.core.utils.SpringContextUtil;
+import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.DruidToHttpParam;
 import com.mesalab.executor.pojo.DruidNativeCompactParam;
@@ -26,55 +32,50 @@ import java.util.*;
 public class DruidCompactJob {
     private Log logger = Log.get();
 
+    private static StorgeConfig compactConfig =  (StorgeConfig) SpringContextUtil.getBean("storgeConfig");
+
 
     @XxlJob("druidCompactSegmentJobHandler")
-    public ReturnT<String> druidCompactSegmentJobHandler (String params) throws ParseException {
+    public ReturnT<String> druidCompactSegmentJobHandler (String param) throws ParseException {
 
-        if (StringUtil.isEmpty(druidToHttpParam(params))){
-            logger.error("params parser error , params is {}",params);
-            return IJobHandler.FAIL;
-        }
         try{
-            return ReturnT.SUCCESS;
-        }catch (BusinessException e){
+            if (StringUtil.isEmpty(param)){
+                logger.error("params parser error , params is {}", param);
+                return IJobHandler.FAIL;
+            }
+            //获取调度平台传入的参数并拼接成json，提交http请求至druid
+            String dataSource = JSONObject.parseObject(param).getString("dataSource");
+            int numOfDay = JSONObject.parseObject(param).getIntValue("numOfDay");
+            String segmentGranularity = JSONObject.parseObject(param).getString("segmentGranularity");
+            DruidNativeCompactParam druidNativeCompactParam=new DruidNativeCompactParam();
+            druidNativeCompactParam.setDataSource(dataSource);
+            druidNativeCompactParam.setNumOfDay(numOfDay);
+            druidNativeCompactParam.setSegmentGranularity(segmentGranularity);
+            String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(),"/druid/indexer/v1/task");
+            String json="{\n" +
+                    "    \"type\":\"compact\",\n" +
+                    "    \"dataSource\""+":"+"\""+getDataSource(druidNativeCompactParam)+"\","+"\n" +
+                    "    \"ioConfig\":{\n" +
+                    "        \"type\":\"compact\",\n" +
+                    "        \"inputSpec\":{\n" +
+                    "            \"type\":\"interval\",\n" +
+                    "            \"interval\""+":"+"\""+getTimeInterval(druidNativeCompactParam)+"\""+"\n" +
+                    "        }\n" +
+                    "    },\n" +
+                    "    \"segmentGranularity\""+":"+"\""+getSegmentGranularities(druidNativeCompactParam)+"\""+",\n" +
+                    "    \"tuningConfig\":{\n" +
+                    "        \"type\":\"index_parallel\",\n" +
+                    "        \"maxRowsPerSegment\":5000000,\n" +
+                    "        \"maxRowsInMemory\":25000\n" +
+                    "    }\n" +
+                    "}";
+            HttpClientUtils.httpPost(url,json);
+        }catch (Exception e){
             logger.error(e.getMessage());
             XxlJobLogger.log(e.getMessage());
-            return new ReturnT<String>(e.getCode(), e.getMessage());
+            return ReturnT.FAIL;
         }
-    }
-
-    /**
-     * 参数验证
-     */
-    public DruidToHttpParam druidToHttpParam(String params) throws ParseException {
-        if (StringUtil.isBlank(params)) {
-            XxlJobLogger.log("params is empty!");
-            return null;
-        }
-        Map<String,Object> druidToHttpParamObject = (Map<String,Object>) JsonMapper.fromJsonString(params, Object.class);
-        if (StringUtil.isBlank(druidToHttpParamObject.get("url").toString())) {
-            XxlJobLogger.log("url is empty ! ");
-            return null;
-        }
-        if(StringUtil.isBlank(druidToHttpParamObject.get("interval").toString())) {
-            XxlJobLogger.log("interval  is empty ! ");
-            return null;
-        }
-        if(StringUtil.isBlank(druidToHttpParamObject.get("segmentGranularity").toString())) {
-            XxlJobLogger.log("segmentGranularity is empty , execute default segmentGranularity! ");
-            return null;
-        }
-        if (StringUtil.isBlank(druidToHttpParamObject.get("requestBody").toString())){
-            XxlJobLogger.log("druid native query request body is empty ! ");
-            return null;
-        }
-        String queryRequestJson = JsonMapper.toJsonString(druidToHttpParamObject.get("requestBody"));
-        DruidNativeCompactParam druidNativeCompactParam=(DruidNativeCompactParam)JsonMapper.fromJsonString(queryRequestJson,DruidNativeCompactParam.class);
-        druidNativeCompactParam.setDataSource(getDataSource(druidNativeCompactParam));
-        druidNativeCompactParam.setNumOfDay(getTimeInterval(druidNativeCompactParam));
-        druidNativeCompactParam.setSegmentGranularity(getSegmentGranularity(druidNativeCompactParam));
-        DruidToHttpParam druidCompactParam = (DruidToHttpParam)JsonMapper.fromJsonString(JsonMapper.toJsonString(druidToHttpParamObject),DruidNativeCompactParam.class);
-        return druidCompactParam;
+        return ReturnT.SUCCESS;
     }
 
     /**
@@ -82,8 +83,8 @@ public class DruidCompactJob {
      */
     public String getDataSource(DruidNativeCompactParam druidNativeCompactParam){
         if (druidNativeCompactParam!=null){
-            druidNativeCompactParam.setDataSource(druidNativeCompactParam.getDataSource());
-            }
+            druidNativeCompactParam.getDataSource();
+        }
         return druidNativeCompactParam.getDataSource();
     }
 
@@ -91,7 +92,7 @@ public class DruidCompactJob {
      * 根据传入参数来确定压缩时间范围
      */
     public String getTimeInterval (DruidNativeCompactParam druidNativeCompactParam) throws ParseException {
-      String interval="";
+        String interval="";
         if (druidNativeCompactParam!=null) {
             //使用日历类，以根据传入参数来确定压缩起始时间
             Calendar date = Calendar.getInstance();
@@ -102,7 +103,7 @@ public class DruidCompactJob {
             String intervalTime = year + "-" + month + "-" + day;//2021-7-13
             Date date2 = time.parse(intervalTime);
             Calendar date1 = Calendar.getInstance();
-            date1.add(Calendar.DATE, -Integer.valueOf(druidNativeCompactParam.getNumOfDay()));
+            date1.add(Calendar.DATE, -druidNativeCompactParam.getNumOfDay());
             String intervalEndTime = time.format(date2.getTime());
             String intervalStartTime = time.format(date1.getTime());
             interval=intervalStartTime+"/"+intervalEndTime;
@@ -113,58 +114,29 @@ public class DruidCompactJob {
     /**
      * 根据传入的参数来确定压缩粒度，时间粒度为day、week、month
      */
-    public String getSegmentGranularity(DruidNativeCompactParam druidNativeCompactParam){
+    public String getSegmentGranularities(DruidNativeCompactParam druidNativeCompactParam){
         String segmentGranularity = druidNativeCompactParam.getSegmentGranularity();
 
         if (druidNativeCompactParam!=null){
             //segmentGranularity
             switch (segmentGranularity){
-            case "DAY":
-                druidNativeCompactParam.setSegmentGranularity("DAY");
-                break;
-            case "WEEK":
-                druidNativeCompactParam.setSegmentGranularity("WEEK");
-                break;
-            case "MONTH":
-                druidNativeCompactParam.setSegmentGranularity("MONTH");
-                break;
-            case "":
-                druidNativeCompactParam.setSegmentGranularity("");
-            default:
-                XxlJobLogger.log("Could not resolve type id {} into a subtype of setSegmentGranularity,known type ids = [day,week,month]",segmentGranularity);
-                return null;
-        }
+                case "DAY":
+                    druidNativeCompactParam.setSegmentGranularity("DAY");
+                    druidNativeCompactParam.getSegmentGranularity();
+                    break;
+                case "WEEK":
+                    druidNativeCompactParam.setSegmentGranularity("WEEK");
+                    break;
+                case "MONTH":
+                    druidNativeCompactParam.setSegmentGranularity("MONTH");
+                    break;
+                case "":
+                    druidNativeCompactParam.setSegmentGranularity("");
+                default:
+                    XxlJobLogger.log("Could not resolve type id {} into a subtype of setSegmentGranularity,known type ids = [day,week,month]",segmentGranularity);
+                    return null;
+            }
         }
         return segmentGranularity;
-    }
-
-    /**
-     * 将接收到的参数与json内的其他参数组成json格式,并将其作为请求体传入Http请求中
-     */
-    public String jsonForRequestBodyToHttp (DruidNativeCompactParam druidNativeCompactParam,DruidToHttpParam druidToHttpParam) throws ParseException {
-        StringBuilder url = new StringBuilder("http://");
-        url.append(druidToHttpParam.getUrl())
-                .append(":")
-                .append(druidToHttpParam.getPort())
-                .append("/druid/indexer/v1/task");
-        String json="{\n" +
-                "    \"type\":\"compact\",\n" +
-                "    \"dataSource\""+":"+"\""+getDataSource(druidNativeCompactParam)+"\","+"\n" +
-                "    \"ioConfig\":{\n" +
-                "        \"type\":\"compact\",\n" +
-                "        \"inputSpec\":{\n" +
-                "            \"type\":\"interval\",\n" +
-                "            \"interval\""+":"+"\""+getTimeInterval(druidNativeCompactParam)+"\""+"\n" +
-                "        }\n" +
-                "    },\n" +
-                "    \"segmentGranularity\""+":"+"\""+getSegmentGranularity(druidNativeCompactParam)+"\""+",\n" +
-                "    \"tuningConfig\":{\n" +
-                "        \"type\":\"index_parallel\",\n" +
-                "        \"maxRowsPerSegment\":5000000,\n" +
-                "        \"maxRowsInMemory\":25000\n" +
-                "    }\n" +
-                "}";
-        HttpClientUtils.httpPost(url.toString(),json);
-        return json;
     }
 }

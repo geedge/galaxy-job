@@ -16,6 +16,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DruidNativeCompactParam {
     private String dataSource;
-    private String SegmentGranularity;
-    private String numOfDay;//输入压缩范围天数，如：输入3，起始时间为2021-07-05，结束时间为2021-07-08，格式为2021-07-05/2021-07-08。
+    private String segmentGranularity;
+    private int numOfDay;//输入压缩范围天数，如：输入3，起始时间为2021-07-05，结束时间为2021-07-08，格式为2021-07-05/2021-07-08。
 }
