@@ -177,7 +177,7 @@ public class LogStorageQuotaJob {
 
     /*
      * @Author zhq
-     * @Description //TODO 通过查询跟天数，查到的表保留天数
+     * @Description 通过查询跟天数，查到的表保留天数
      * @Date 2020\9\25
      * @Param [queryTablesSql, maxdays]
      * @return void
@@ -216,6 +216,21 @@ public class LogStorageQuotaJob {
                 XxlJobLogger.log("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
             }
         }
+        if(ObjectUtils.isNotEmpty(deletionConfig.getAnalyticExclusion())){
+            List<String> tableExc = Splitter.on(",").trimResults().splitToList(deletionConfig.getAnalyticExclusion());
+            for (String table : tableExc) {
+                try {
+                    logger.info("load forever druid table {}",table);
+                    HttpClientUtils.httpPost(changeRulesUrl + table, "[{\"type\":\"loadForever\",\"tieredReplicants\":{\"_default_tier\":1}}]");
+                    XxlJobLogger.log("load forever druid table {}",table);
+                } catch (BusinessException e) {
+                    failCount++;
+                    logger.error("load forever storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
+                    XxlJobLogger.log("load forever storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
+                }
+            }
+        }
+
         if (failCount > 0) {
             throw new BusinessException("reset storage druid ttl error, table fail count " + failCount);
         }
@@ -257,6 +272,9 @@ public class LogStorageQuotaJob {
                             for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                                 try {
                                     if(ObjectUtils.isNotEmpty(whiteList)&&whiteList.contains(bucket.getName())){
+                                        LifecycleConfiguration whiteLc = new LifecycleConfiguration();
+                                        whiteLc.getRule().setExpiration(new LifecycleConfiguration.Expiration("24855"));//hos保存最大年限
+                                        HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(whiteLc), headers);
                                         continue;
                                     }
                                     HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
