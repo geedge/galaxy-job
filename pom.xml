@@ -100,7 +100,7 @@
 						<goals>
 							<goal>strip-jar</goal>
 						</goals>
-						<phase>install</phase>
+						<phase>package</phase>
 					</execution>
 				</executions>
 			</plugin>

@@ -107,7 +107,7 @@
                             <goal>build</goal>
                         </goals>
                         <!-- <phase>package</phase>-->
-                        <phase>install</phase>
+                        <phase>package</phase>
                         <configuration>
                             <password>111111</password>
                             <excludes>
