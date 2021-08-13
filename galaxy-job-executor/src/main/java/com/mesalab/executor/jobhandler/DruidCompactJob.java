@@ -42,9 +42,13 @@ public class DruidCompactJob {
                 logger.error("params parser error , params is {}", param);
                 return IJobHandler.FAIL;
             }
-            DruidNativeCompactParam druidNativeCompactParam = (DruidNativeCompactParam)JsonMapper.fromJsonString(param, DruidNativeCompactParam.class);
-            //传入json为http的请求体
-            jsonForRequestBodyToHttp(druidNativeCompactParam);
+              //参数不为空，多参数切割并分别传入post请求中
+            String[] paramOfPost = params.split(";");
+            for (String param:paramOfPost) {
+                DruidNativeCompactParam druidNativeCompactParam = (DruidNativeCompactParam)JsonMapper.fromJsonString(param, DruidNativeCompactParam.class);
+                //传入json为http的请求体
+                jsonForRequestBodyToHttp(druidNativeCompactParam);
+            }
         }catch (Exception e){
             logger.error(e.getMessage());
             XxlJobLogger.log(e.getMessage());
