@@ -36,10 +36,10 @@ public class DruidCompactJob {
 
 
     @XxlJob("druidCompactSegmentJobHandler")
-    public ReturnT<String> druidCompactSegmentJobHandler (String param)  {
+    public ReturnT<String> druidCompactSegmentJobHandler (String params)  {
         try{
-            if (StringUtil.isEmpty(param)){
-                logger.error("params parser error , params is {}", param);
+            if (StringUtil.isEmpty(params)){
+                logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
               //参数不为空，多参数切割并分别传入post请求中
