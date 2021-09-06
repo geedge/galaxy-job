@@ -1,15 +1,11 @@
 package com.mesalab.executor.jobhandler;
 
 import cn.hutool.log.Log;
-import com.alibaba.fastjson.JSONObject;
-import com.google.common.base.Joiner;
 import com.mesalab.executor.core.config.StorgeConfig;
-import com.mesalab.executor.core.config.XxlJobConfig;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.SpringContextUtil;
 import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.exception.BusinessException;
-import com.mesalab.executor.pojo.DruidToHttpParam;
 import com.mesalab.executor.pojo.DruidNativeCompactParam;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
@@ -21,7 +17,8 @@ import org.springframework.stereotype.Component;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * @ Author pengfeixu

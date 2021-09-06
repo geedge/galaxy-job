@@ -1,33 +1,16 @@
 package com.mesalab.executor.test;
 
-import com.alibaba.fastjson.JSONObject;
-import com.google.common.io.CharStreams;
 import com.mesalab.executor.GalaxyExecutorApplication;
 import com.mesalab.executor.core.utils.HttpClientUtils;
-import com.mesalab.executor.jobhandler.DruidCompactJob;
-import com.mesalab.executor.pojo.DruidNativeCompactParam;
 import com.mesalab.executor.pojo.DruidToHttpParam;
-import com.xxl.job.core.log.XxlJobLogger;
-import com.zdjizhi.utils.JsonMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import javax.print.DocFlavor;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.Map;
-
-import static jdk.nashorn.internal.runtime.regexp.joni.Config.log;
 
 /**
  * @ Author pengfeixu

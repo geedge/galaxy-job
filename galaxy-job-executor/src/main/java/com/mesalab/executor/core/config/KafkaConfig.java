@@ -18,7 +18,14 @@ public class KafkaConfig {
 
 	@NacosValue(value = "${spring.kafka.bootstrap-servers}",autoRefreshed = true)
 	private String servers;
-	 
+
+    @NacosValue(value = "${spring.kafka.ssl.enable}",autoRefreshed = true)
+    private String enable;
+    @NacosValue(value = "${spring.kafka.ssl.username}",autoRefreshed = true)
+    private String username;
+    @NacosValue(value = "${spring.kafka.ssl.pin}",autoRefreshed = true)
+    private String pin;
+
     @Bean
     public Map<String,Object> producerConfigs(){
     	Map<String,Object> configs = new HashMap<>();
@@ -30,6 +37,12 @@ public class KafkaConfig {
         //设置序列化
         configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configs.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,StringSerializer.class);
+        if(Boolean.parseBoolean(enable)){
+            configs.put("security.protocol", "SASL_PLAINTEXT");
+            configs.put("sasl.mechanism", "PLAIN");
+            configs.put("sasl.jaas.config","org.apache.kafka.common.security.plain.PlainLoginModule required username='"+username+"' password='"+pin+"';");
+        }
+
         //设置自定义分区
         return configs;
     }
