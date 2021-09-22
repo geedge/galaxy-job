@@ -133,14 +133,14 @@ public class StorageQuotaService {
         Header[] headers = {new BasicHeader(Constant.TOKEN, storgeConfig.getFilesToken()), new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML)};
         String result = HttpClientUtils.httpGet(UrlUtil.getUrl(point).concat(FILE_STORAGE_PATH), headers);
         if("-1".equals(result)){
-            throw new RuntimeException("hos server error");
+            throw new BusinessException("hos server error");
         }
         HosSpace hosSpace = XmlUtil.converXmlToBean(HosSpace.class, result);
 
         Long hosCapacity = hosSpace.getHosCapacity();
         Long hosUsed = hosSpace.getHosUsed();
         if (hosCapacity==-1||hosUsed==-1){
-            throw new RuntimeException("hos server error");
+            throw new BusinessException("hos server error");
         }
 
         Map<String, Object> data  = new HashMap<>();

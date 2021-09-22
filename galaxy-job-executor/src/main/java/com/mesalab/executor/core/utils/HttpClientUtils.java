@@ -11,9 +11,15 @@ import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -23,8 +29,7 @@ import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -33,26 +38,57 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 import java.util.Map;
 
 public class HttpClientUtils {
-    /** 全局连接池对象 */
-    private static final PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager();
 
     private static Log logger = Log.get();
 
     private static HttpConfig httpConfig = (HttpConfig) SpringContextUtil.getBean("httpConfig");
-
     /**
-     * 静态代码块配置连接池信息
+     * 在调用SSL之前需要重写验证方法，取消检测SSL
+     * 创建ConnectionManager，添加Connection配置信息
+     *
+     * @return HttpClient 支持https
      */
-    static {
-
-        // 设置最大连接数
-        connManager.setMaxTotal(httpConfig.getMaxConnectionNum());
-        // 设置每个连接的路由数
-        connManager.setDefaultMaxPerRoute(httpConfig.getMaxPerRoute());
-
+    private static PoolingHttpClientConnectionManager getSslClientManager() {
+        try {
+            // 在调用SSL之前需要重写验证方法，取消检测SSL
+            X509TrustManager trustManager = new X509TrustManager() {
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+                @Override
+                public void checkClientTrusted(X509Certificate[] xcs, String str) {
+                }
+                @Override
+                public void checkServerTrusted(X509Certificate[] xcs, String str) {
+                }
+            };
+            SSLContext ctx = SSLContext.getInstance(SSLConnectionSocketFactory.TLS);
+            ctx.init(null, new TrustManager[]{trustManager}, null);
+            SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(ctx, NoopHostnameVerifier.INSTANCE);
+            Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", PlainConnectionSocketFactory.INSTANCE)
+                    .register("https", socketFactory).build();
+            // 创建ConnectionManager，添加Connection配置信息
+            PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+            // 设置最大连接数
+            connManager.setMaxTotal(httpConfig.getMaxConnectionNum());
+            // 设置每个连接的路由数
+            connManager.setDefaultMaxPerRoute(httpConfig.getMaxPerRoute());
+            return connManager;
+        } catch (KeyManagementException e) {
+            logger.error(e.getMessage());
+            throw new BusinessException(e);
+        } catch (NoSuchAlgorithmException e) {
+            logger.error(e.getMessage());
+            throw new BusinessException(e);
+        }
     }
 
     /**
@@ -139,7 +175,7 @@ public class HttpClientUtils {
                 .setRetryHandler(retry)
                 .setKeepAliveStrategy(myStrategy)
                 // 配置连接池管理对象
-                .setConnectionManager(connManager)
+                .setConnectionManager(getSslClientManager())
                 .build();
     }
 
@@ -443,45 +479,6 @@ public class HttpClientUtils {
             return result;
         }
     }
-
-
-
-/*    public static class IdleConnectionMonitorThread extends Thread {
-
-        private final HttpClientConnectionManager connMgr;
-        private volatile boolean shutdown;
-
-        public IdleConnectionMonitorThread(HttpClientConnectionManager connMgr) {
-            super();
-            this.connMgr = connMgr;
-        }
-
-        @Override
-        public void run() {
-            try {
-                while (!shutdown) {
-                    synchronized (this) {
-                        wait(5000);
-                        // Close expired connections
-                        connMgr.closeExpiredConnections();
-                        // Optionally, close connections
-                        // that have been idle longer than 30 sec
-                        connMgr.closeIdleConnections(30, TimeUnit.SECONDS);
-                    }
-                }
-            } catch (InterruptedException ex) {
-                logger.error(ex.getMessage());
-            }
-        }
-
-        public void shutdown() {
-            shutdown = true;
-            synchronized (this) {
-                notifyAll();
-            }
-        }
-
-    }*/
 
     /**
      * 拼装url
