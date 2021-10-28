@@ -1,6 +1,8 @@
 package com.mesalab.executor.jobhandler;
 
 import cn.hutool.log.Log;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.SpringContextUtil;
@@ -15,10 +17,6 @@ import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
 import org.springframework.stereotype.Component;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
 
 /**
  * @ Author pengfeixu
@@ -45,6 +43,7 @@ public class DruidCompactJob {
                 DruidNativeCompactParam druidNativeCompactParam = (DruidNativeCompactParam)JsonMapper.fromJsonString(param, DruidNativeCompactParam.class);
                 //传入json为http的请求体
                 jsonForRequestBodyToHttp(druidNativeCompactParam);
+                deleteMetaData(druidNativeCompactParam);
             }
         }catch (Exception e){
             logger.error(e.getMessage());
@@ -65,7 +64,7 @@ public class DruidCompactJob {
             }
         }catch (BusinessException be){
             logger.error(be.getMessage());
-            XxlJobLogger.log("dataSource is empty");
+            XxlJobLogger.log("dataSource is empty , dataSource could not be null");
         }
         return null;
     }
@@ -73,33 +72,16 @@ public class DruidCompactJob {
     /**
      * 根据传入参数来确定压缩时间范围
      */
-    public String getTimeInterval (DruidNativeCompactParam druidNativeCompactParam) throws ParseException {
+    public String getTimeInterval (DruidNativeCompactParam druidNativeCompactParam) {
         try {
-            String interval="";
             if (druidNativeCompactParam!=null) {
-                //初始当前时间
-                Calendar initTime = Calendar.getInstance();
-                //初始历史时间
-                Calendar initPastTime = Calendar.getInstance();
-                SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd");
-                //当前时间
-                String intervalTime = "" + initTime.get(Calendar.YEAR) + "-" + "" + (initTime.get(Calendar.MONTH) + 1) + "-"
-                        + "" + (initTime.get(Calendar.DAY_OF_MONTH));
-                //当前时间格式化
-                Date formatCurrentTime = timeFormat.parse(intervalTime);
-                //根据传入参数，输出历史时间
-                initPastTime.add(Calendar.DATE, -druidNativeCompactParam.getNumOfDay());
-                //格式化当前和历史时间
-                String intervalEndTime = timeFormat.format(formatCurrentTime.getTime());
-                String intervalStartTime = timeFormat.format(initPastTime.getTime());
-                interval=intervalStartTime+"/"+intervalEndTime;
+                return druidNativeCompactParam.getInternal();
             }
-            return interval;
         }catch (BusinessException be){
             logger.error(be.getMessage());
-            XxlJobLogger.log("numOfDay  is empty , interval could not be null");
-            return null;
+            XxlJobLogger.log("interval  is empty , interval could not be null");
         }
+        return null;
     }
 
     /**
@@ -120,6 +102,12 @@ public class DruidCompactJob {
                     case "MONTH":
                         druidNativeCompactParam.setSegmentGranularity("MONTH");
                         break;
+                    case "QUARTER":
+                        druidNativeCompactParam.setSegmentGranularity("QUARTER");
+                        break;
+//                    case "YEAR":
+//                        druidNativeCompactParam.setSegmentGranularity("YEAR");
+//                        break;
                     default:
                         XxlJobLogger.log("Could not resolve type id {} into a subtype of setSegmentGranularity,known type ids = [day,week,month]",segmentGranularity);
                         return null;
@@ -129,7 +117,7 @@ public class DruidCompactJob {
             return null;
         }catch (BusinessException be) {
             logger.error(be.getMessage());
-            XxlJobLogger.log("segmentGranularity is empty");
+            XxlJobLogger.log("segmentGranularity is empty , segmentGranularity could not be null");
             return null;
         }
     }
@@ -137,26 +125,72 @@ public class DruidCompactJob {
     /**
      * 根据传入的参数拼接json，并将json设置为请求体，提交Http请求
      */
-    public void jsonForRequestBodyToHttp(DruidNativeCompactParam druidNativeCompactParam) throws ParseException{
-        String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(),"/druid/indexer/v1/task");
-        String json="{\n" +
-                "    \"type\":\"compact\",\n" +
-                "    \"dataSource\""+":"+"\""+getDataSource(druidNativeCompactParam)+"\","+"\n" +
-                "    \"ioConfig\":{\n" +
-                "        \"type\":\"compact\",\n" +
-                "        \"inputSpec\":{\n" +
-                "            \"type\":\"interval\",\n" +
-                "            \"interval\""+":"+"\""+getTimeInterval(druidNativeCompactParam)+"\""+"\n" +
-                "        }\n" +
-                "    },\n" +
-                "    \"segmentGranularity\""+":"+"\""+getSegmentGranularities(druidNativeCompactParam)+"\""+",\n" +
-                "    \"tuningConfig\":{\n" +
-                "        \"type\":\"index_parallel\",\n" +
-                "        \"maxRowsPerSegment\":5000000,\n" +
-                "        \"maxRowsInMemory\":25000\n" +
-                "    }\n" +
-                "}";
-        HttpClientUtils.httpPost(url,json);
-//        return json;
+    public void jsonForRequestBodyToHttp(DruidNativeCompactParam druidNativeCompactParam){
+        try {
+            String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/task");
+            String json = "{\n" +
+                    "    \"type\":\"compact\",\n" +
+                    "    \"dataSource\"" + ":" + "\"" + getDataSource(druidNativeCompactParam) + "\"," + "\n" +
+                    "    \"ioConfig\":{\n" +
+                    "        \"type\":\"compact\",\n" +
+                    "        \"inputSpec\":{\n" +
+                    "            \"type\":\"interval\",\n" +
+                    "            \"interval\"" + ":" + "\"" + getTimeInterval(druidNativeCompactParam) + "\"" + "\n" +
+                    "        }\n" +
+                    "    },\n" +
+                    "    \"segmentGranularity\"" + ":" + "\"" + getSegmentGranularities(druidNativeCompactParam) + "\"" + ",\n" +
+                    "    \"tuningConfig\":{\n" +
+                    "        \"type\":\"index_parallel\",\n" +
+                    "        \"maxRowsPerSegment\":5000000,\n" +
+                    "        \"maxRowsInMemory\":25000\n" +
+                    "    }\n" +
+                    "}";
+            HttpClientUtils.httpPost(url, json);
+        }catch (BusinessException be) {
+            logger.error(be.getMessage());
+        }
     }
+    /**
+     * 压缩任务通过http请求提交后，获取任务状态码，根据任务状态删除历史元数据
+     */
+    public void deleteMetaData(DruidNativeCompactParam druidNativeCompactParam){
+        try {
+
+            //获取正在运行的任务
+            String queryUrl = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/runningTasks");
+            String responseMsg = HttpClientUtils.httpGet(queryUrl);
+            JSONArray responseJsonMsg = JSONObject.parseArray(responseMsg);
+                for (Object responseJson : responseJsonMsg) {
+                    JSONObject responseMsgJson = (JSONObject) responseJson;
+                    //获取compact开头的正在运行的任务id
+                    String id = responseMsgJson.getString("id");
+                    String status="";
+                    if (id.startsWith("compact")) {
+                        while (true) {
+                        String taskStatusUrl = "http://" + compactConfig.getAnalyticServer() + "/druid/indexer/v1/task/" + id + "/status";
+                            //获取这个任务状态
+//                        String taskStatusUrl = "http://" + compactConfig.getAnalyticServer() + "/druid/indexer/v1/task/" + id + "/status";
+                            String taskStatusMsg = HttpClientUtils.httpGet(taskStatusUrl);
+                            //通过http返回的信息进行判断任务是否为success
+                            JSONObject jsonObject = JSONObject.parseObject(taskStatusMsg);
+                            status = jsonObject.getJSONObject("status").getString("status");
+                            if (status.equals("SUCCESS")) {
+                                String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/task");
+                                String deleteJson = "{\"type\": \"kill\"," +
+                                        "\"dataSource\"" + ":" + "\"" + getDataSource(druidNativeCompactParam) + "\"," +
+                                        "\"interval\"" + ":" + "\"" + getTimeInterval(druidNativeCompactParam) + "\"}";
+                                HttpClientUtils.httpPost(url, deleteJson);
+                                break;
+                            }else {
+                                Thread.sleep(60 * 1000);
+                            }
+                        }
+                }
+            }
+                //http://192.168.36.50:8886
+        }catch (Exception e){
+            logger.error(e.getMessage());
+        }
+    }
+
 }
