@@ -17,6 +17,12 @@ import com.zdjizhi.utils.JsonMapper;
 import com.zdjizhi.utils.StringUtil;
 import org.springframework.stereotype.Component;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.concurrent.*;
+
 
 /**
  * @ Author pengfeixu
@@ -45,9 +51,9 @@ public class DruidCompactJob {
                 jsonForRequestBodyToHttp(druidNativeCompactParam);
                 deleteMetaData(druidNativeCompactParam);
             }
-        }catch (Exception e){
-            logger.error(e.getMessage());
-            XxlJobLogger.log(e.getMessage());
+        }catch (BusinessException be){
+            logger.error(be.getMessage());
+            XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
@@ -70,16 +76,40 @@ public class DruidCompactJob {
     }
 
     /**
-     * 根据传入参数来确定压缩时间范围
+     * 根据传入参数来确定压缩时间范围,可输入数字，如："1"，也可输入时间范围，如："2021-10-27/2021-10-28"
      */
     public String getTimeInterval (DruidNativeCompactParam druidNativeCompactParam) {
         try {
+            String interval="";
             if (druidNativeCompactParam!=null) {
-                return druidNativeCompactParam.getInternal();
+                if (druidNativeCompactParam.getInternalOrNumOfHistory().contains("/")){
+                    return druidNativeCompactParam.getInternalOrNumOfHistory();
+                }else {
+                    //初始当前时间
+                    Calendar initTime = Calendar.getInstance();
+                    //初始历史时间
+                    Calendar initPastTime = Calendar.getInstance();
+                    SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd");
+                    //当前时间
+                    String intervalTime = "" + initTime.get(Calendar.YEAR) + "-" + "" + (initTime.get(Calendar.MONTH) + 1) + "-"
+                            + "" + (initTime.get(Calendar.DAY_OF_MONTH));
+                    //当前时间格式化
+                    Date formatCurrentTime = timeFormat.parse(intervalTime);
+                    //根据传入参数，输出历史时间
+                    initPastTime.add(Calendar.DATE, -Integer.parseInt(druidNativeCompactParam.getInternalOrNumOfHistory()));
+                    //格式化当前和历史时间
+                    String intervalEndTime = timeFormat.format(formatCurrentTime.getTime());
+                    String intervalStartTime = timeFormat.format(initPastTime.getTime());
+                    interval=intervalStartTime+"/"+intervalEndTime;
+                    return interval;
+                }
             }
+            return null;
         }catch (BusinessException be){
             logger.error(be.getMessage());
             XxlJobLogger.log("interval  is empty , interval could not be null");
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
         return null;
     }
@@ -105,9 +135,6 @@ public class DruidCompactJob {
                     case "QUARTER":
                         druidNativeCompactParam.setSegmentGranularity("QUARTER");
                         break;
-//                    case "YEAR":
-//                        druidNativeCompactParam.setSegmentGranularity("YEAR");
-//                        break;
                     default:
                         XxlJobLogger.log("Could not resolve type id {} into a subtype of setSegmentGranularity,known type ids = [day,week,month]",segmentGranularity);
                         return null;
@@ -155,42 +182,50 @@ public class DruidCompactJob {
      */
     public void deleteMetaData(DruidNativeCompactParam druidNativeCompactParam){
         try {
-
+            //查询任务状态限时2小时
+            long startTime = System.currentTimeMillis();
+            long endTime = startTime + 1000 * 60 * 120;
+//            long endTime = startTime + 5000 ;
             //获取正在运行的任务
             String queryUrl = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/runningTasks");
             String responseMsg = HttpClientUtils.httpGet(queryUrl);
             JSONArray responseJsonMsg = JSONObject.parseArray(responseMsg);
-                for (Object responseJson : responseJsonMsg) {
-                    JSONObject responseMsgJson = (JSONObject) responseJson;
-                    //获取compact开头的正在运行的任务id
-                    String id = responseMsgJson.getString("id");
-                    String status="";
-                    if (id.startsWith("compact")) {
-                        while (true) {
+            for (Object responseJson : responseJsonMsg) {
+                JSONObject responseMsgJson = (JSONObject) responseJson;
+                //获取compact开头的正在运行的任务id
+                String id = responseMsgJson.getString("id");
+                String status="";
+                if (id.startsWith("compact")) {
+                    while (true) {
+                        //获取这个任务状态
                         String taskStatusUrl = "http://" + compactConfig.getAnalyticServer() + "/druid/indexer/v1/task/" + id + "/status";
-                            //获取这个任务状态
-//                        String taskStatusUrl = "http://" + compactConfig.getAnalyticServer() + "/druid/indexer/v1/task/" + id + "/status";
-                            String taskStatusMsg = HttpClientUtils.httpGet(taskStatusUrl);
-                            //通过http返回的信息进行判断任务是否为success
-                            JSONObject jsonObject = JSONObject.parseObject(taskStatusMsg);
-                            status = jsonObject.getJSONObject("status").getString("status");
-                            if (status.equals("SUCCESS")) {
-                                String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/task");
-                                String deleteJson = "{\"type\": \"kill\"," +
-                                        "\"dataSource\"" + ":" + "\"" + getDataSource(druidNativeCompactParam) + "\"," +
-                                        "\"interval\"" + ":" + "\"" + getTimeInterval(druidNativeCompactParam) + "\"}";
-                                HttpClientUtils.httpPost(url, deleteJson);
-                                break;
-                            }else {
-                                Thread.sleep(60 * 1000);
-                            }
+                        String taskStatusMsg = HttpClientUtils.httpGet(taskStatusUrl);
+                        //通过http返回的信息进行判断任务是否为success
+                        JSONObject jsonObject = JSONObject.parseObject(taskStatusMsg);
+                        status = jsonObject.getJSONObject("status").getString("status");
+                        if (status.equals("SUCCESS")) {
+                            String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/task");
+                            String deleteJson = "{\"type\": \"kill\"," +
+                                    "\"dataSource\"" + ":" + "\"" + getDataSource(druidNativeCompactParam) + "\"," +
+                                    "\"interval\"" + ":" + "\"" + getTimeInterval(druidNativeCompactParam) + "\"}";
+                            HttpClientUtils.httpPost(url, deleteJson);
+                            break;
+                        }else if (status.equals("RUNNING")||status.equals("WAITING")){
+                            Thread.sleep(60 * 1000);
+                        }else {
+                            logger.error("query druid running task failed error");
                         }
+                        if (System.currentTimeMillis() > endTime){
+                            logger.error("query druid running task time out error");
+//                            XxlJobLogger.log("druid compact task is running , kill task post timeout");
+                        }
+                    }
                 }
             }
-                //http://192.168.36.50:8886
-        }catch (Exception e){
+        }catch (BusinessException be){
+            logger.error(be.getMessage());
+        } catch (InterruptedException e) {
             logger.error(e.getMessage());
         }
     }
-
 }
