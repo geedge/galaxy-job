@@ -222,6 +222,7 @@ public class DruidCompactJob {
                     }
                 }
             }
+
         }catch (BusinessException be){
             logger.error(be.getMessage());
         } catch (InterruptedException e) {
