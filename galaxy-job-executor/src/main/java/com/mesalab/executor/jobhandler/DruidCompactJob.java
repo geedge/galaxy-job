@@ -187,7 +187,6 @@ public class DruidCompactJob {
                         }
                 }
             }
-                //http://192.168.36.50:8886
         }catch (Exception e){
             logger.error(e.getMessage());
         }
