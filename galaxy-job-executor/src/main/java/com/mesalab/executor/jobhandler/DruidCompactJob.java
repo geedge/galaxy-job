@@ -43,12 +43,13 @@ public class DruidCompactJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-              //参数不为空，多参数切割并分别传入post请求中
+            //参数不为空，多参数切割并分别传入post请求中
             String[] paramOfPost = params.split(";");
             for (String param:paramOfPost) {
                 DruidNativeCompactParam druidNativeCompactParam = (DruidNativeCompactParam)JsonMapper.fromJsonString(param, DruidNativeCompactParam.class);
                 //传入json为http的请求体
                 jsonForRequestBodyToHttp(druidNativeCompactParam);
+                System.out.println("卧槽 --------");
                 deleteMetaData(druidNativeCompactParam);
             }
         }catch (BusinessException be){
@@ -185,7 +186,6 @@ public class DruidCompactJob {
             //查询任务状态限时2小时
             long startTime = System.currentTimeMillis();
             long endTime = startTime + 1000 * 60 * 120;
-//            long endTime = startTime + 5000 ;
             //获取正在运行的任务
             String queryUrl = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/runningTasks");
             String responseMsg = HttpClientUtils.httpGet(queryUrl);
@@ -194,39 +194,50 @@ public class DruidCompactJob {
                 JSONObject responseMsgJson = (JSONObject) responseJson;
                 //获取compact开头的正在运行的任务id
                 String id = responseMsgJson.getString("id");
-                String status="";
                 if (id.startsWith("compact")) {
-                    while (true) {
-                        //获取这个任务状态
-                        String taskStatusUrl = "http://" + compactConfig.getAnalyticServer() + "/druid/indexer/v1/task/" + id + "/status";
-                        String taskStatusMsg = HttpClientUtils.httpGet(taskStatusUrl);
-                        //通过http返回的信息进行判断任务是否为success
-                        JSONObject jsonObject = JSONObject.parseObject(taskStatusMsg);
-                        status = jsonObject.getJSONObject("status").getString("status");
-                        if (status.equals("SUCCESS")) {
-                            String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/task");
-                            String deleteJson = "{\"type\": \"kill\"," +
-                                    "\"dataSource\"" + ":" + "\"" + getDataSource(druidNativeCompactParam) + "\"," +
-                                    "\"interval\"" + ":" + "\"" + getTimeInterval(druidNativeCompactParam) + "\"}";
-                            HttpClientUtils.httpPost(url, deleteJson);
-                            break;
-                        }else if (status.equals("RUNNING")||status.equals("WAITING")){
-                            Thread.sleep(60 * 1000);
-                        }else {
-                            logger.error("query druid running task failed error");
-                        }
-                        if (System.currentTimeMillis() > endTime){
-                            logger.error("query druid running task time out error");
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            while (true){
+                                //获取这个任务状态
+                                //2.1
+                                String taskStatusUrl = "http://" + compactConfig.getAnalyticServer() + "/druid/indexer/v1/task/" + id + "/status";
+                                String taskStatusMsg = HttpClientUtils.httpGet(taskStatusUrl);
+                                //通过http返回的信息进行判断任务是否为success
+                                JSONObject jsonObject = JSONObject.parseObject(taskStatusMsg);
+                                String  status = jsonObject.getJSONObject("status").getString("status");
+                                if (status.equals("SUCCESS")) {
+                                    String url = UrlUtil.getUrl(compactConfig.getAnalyticServer(), "/druid/indexer/v1/task");
+                                    String deleteJson = "{\"type\": \"kill\"," +
+                                            "\"dataSource\"" + ":" + "\"" + getDataSource(druidNativeCompactParam) + "\"," +
+                                            "\"interval\"" + ":" + "\"" + getTimeInterval(druidNativeCompactParam) + "\"}";
+                                    HttpClientUtils.httpPost(url, deleteJson);
+                                    break;
+                                } else if (status.equals("RUNNING") || status.equals("WAITING")) {
+                                    //nothing
+                                    try {
+                                        Thread.sleep(60*1000);
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+                                } else {
+                                    logger.error("query druid running task failed error");
+                                }
+
+                                if (System.currentTimeMillis() > endTime) {
+                                    logger.error("query druid running task time out error");
+                                    return;
 //                            XxlJobLogger.log("druid compact task is running , kill task post timeout");
+                                }
+                            }
                         }
-                    }
+                    }).start();
                 }
             }
-
         }catch (BusinessException be){
             logger.error(be.getMessage());
-        } catch (InterruptedException e) {
-            logger.error(e.getMessage());
         }
+
+
     }
 }
