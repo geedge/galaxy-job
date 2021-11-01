@@ -49,7 +49,6 @@ public class DruidCompactJob {
                 DruidNativeCompactParam druidNativeCompactParam = (DruidNativeCompactParam)JsonMapper.fromJsonString(param, DruidNativeCompactParam.class);
                 //传入json为http的请求体
                 jsonForRequestBodyToHttp(druidNativeCompactParam);
-                System.out.println("卧槽 --------");
                 deleteMetaData(druidNativeCompactParam);
             }
         }catch (BusinessException be){
