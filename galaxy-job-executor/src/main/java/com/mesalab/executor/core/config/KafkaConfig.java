@@ -21,9 +21,9 @@ public class KafkaConfig {
 
     @NacosValue(value = "${spring.kafka.ssl.enable}",autoRefreshed = true)
     private String enable;
-    @NacosValue(value = "${spring.kafka.ssl.username}",autoRefreshed = true)
+    @NacosValue(value = "${spring.kafka.ssl.username}")
     private String username;
-    @NacosValue(value = "${spring.kafka.ssl.pin}",autoRefreshed = true)
+    @NacosValue(value = "${spring.kafka.ssl.pin}")
     private String pin;
 
     @Bean

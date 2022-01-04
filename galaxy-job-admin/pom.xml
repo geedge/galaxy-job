@@ -10,7 +10,9 @@
 	<modelVersion>4.0.0</modelVersion>
 	<artifactId>galaxy-job-admin</artifactId>
 	<packaging>jar</packaging>
-
+	<properties>
+			<jasypt.encryptor.password>galaxy</jasypt.encryptor.password>
+	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -93,7 +95,7 @@
 					<dockerHost>http://192.168.40.153:2375</dockerHost>
 					<dockerDirectory>docker</dockerDirectory>
 					<buildArgs>
-						<JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_73</JDK_IMAGE>
+						<JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_202</JDK_IMAGE>
 						<JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
 					</buildArgs>
 					<imageTags>

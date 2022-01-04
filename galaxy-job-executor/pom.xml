@@ -148,7 +148,7 @@
                     <dockerHost>http://192.168.40.153:2375</dockerHost>
                     <dockerDirectory>docker</dockerDirectory>
                     <buildArgs>
-                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:jre-t</JDK_IMAGE>
+                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_202</JDK_IMAGE>
                         <GO_IMAGE>192.168.40.153:9080/common/golang:1.15.6</GO_IMAGE>
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>

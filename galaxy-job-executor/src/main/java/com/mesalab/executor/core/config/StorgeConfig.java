@@ -18,10 +18,10 @@ public class StorgeConfig {
 	@NacosValue(value = "${storge.traffic.server}",autoRefreshed = true)
 	private String trafficServer;// clickhouse要查看的ip
 
-	@NacosValue(value = "${storge.traffic.username}",autoRefreshed = true)
+	@NacosValue(value = "${storge.traffic.username}")
 	private String trafficUsername;// clickhouse要查看的username
 	
-	@NacosValue(value = "${storge.traffic.password}",autoRefreshed = true)
+	@NacosValue(value = "${storge.traffic.password}")
 	private String trafficUserKey;// clickhouse要查看的password
 
 	@NacosValue(value = "${storge.traffic.datasource}",autoRefreshed = true)
