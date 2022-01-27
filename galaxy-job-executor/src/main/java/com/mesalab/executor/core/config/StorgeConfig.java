@@ -2,6 +2,7 @@ package com.mesalab.executor.core.config;
 
 import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Maps;
 import com.zdjizhi.utils.StringUtil;
 import lombok.Data;
 import org.springframework.context.annotation.Configuration;
@@ -107,4 +108,12 @@ public class StorgeConfig {
 		return Splitter.on(",").trimResults().splitToList(exclusion).stream().filter(x ->StringUtil.isNotEmpty(x)).collect(Collectors.joining("','"," and "+ field +" not in ('","')"));
 	}
 
+	public Map<String, Object> getDeleteSource() {
+		//删除sql参数拼接
+		Map<String, Object> deleteParamMap = Maps.newHashMap();
+		deleteParamMap.put("database",  getTrafficDatasource());
+		deleteParamMap.put("password",  getTrafficUserKey());
+		deleteParamMap.put("user",  getTrafficUsername());
+		return deleteParamMap;
+	}
 }

@@ -21,6 +21,7 @@ import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
@@ -322,8 +323,6 @@ public class HttpClientUtils {
     	String msg = "-1";
     	// 获取客户端连接对象
         CloseableHttpClient httpClient = getHttpClient();
-        
-        // 创建POST请求对象
         CloseableHttpResponse response = null;
         try {
         	
@@ -378,10 +377,71 @@ public class HttpClientUtils {
         }
         return msg;
     }
+    /**
+     * PUT 请求
+     * @param url
+     * @param headers
+     * @return
+     */
+    public static String httpPutStream(String url, InputStream in, Header... headers) {
+        String msg = "-1";
+        // 获取客户端连接对象
+        CloseableHttpClient httpClient = getHttpClient();
+        CloseableHttpResponse response = null;
+        try {
+
+            URL ul = new URL(url);
+            URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
+
+            logger.info("http post uri:{} ", url);
+
+            HttpPut httpPut = new HttpPut(uri);
+            httpPut.setHeader("Content-Type", "application/zip");
+            if (StringUtil.isNotEmpty(headers)) {
+                for (Header h : headers) {
+                    httpPut.addHeader(h);
+                    logger.info("request header : {}",h);
+                }
+            }
+
+            httpPut.setEntity(new InputStreamEntity(in));
+
+            response = httpClient.execute(httpPut);
+            int statusCode = response.getStatusLine().getStatusCode();
+            // 获取响应实体
+            HttpEntity entity = response.getEntity();
+            // 获取响应信息
+            msg = EntityUtils.toString(entity, "UTF-8");
+
+            if (statusCode != HttpStatus.SC_OK) {
+                throw new BusinessException(response.getStatusLine().getStatusCode(),
+                        "Http put content is :" + msg);
+            }
+        } catch (URISyntaxException e) {
+            logger.error("URI 转换错误: {}", e.getMessage());
+        } catch (ClientProtocolException e) {
+            logger.error("协议错误: {}", e.getMessage());
+        } catch (ParseException e) {
+            logger.error("解析错误: {}", e.getMessage());
+        } catch (IOException e) {
+            logger.error("IO错误: {}", e.getMessage());
+        } finally {
+            if (null != response) {
+                try {
+                    EntityUtils.consumeQuietly(response.getEntity());
+                    response.close();
+                } catch (IOException e) {
+                    logger.error("释放链接错误: {}", e.getMessage());
+
+                }
+            }
+        }
+        return msg;
+    }
     /**  
      * 发送http delete请求  
      */    
-    public static String httpDelete(String url, Header... headers){    
+    public static String httpDelete(String url, Header... headers){
     	String msg = "-1";
     	// 获取客户端连接对象
         CloseableHttpClient httpClient = getHttpClient();
