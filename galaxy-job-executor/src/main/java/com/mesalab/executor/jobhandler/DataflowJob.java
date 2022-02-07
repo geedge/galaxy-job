@@ -154,7 +154,7 @@ public class DataflowJob {
             String assessmentType = "web-sketch";
             String features = "";
             String dataSource = "tsg_galaxy_v3.assessment_event";
-            String insertTemplate = "INSERT INTO {0} (common_log_id,common_recv_time,assessment_date,lot_number,flie_name,assessment_file,assessment_type,features,`size`,file_checksum_sha) " +
+            String insertTemplate = "INSERT INTO {0} (common_log_id,common_recv_time,assessment_date,lot_number,file_name,assessment_file,assessment_type,features,`size`,file_checksum_sha) " +
                     "VALUES({1,number,#},{2,number,#},{3,number,#},''{4}'',''{5}'',''{6}'',''{7}'',''{8}'',{9,number,#},''{10}'');";
             long logId = SnowflakeId.generateId(1, 1);
             long now = System.currentTimeMillis() / 1000;
