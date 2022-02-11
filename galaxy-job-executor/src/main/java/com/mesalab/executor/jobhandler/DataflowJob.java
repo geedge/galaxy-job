@@ -183,7 +183,7 @@ public class DataflowJob {
             Header header = new BasicHeader(Constant.TOKEN, storeConfig.getFilesToken());
             List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(storeConfig.getFilesHosServer());
             String filesServer = UrlUtil.getUrl(endpointList.get(0));
-            String assessmentFile = filesServer.concat("/hos/").concat(bucketName).concat("/").concat(zipName);
+            String assessmentFile = filesServer.concat("hos/").concat(bucketName).concat("/").concat(zipName);
 
             try (InputStream in = new BufferedInputStream(new FileInputStream(zipFile))) {
                 String res = HttpClientUtils.httpPutStream(assessmentFile, in, header);
