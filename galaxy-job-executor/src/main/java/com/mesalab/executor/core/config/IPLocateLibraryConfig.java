@@ -7,10 +7,10 @@ import org.springframework.context.annotation.Configuration;
 @Data
 @Configuration
 public class IPLocateLibraryConfig {
-    @NacosValue(value = "${xxl.job.executor.ip.address}")
-    private String address;
-    @NacosValue(value = "${xxl.job.executor.ip.username}")
+    @NacosValue(value = "${ip.locate.library.server}")
+    private String server;
+    @NacosValue(value = "${ip.locate.library.username}")
     private String username;
-    @NacosValue(value = "${xxl.job.executor.ip.password}")
+    @NacosValue(value = "${ip.locate.library.password}")
     private String password;
 }

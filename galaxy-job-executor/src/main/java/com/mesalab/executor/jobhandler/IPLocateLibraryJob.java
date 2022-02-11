@@ -69,7 +69,7 @@ public class IPLocateLibraryJob {
         return sb.toString();
     }
     public boolean login() throws IOException {
-        conn = new Connection(config.getAddress());
+        conn = new Connection(config.getServer());
         conn.connect(); // 连接
         boolean root = conn.authenticateWithPassword(config.getUsername(), config.getPassword());
         if(root==false){
