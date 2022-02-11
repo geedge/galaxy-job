@@ -1,7 +1,6 @@
 package com.mesalab.executor.service;
 
 import cn.hutool.log.Log;
-import com.google.common.collect.Maps;
 import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
@@ -44,7 +43,7 @@ public class StorageQuotaService {
      * 用于获取 ClickHouse 当前存储大小 若获取 failquerydruid内最新的值替补当前值
      */
     private Long getClickHouseCurr(String point) {
-        Map<String, Object> deleteParamMap = getDeleteSource();
+        Map<String, Object> deleteParamMap = storgeConfig.getDeleteSource();
         String currSql = "SELECT SUM(`bytes_on_disk`) FROM " + storgeConfig.getSystemPartsCluster() + " WHERE database = '" + storgeConfig.getTrafficDatasource() + "';";
         deleteParamMap.put("query", currSql);
         String currResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(point), deleteParamMap));
@@ -58,7 +57,7 @@ public class StorageQuotaService {
      * 用于获取ClickHouse最大存储大小 若获取 failquerydruid内最新的值替补当前值
      */
     private Long getClickHouseMax(String point) {
-        Map<String, Object> deleteParamMap = getDeleteSource();
+        Map<String, Object> deleteParamMap = storgeConfig.getDeleteSource();
         String maxSql = "SELECT SUM(`total_space`) FROM ".concat(storgeConfig.getSystemDisks()).concat(";");
         deleteParamMap.put("query", maxSql);
         String maxResult = HttpClientUtils
@@ -73,7 +72,7 @@ public class StorageQuotaService {
      */
     private Long getClickHouseDiff(String point) {
         String date = DateUtils.getDateOfYesterday("yyyyMMdd");
-        Map<String, Object> deleteParamMap = getDeleteSource();
+        Map<String, Object> deleteParamMap = storgeConfig.getDeleteSource();
         String diffSql = "SELECT SUM(bytes_on_disk) FROM ".concat(storgeConfig.getSystemPartsCluster()).concat(" WHERE database = '" ).concat(storgeConfig.getTrafficDatasource())
                 .concat("' AND partition = '").concat(date).concat("';");
         deleteParamMap.put("query", diffSql);
@@ -218,18 +217,7 @@ public class StorageQuotaService {
         zk.modifyNode(ZOOKEEPER_STORAGE_PATH + node, data, zookeeperServer);
     }
 
-    /**
-     * 数据库连接参数
-     *
-     * @return map {database,password：,user:,}
-     */
-    private Map<String, Object> getDeleteSource() {
-        // sql参数拼接
-        Map<String, Object> deleteParamMap = Maps.newHashMap();
-        deleteParamMap.put("password", storgeConfig.getTrafficUserKey());
-        deleteParamMap.put("user", storgeConfig.getTrafficUsername());
-        return deleteParamMap;
-    }
+
     /**
      * 用于组合正常维度的JSON串
      *
@@ -243,8 +231,7 @@ public class StorageQuotaService {
         Map<String, Integer> status = new HashMap<>();
         if(ckDay){
             //当clickhouse任务设置在第二天时，这个时间点为前一天的统计数据
-            long time = 12*3600L;
-            long timestamp = DateUtils.convertStringToTimestamp(DateUtils.getDateOfYesterday("yyyyMMdd"), "yyyyMMdd")+time;
+            long timestamp = DateUtils.convertStringToTimestamp(DateUtils.getDateOfYesterday("yyyyMMdd"), "yyyyMMdd");
             status.put("trafficFailCount", getCKStorageJson(data, timestamp,true));
         } else{
             status.put("trafficFailCount", getCKStorageJson(data, now,false));
