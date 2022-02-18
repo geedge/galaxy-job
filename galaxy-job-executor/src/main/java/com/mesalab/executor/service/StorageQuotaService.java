@@ -255,7 +255,19 @@ public class StorageQuotaService {
                     traffic.put("used_size",getClickHouseCurr(dc.getValue()));
                     traffic.put("max_size",getClickHouseMax(dc.getValue()));
                     if(day){
-                        traffic.put("aggregate_size",getClickHouseDiff(dc.getValue()));
+                        //昨日平均一天的5分钟粒度平均值
+                        long interval = 5;
+                        long num = 24*60/interval;
+                        Long ckDiffAvg = getClickHouseDiff(dc.getValue())/num;
+                        for (int i = 0; i < num; i++) {
+                            Map<String,Object> trafficAvg = new HashMap<>();
+                            trafficAvg.putAll(traffic);
+                            trafficAvg.put("time", time);
+                            trafficAvg.put("aggregate_size",ckDiffAvg);
+                            data.add(trafficAvg);
+                            time = time + interval*60;//转换为秒
+                        }
+                        return errorCount;
                     }
                     data.add(traffic);
                 } catch (BusinessException e) {
