@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class GalaxyExecutorApplication {
 
 	public static void main(String[] args) {
+		System.setProperty("user.timezone", "UTC");
 		System.setProperty("jasypt.encryptor.password", "galaxy");
         SpringApplication.run(GalaxyExecutorApplication.class, args);
 	}

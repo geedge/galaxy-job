@@ -12,7 +12,7 @@
     <!--日志最大的历史30天 -->
     <property name="LOG_DAYS" value="60"/>
     <!--日志打印格式-->
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger -%msg%n"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ssZ} [%thread] %-5level %logger -%msg%n"/>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class XxlJobAdminApplication {
 
 	public static void main(String[] args) {
+		System.setProperty("user.timezone", "UTC");
 		System.setProperty("jasypt.encryptor.password", "galaxy");
         SpringApplication.run(XxlJobAdminApplication.class, args);
 
