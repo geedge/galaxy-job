@@ -14,6 +14,8 @@ public class Constant {
 
 	public static final String TOKEN = "Token";
 	public static final String TEXT_XML = "text/xml";
+	public static final String UTF_8 = "UTF-8";
+
 
 
 
