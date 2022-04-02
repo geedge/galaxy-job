@@ -6,11 +6,15 @@ import cn.hutool.core.io.file.FileReader;
 import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.map.CaseInsensitiveMap;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
+import com.mesalab.executor.core.utils.JobUtil;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import com.zdjizhi.utils.DateUtils;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -187,6 +191,39 @@ public class DataExtractTest {
             System.out.println("failure:"+ex.getMessage());
         }
 
+    }
+
+    private Log logger = Log.get();
+
+    @Test
+    public void fileTest(){
+        HashMap<Object, Object> map = new HashMap<>();
+        HashMap<Object, Object> map1 = new HashMap<>();
+        HashMap<Object, Object> map2 = new HashMap<>();
+        map.put("a","b");
+        map1.put("b","b");
+        map2.put("c","b");
+        map.put("d","b");
+        List<Map> transformResult = new ArrayList();
+        transformResult.add(map);
+
+        String fileType = "csv";
+        String path = "D:\\test\\test\\1\\";
+        String prefix = "test";
+        String date = DateUtils.getCurrentDate("yyyyMMdd");
+        String filePath = StrUtil.concat(false, path, prefix, "-", date);
+        System.err.println("################# "+filePath);
+        if ("json".equals(fileType)) {
+            FileWriter fileWriter = new FileWriter(filePath+".json");
+            for (Map o : transformResult) {
+                String s = JSONUtil.toJsonStr(o);
+                File file = fileWriter.write(s,false);
+            }
+            logger.info("download file to path {}", filePath);
+        } else if ("csv".equals(fileType)) {
+            File file = JobUtil.createCsvFile(transformResult, StrUtil.concat(false, filePath, ".csv"));
+            logger.info("download file to path {}", file.getAbsolutePath());
+        }
     }
 
 }

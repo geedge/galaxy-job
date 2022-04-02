@@ -9,7 +9,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-public class DbUtils {
+public class DBUtils {
 
     private Log logger = Log.get();
     private static HikariDataSource hikariDataSource;

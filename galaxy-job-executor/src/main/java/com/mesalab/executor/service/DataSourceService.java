@@ -1,17 +1,27 @@
 package com.mesalab.executor.service;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.io.file.FileReader;
+import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.db.DbUtil;
+import cn.hutool.db.Entity;
+import cn.hutool.db.handler.EntityListHandler;
+import cn.hutool.db.sql.SqlExecutor;
 import cn.hutool.json.JSONUtil;
+import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
+import com.mesalab.executor.core.utils.DBUtils;
+import com.mesalab.executor.pojo.DBParam;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.sql.Connection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,13 +35,29 @@ import java.util.stream.Collectors;
 @Service
 public class DataSourceService {
 
-    public Map<String, List> adapt(Map<String, String> sourceParams) throws Exception{
+    private Log logger = Log.get();
+
+    public Map<String, List> adapt(Map<String, String> sourceParams) throws Exception {
         String type = sourceParams.get("type");
         //1. 文件类型 2. 选择处理工具 3. 转为格式数据
         if ("file".equals(type)) {
             return fileSource(sourceParams);
+        } else if ("mysql".equals(type) || "mariadb".equals(type)) {
+            return MapUtil.of("mysql", mysqlSource(sourceParams));
         }
         return null;
+    }
+
+    private List<Map> mysqlSource(Map<String, String> sourceParams) throws Exception {
+        DBParam dbParam = BeanUtil.fillBeanWithMap(sourceParams, new DBParam(), false);
+        DBUtils dbUtils = new DBUtils();
+        Connection conn = dbUtils.getDBConn(sourceParams);
+        String sql = dbParam.getSql();
+        List<Entity> entityList = SqlExecutor.query(conn, sql, new EntityListHandler());
+        logger.info("query result size {}", entityList.size());
+        List<Map> collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
+        DbUtil.close(conn);
+        return collect;
     }
 
     /**

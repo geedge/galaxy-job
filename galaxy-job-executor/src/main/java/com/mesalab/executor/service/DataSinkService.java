@@ -1,11 +1,15 @@
 package com.mesalab.executor.service;
 
+import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
-import com.mesalab.executor.core.utils.DbUtils;
+import com.mesalab.executor.core.utils.DBUtils;
+import com.mesalab.executor.core.utils.JobUtil;
+import com.zdjizhi.utils.DateUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -21,12 +25,29 @@ import java.util.Map;
 public class DataSinkService {
     private Log logger = Log.get();
 
-
-    public void adapt(List<Map> transformResult, Map<String, String> sinkParams) throws Exception {
+    public void adapt(Map<String, List> transformResult, Map<String, String> sinkParams) throws Exception {
         String type = sinkParams.get("type");
         //1. 文件类型 2. 选择处理工具 3. 转为格式数据
         if ("mariadb".equals(type) || "mysql".equals(type)) {
-            mysqlSink(transformResult, sinkParams);
+            mysqlSink(JobUtil.getFirstNotNull(transformResult), sinkParams);
+        } else if ("file".equals(type)) {
+            fileSink(JobUtil.getFirstNotNull(transformResult), sinkParams);
+        }
+    }
+
+    public void fileSink(List<Map> transformResult, Map<String, String> sinkParams) throws Exception {
+        String fileType = sinkParams.get("fileType");
+        String path = sinkParams.get("path");
+        String prefix = sinkParams.get("prefix");
+        String date = DateUtils.getCurrentDate("yyyyMMdd");
+        String filePath = StrUtil.concat(false, path, prefix, "_", date);
+        if ("json".equals(fileType)) {
+            FileWriter fileWriter = new FileWriter(filePath.concat(".json"));
+            File file = fileWriter.writeLines(transformResult);
+            logger.info("download json file to path {}", file.getAbsolutePath());
+        } else if ("csv".equals(fileType)) {
+            File file = JobUtil.createCsvFile(transformResult, filePath.concat(".json"));
+            logger.info("download csv file to path {}", file.getAbsolutePath());
         }
     }
 
@@ -43,15 +64,14 @@ public class DataSinkService {
     @Transactional(rollbackFor = Exception.class)
     public void exec(List<Map> transformResult, Map<String, String> sinkParams) throws Exception {
         Connection conn = null;
-        DbUtils dbUtils = null;
+        DBUtils dbUtils = null;
         PreparedStatement pst = null;
         try {
             String tableName = sinkParams.get("table");
-            dbUtils = new DbUtils();
+            dbUtils = new DBUtils();
             //创建数据库连接库对象
             conn = dbUtils.getDBConn(sinkParams);
             String sql = dbUtils.getInsertSql(transformResult, tableName);
-
 
             long start = System.currentTimeMillis();
             conn.setAutoCommit(false);

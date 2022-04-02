@@ -37,21 +37,21 @@ public class DataExtractJob {
 
     /**
      * {
-     * 	"source": {
-     * 		"type": "file",
-     * 		"path": "/",
-     * 		"fileType": "json,xlsx",
-     * 		"source_table": "ioc"
-     *        },
-     * 	"transform": {"type": "websketch"},
-     * 	"sink": {
-     * 		"type": "mariadb",
-     * 		"ip": "192.168.44.*",
-     * 		"database": "web_skecth",
-     * 		"table": "ioc_malware",
-     * 		"username": "root",
-     * 		"pin": ""
-     *    }
+     * "source": {
+     * "type": "file",
+     * "path": "/",
+     * "fileType": "json,xlsx",
+     * "source_table": "ioc"
+     * },
+     * "transform": {"type": "websketch"},
+     * "sink": {
+     * "type": "mariadb",
+     * "ip": "192.168.44.*",
+     * "database": "web_skecth",
+     * "table": "ioc_malware",
+     * "username": "root",
+     * "pin": ""
+     * }
      * }
      *
      * @param params
@@ -70,8 +70,12 @@ public class DataExtractJob {
             Map<String, String> sinkParams = paramsMap.get("sink");
 
             Map<String, List> sourceResult = dataSourceService.adapt(sourceParams);
-            List<Map> transformResult = dataTransformService.adapt(transformParams, sourceResult);
-            dataSinkService.adapt(transformResult, sinkParams);
+            if (ObjectUtil.isNotEmpty(transformParams)) {
+                Map<String, List> transformResult = dataTransformService.adapt(transformParams, sourceResult);
+                dataSinkService.adapt(transformResult, sinkParams);
+            } else {
+                dataSinkService.adapt(sourceResult, sinkParams);
+            }
             return ReturnT.SUCCESS;
         } catch (Exception e) {
             e.printStackTrace();
@@ -98,7 +102,7 @@ public class DataExtractJob {
             XxlJobLogger.log("sink is empty ! ");
             return null;
         }
-        if (ObjectUtil.isEmpty(param.get("transform"))) {
+        if (ObjectUtil.isNull(param.get("transform"))) {
             XxlJobLogger.log("transform is empty ! ");
             return null;
         }

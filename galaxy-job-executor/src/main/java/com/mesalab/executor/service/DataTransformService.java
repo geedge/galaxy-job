@@ -1,5 +1,6 @@
 package com.mesalab.executor.service;
 
+import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
@@ -30,11 +31,10 @@ public class DataTransformService {
      * @param params
      * @return
      */
-    public List<Map> adapt(Map<String, String> params, Map<String, List> sourceResult) throws Exception {
+    public Map<String, List> adapt(Map<String, String> params, Map<String, List> sourceResult) throws Exception {
         if ("websketch".equals(params.get("type"))) {
-            return webSketch(sourceResult);
+            return MapUtil.of("mysql", webSketch(sourceResult));
         }
-
         return null;
     }
 
