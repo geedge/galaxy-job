@@ -11,6 +11,8 @@ import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -21,7 +23,9 @@ import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -200,25 +204,43 @@ public class DataExtractTest {
         HashMap<Object, Object> map = new HashMap<>();
         HashMap<Object, Object> map1 = new HashMap<>();
         HashMap<Object, Object> map2 = new HashMap<>();
-        map.put("a","b");
-        map1.put("b","b");
-        map2.put("c","b");
-        map.put("d","b");
+        HashMap<Object, Object> map3 = new HashMap<>();
+        map.put("A","b");
+        map.put("B","b");
+        map.put("C","b");
+        map.put("D","b");
+        map1.put("D","b");
         List<Map> transformResult = new ArrayList();
         transformResult.add(map);
+        transformResult.add(map1);
+        transformResult.add(map2);
+        transformResult.add(map3);
 
-        String fileType = "csv";
+        String fileType = "json";
         String path = "D:\\test\\test\\1\\";
         String prefix = "test";
         String date = DateUtils.getCurrentDate("yyyyMMdd");
         String filePath = StrUtil.concat(false, path, prefix, "-", date);
         System.err.println("################# "+filePath);
         if ("json".equals(fileType)) {
-            FileWriter fileWriter = new FileWriter(filePath+".json");
-            for (Map o : transformResult) {
-                String s = JSONUtil.toJsonStr(o);
-                File file = fileWriter.write(s,false);
+//            FileWriter fileWriter = new FileWriter(filePath.concat(".json"));
+//            File file = fileWriter.write(JSONUtil.toJsonStr(transformResult));
+            File file = new File(filePath.concat(".json"));
+            BufferedWriter bw = null;
+            try {
+                bw = new BufferedWriter(new java.io.FileWriter(file));
+//                String s = JSON.toJSONString(transformResult);
+//                String s = JSONUtil.toJsonPrettyStr(transformResult);
+                String s1 = JSON.toJSONString(transformResult, SerializerFeature.PrettyFormat);
+                bw.write(s1);
+//            }
+                bw.flush();
+                bw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
+
+
             logger.info("download file to path {}", filePath);
         } else if ("csv".equals(fileType)) {
             File file = JobUtil.createCsvFile(transformResult, StrUtil.concat(false, filePath, ".csv"));

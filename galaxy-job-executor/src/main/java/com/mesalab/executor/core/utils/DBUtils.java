@@ -51,7 +51,7 @@ public class DBUtils {
      */
     public String getInsertSql(List<Map> transformResult, String tableName) {
         String sql = "";
-        String sqlStr1 = "INSERT INTO " + tableName + " (";
+        String sqlStr1 = "INSERT IGNORE INTO " + tableName + " (";
         String sqlStr2 = ") VALUES (";
         String sqlStr3 = ")";
         String sqlKey = "";

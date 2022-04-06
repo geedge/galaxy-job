@@ -1,8 +1,11 @@
 package com.mesalab.executor.service;
 
 import cn.hutool.core.io.file.FileWriter;
+import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.zdjizhi.utils.DateUtils;
@@ -13,6 +16,8 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,11 +48,11 @@ public class DataSinkService {
         String filePath = StrUtil.concat(false, path, prefix, "_", date);
         if ("json".equals(fileType)) {
             FileWriter fileWriter = new FileWriter(filePath.concat(".json"));
-            File file = fileWriter.writeLines(transformResult);
-            logger.info("download json file to path {}", file.getAbsolutePath());
+            File file = fileWriter.write(JSON.toJSONString(transformResult, SerializerFeature.PrettyFormat));
+            logger.info("download {} pieces of json data to path {}", transformResult.size(), file.getAbsolutePath());
         } else if ("csv".equals(fileType)) {
-            File file = JobUtil.createCsvFile(transformResult, filePath.concat(".json"));
-            logger.info("download csv file to path {}", file.getAbsolutePath());
+            File file = JobUtil.createCsvFile(transformResult, filePath.concat(".csv"));
+            logger.info("download {} pieces of csv data to path {}", transformResult.size(), file.getAbsolutePath());
         }
     }
 
@@ -56,6 +61,24 @@ public class DataSinkService {
      */
     public void mysqlSink(List<Map> transformResult, Map<String, String> sinkParams) throws Exception {
         exec(transformResult, sinkParams);
+    }
+
+    public static LinkedHashMap getMapValueForLinkedHashMap(Map dataMap) {
+        LinkedHashMap returnMap = new LinkedHashMap();
+        if (MapUtil.isEmpty(dataMap)) {
+            return returnMap;
+        }
+        Iterator iterator = dataMap.keySet().iterator();
+        while (iterator.hasNext()) {
+            Object objKey = iterator.next();
+            Object objValue = dataMap.get(objKey);
+            if (objValue instanceof Map) {
+                returnMap.put(objKey, getMapValueForLinkedHashMap((Map) objValue));
+            } else {
+                returnMap.put(objKey, objValue);
+            }
+        }
+        return returnMap;
     }
 
     /**
@@ -96,12 +119,11 @@ public class DataSinkService {
                     pst.clearBatch();
                 }
             }
-            int[] ints = pst.executeBatch();
+            pst.executeBatch();
             conn.commit();
             logger.info("花费的时间:" + (System.currentTimeMillis() - start) + "ms");
         } catch (SQLException e) {
             logger.error(e.getMessage());
-            e.printStackTrace();
             throw e;
         } finally {
             pst.close();

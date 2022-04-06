@@ -63,6 +63,7 @@ public class DataTransformService {
         long now = System.currentTimeMillis() / 1000;
         //处理
         List<Map> transformResult = new ArrayList<>();
+        Map<Object, Object> objectObjectHashMap = new HashMap<>();
         for (Map map : json) {
             List<Map> data = (List<Map>) map.get("data");
             for (Map datum : data) {
@@ -72,7 +73,7 @@ public class DataTransformService {
                     if (IP_PORT.equals(ioc_type)) {
                         extMap.put("ioc_type", IP);
                         String iocValue = String.valueOf(extMap.get("ioc_value"));
-                        extMap.put("ioc_value", iocValue.contains(":") ? iocValue : iocValue.substring(0, iocValue.lastIndexOf(":")));
+                        extMap.put("ioc_value", iocValue.contains(":") ? iocValue.substring(0, iocValue.lastIndexOf(":")) : iocValue);
                     }
                     String threat_type = String.valueOf(datum.get("threat_type"));
                     if ("botnet_cc".equals(threat_type)) {
