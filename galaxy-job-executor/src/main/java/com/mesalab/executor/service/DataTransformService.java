@@ -1,9 +1,9 @@
 package com.mesalab.executor.service;
 
-import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
+import com.mesalab.executor.core.utils.JobUtil;
 import org.apache.commons.collections4.ListUtils;
 import org.springframework.stereotype.Service;
 
@@ -29,13 +29,21 @@ public class DataTransformService {
      * 业务转换
      *
      * @param params
-     * @return
+     * @return Map<String, List>
      */
-    public Map<String, List> adapt(Map<String, String> params, Map<String, List> sourceResult) throws Exception {
-        if ("websketch".equals(params.get("type"))) {
-            return MapUtil.of("mysql", webSketch(sourceResult));
+    public Map<String, Object> adapt(Map<String, String> params, Object sourceResult) throws Exception {
+        Map<String, Object> transformResult = new HashMap<>();
+        if (ObjectUtil.isEmpty(params.get("type"))) {
+            return transformResult;
         }
-        return null;
+        switch (params.get("type")) {
+            case "websketch":
+                transformResult.put("websketch", webSketch(sourceResult));
+                break;
+            default:
+                break;
+        }
+        return transformResult;
     }
 
     /**
@@ -43,9 +51,10 @@ public class DataTransformService {
      *                     threat_type 字段相同则不入库
      * @return
      */
-    public List<Map> webSketch(Map<String, List> sourceResult) throws Exception {
-        List<Map> json = sourceResult.get("json");
-        List<Map> malwareData = sourceResult.get("xlsx");
+    public List<Map> webSketch(Object sourceResult) throws Exception {
+        Map<String, List> source = JSONUtil.toBean(JSONUtil.toJsonStr(sourceResult), Map.class);
+        List<Map> json = source.get("json");
+        List<Map> malwareData = source.get("xlsx");
         Map<String, Map<String, List<String>>> malware = getMalware(malwareData);
         Map<String, List<String>> soft = malware.get(SOFTWARE);
         Map<String, List<String>> associatedGroups = malware.get(ASSOCIATED_GROUPS);
@@ -58,27 +67,33 @@ public class DataTransformService {
         final String IP_PORT = "ip:port";// ioc_type改为port
         final String CAC = "command and control";// ioc_type改为port
         final String PE = "payload delivery";// ioc_type改为port
-        final String FIELDS = "ioc_value,ioc_type,threat_type,malware_alias,confidence_level,reference";
+        final String FIELDS = "ioc_type,threat_type,malware_alias,confidence_level,reference";
 
         long now = System.currentTimeMillis() / 1000;
-        //处理
+        //处理   ioc=iov_value
         List<Map> transformResult = new ArrayList<>();
-        Map<Object, Object> objectObjectHashMap = new HashMap<>();
         for (Map map : json) {
             List<Map> data = (List<Map>) map.get("data");
             for (Map datum : data) {
                 Object ioc_type = datum.get("ioc_type");
                 if (iocTypeFilter.contains(ioc_type)) {
-                    Map extMap = extractMap(datum, FIELDS);
+                    Map extMap = JobUtil.extractMap(datum, FIELDS);
+                    String iocValue = String.valueOf(Optional.ofNullable(datum.get("ioc_value")).orElse(datum.get("ioc")));
+                    extMap.put("ioc_value", iocValue);
+
+                    Object first = Optional.ofNullable(datum.get("first_seen_utc")).orElse(datum.get("first_seen"));
+                    Object last = Optional.ofNullable(datum.get("last_seen_utc")).orElse(datum.get("last_seen"));
+                    extMap.put("first_report_time", JobUtil.nullToDef(first, ""));
+                    extMap.put("last_seen_time", JobUtil.nullToDef(last, ""));
+
                     if (IP_PORT.equals(ioc_type)) {
                         extMap.put("ioc_type", IP);
-                        String iocValue = String.valueOf(extMap.get("ioc_value"));
                         extMap.put("ioc_value", iocValue.contains(":") ? iocValue.substring(0, iocValue.lastIndexOf(":")) : iocValue);
                     }
                     String threat_type = String.valueOf(datum.get("threat_type"));
                     if ("botnet_cc".equals(threat_type)) {
                         extMap.put("threat_type", CAC);
-                    } else if ("payload".equals(threat_type)) {
+                    } else if ("payload".equals(threat_type) || "payload_delivery".equals(threat_type)) {
                         extMap.put("threat_type", PE);
                     }
 
@@ -104,8 +119,7 @@ public class DataTransformService {
 
                     extMap.put("source", SOURCE);
                     extMap.put("malware_name", malwareName);
-                    extMap.put("first_report_time", nullToDef(datum, "first_seen_utc", ""));
-                    extMap.put("last_seen_time", nullToDef(datum, "last_seen_utc", ""));
+
                     extMap.put("create_time", now);
                     extMap.put("update_time", now);
 
@@ -114,15 +128,6 @@ public class DataTransformService {
             }
         }
         return transformResult;
-    }
-
-    public Object nullToDef(Map datum, String key, String def) {
-        if (datum.get(key) instanceof JSONNull) {
-            return def;
-        } else if (datum.get(key) instanceof String) {
-            return datum.get(key) == null || "null".equals(datum.get(key)) ? def : StrUtil.toString(datum.get(key));
-        }
-        return datum.get(key);
     }
 
     /**
@@ -170,14 +175,5 @@ public class DataTransformService {
         return malwareMap;
     }
 
-    //1.将null转为""
-    public Map extractMap(Map source, String keys) {
-        String[] keysArr = StrUtil.split(keys, ",");
-        Map m = new HashMap();
-        for (String key : keysArr) {
-            m.put(key, nullToDef(source, key, ""));
-        }
-        return m;
-    }
 
 }

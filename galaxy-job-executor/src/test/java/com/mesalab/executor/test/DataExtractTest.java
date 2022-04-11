@@ -7,6 +7,7 @@ import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.map.CaseInsensitiveMap;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
@@ -247,5 +248,28 @@ public class DataExtractTest {
             logger.info("download file to path {}", file.getAbsolutePath());
         }
     }
+    @Test
+    public void spider(){
+        HashMap<String, Object> map = new HashMap<>();
+        HttpUtil.downloadFile("https://threatfox-api.abuse.ch/api/v1?query=get_iocs&days=7","D:\\test\\test\\2\\");
+    }
+    @Test
+    public void http(){
+        String type = null;
+        switch(type){
+            case "mariadb":
+                System.err.println(1);
+                break;
+            case "mysql":
+                System.err.println(1);
+                break;
+            case "file":
+                System.err.println(1);
+                break;
+            default:
+                break;
+        }
+    }
+
 
 }

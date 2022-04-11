@@ -1,7 +1,7 @@
 package com.mesalab.executor.service;
 
 import cn.hutool.core.io.file.FileWriter;
-import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import com.alibaba.fastjson.JSON;
@@ -9,6 +9,8 @@ import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.zdjizhi.utils.DateUtils;
+import com.zdjizhi.utils.JsonMapper;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,8 +18,6 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,55 +30,53 @@ import java.util.Map;
 public class DataSinkService {
     private Log logger = Log.get();
 
-    public void adapt(Map<String, List> transformResult, Map<String, String> sinkParams) throws Exception {
-        String type = sinkParams.get("type");
+    public void adapt(Map<String, Object> transformResult, Map<String, String> sinkParams) throws Exception {
+        if (ObjectUtil.isEmpty(sinkParams.get("type"))) {
+            return;
+        }
         //1. 文件类型 2. 选择处理工具 3. 转为格式数据
-        if ("mariadb".equals(type) || "mysql".equals(type)) {
-            mysqlSink(JobUtil.getFirstNotNull(transformResult), sinkParams);
-        } else if ("file".equals(type)) {
-            fileSink(JobUtil.getFirstNotNull(transformResult), sinkParams);
+        switch (sinkParams.get("type")) {
+            case "mariadb":
+                mysqlSink(transformResult, sinkParams);
+                break;
+            case "mysql":
+                mysqlSink(transformResult, sinkParams);
+                break;
+            case "file":
+                fileSink(JobUtil.getFirstNotNull(transformResult), sinkParams);
+                break;
+            default:
+                break;
         }
     }
 
-    public void fileSink(List<Map> transformResult, Map<String, String> sinkParams) throws Exception {
+    public void fileSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
         String fileType = sinkParams.get("fileType");
         String path = sinkParams.get("path");
         String prefix = sinkParams.get("prefix");
-        String date = DateUtils.getCurrentDate("yyyyMMdd");
-        String filePath = StrUtil.concat(false, path, prefix, "_", date);
+        String date = "";
+        if (StringUtils.isNotBlank(sinkParams.get("datePattern"))) {
+            date = "_".concat(DateUtils.getCurrentDate("yyyyMMdd"));
+        }
+        String filePath = StrUtil.concat(false, path, prefix, date);
         if ("json".equals(fileType)) {
             FileWriter fileWriter = new FileWriter(filePath.concat(".json"));
             File file = fileWriter.write(JSON.toJSONString(transformResult, SerializerFeature.PrettyFormat));
-            logger.info("download {} pieces of json data to path {}", transformResult.size(), file.getAbsolutePath());
+            logger.info("download json data to path {}", file.getAbsolutePath());
         } else if ("csv".equals(fileType)) {
-            File file = JobUtil.createCsvFile(transformResult, filePath.concat(".csv"));
-            logger.info("download {} pieces of csv data to path {}", transformResult.size(), file.getAbsolutePath());
+            List<Map> transform = (List<Map>) JsonMapper.fromJsonString(JsonMapper.toJsonString(transformResult), List.class);
+            File file = JobUtil.createCsvFile(transform, filePath.concat(".csv"));
+            logger.info("download {} pieces of csv data to path {}", transform.size(), file.getAbsolutePath());
         }
     }
 
     /**
      * @return
      */
-    public void mysqlSink(List<Map> transformResult, Map<String, String> sinkParams) throws Exception {
-        exec(transformResult, sinkParams);
-    }
-
-    public static LinkedHashMap getMapValueForLinkedHashMap(Map dataMap) {
-        LinkedHashMap returnMap = new LinkedHashMap();
-        if (MapUtil.isEmpty(dataMap)) {
-            return returnMap;
-        }
-        Iterator iterator = dataMap.keySet().iterator();
-        while (iterator.hasNext()) {
-            Object objKey = iterator.next();
-            Object objValue = dataMap.get(objKey);
-            if (objValue instanceof Map) {
-                returnMap.put(objKey, getMapValueForLinkedHashMap((Map) objValue));
-            } else {
-                returnMap.put(objKey, objValue);
-            }
-        }
-        return returnMap;
+    public void mysqlSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
+        Map<String, List> transform = (Map<String, List>) JsonMapper.fromJsonString(JsonMapper.toJsonString(transformResult), Map.class);
+        List list = JobUtil.getFirstNotNull(transform);
+        exec(list, sinkParams);
     }
 
     /**
@@ -121,7 +119,7 @@ public class DataSinkService {
             }
             pst.executeBatch();
             conn.commit();
-            logger.info("花费的时间:" + (System.currentTimeMillis() - start) + "ms");
+            logger.info("花费的时间: {}" + (System.currentTimeMillis() - start) + "ms");
         } catch (SQLException e) {
             logger.error(e.getMessage());
             throw e;

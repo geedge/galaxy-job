@@ -6,15 +6,14 @@ import cn.hutool.core.text.csv.CsvUtil;
 import cn.hutool.core.text.csv.CsvWriter;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONNull;
 import cn.hutool.log.Log;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class JobUtil {
     private static Log logger = Log.get();
@@ -61,6 +60,7 @@ public class JobUtil {
             return null;
         }
     }
+
     /**
      * 获取map中第一个非空数据值
      *
@@ -78,5 +78,35 @@ public class JobUtil {
             }
         }
         return obj;
+    }
+
+    public static Object nullToDef(Map datum, String key, String def) {
+        if (datum.get(key) instanceof JSONNull) {
+            return def;
+        } else if (datum.get(key) instanceof String) {
+            return datum.get(key) == null || "null".equals(datum.get(key)) ? def : StrUtil.toString(datum.get(key));
+        }
+        return datum.get(key);
+    }
+
+    public static Object nullToDef(Object dataum, String def) {
+        if (dataum instanceof JSONNull) {
+            return def;
+        } else if (dataum instanceof String) {
+            return dataum == null || "null".equals(dataum) ? def : StrUtil.toString(dataum);
+        }
+        return dataum;
+    }
+    /**
+     * 获取map中的指定字段
+     * 1.将null转为""
+     */
+    public static Map extractMap(Map source, String keys) {
+        String[] keysArr = StrUtil.split(keys, ",");
+        Map m = new HashMap();
+        for (String key : keysArr) {
+            m.put(key, JobUtil.nullToDef(source, key, ""));
+        }
+        return m;
     }
 }

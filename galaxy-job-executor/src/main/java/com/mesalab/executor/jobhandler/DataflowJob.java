@@ -6,7 +6,6 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.ZipUtil;
 import cn.hutool.crypto.digest.DigestUtil;
-import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import com.google.common.base.Splitter;
 import com.mesalab.executor.core.config.StorgeConfig;
@@ -141,7 +140,7 @@ public class DataflowJob {
     @XxlJob("httpToStoreJobHandler")
     public ReturnT<String> httpToStoreJobHandler(String params) {
 
-        List<HttpParam> httpParams = parserHttpParams(params);
+        List<HttpParam> httpParams = HttpParam.parserHttpParams(params);
         if (ObjectUtil.isEmpty(httpParams)) {
             logger.error("params parser error , params is {}", params);
             return IJobHandler.FAIL;
@@ -238,31 +237,6 @@ public class DataflowJob {
         return results;
     }
 
-    private List<HttpParam> parserHttpParams(String params) {
-        if (StringUtil.isBlank(params)) {
-            XxlJobLogger.log("params is empty!");
-            return null;
-        }
-        List<HttpParam> httpParams = JSONUtil.toList(params, HttpParam.class);
-        for (HttpParam httpParam : httpParams) {
-            if (ObjectUtil.isNull(httpParam)) {
-                XxlJobLogger.log("params is not format json ! ");
-                return null;
-            }
-            if (StringUtil.isBlank(httpParam.getUrl())) {
-                XxlJobLogger.log("url is empty ! ");
-                return null;
-            }
-            if (StringUtil.isEmpty(httpParam.getStore())) {
-                XxlJobLogger.log("store is empty ! ");
-                return null;
-            }
-            if (StringUtil.isBlank(httpParam.getMethod())) {
-                XxlJobLogger.log("this request method is default get");
-                httpParam.setMethod(HttpMethod.GET.name());
-            }
-        }
-        return httpParams;
-    }
+
 
 }

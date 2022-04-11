@@ -14,7 +14,6 @@ import com.zdjizhi.utils.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,27 +63,24 @@ public class DataExtractJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            logger.info(params);
-            Map<String, String> sourceParams = paramsMap.get("source");
-            Map<String, String> transformParams = paramsMap.get("transform");
-            Map<String, String> sinkParams = paramsMap.get("sink");
+            logger.info("query params is {}", params);
 
-            Map<String, List> sourceResult = dataSourceService.adapt(sourceParams);
-            if (ObjectUtil.isNotEmpty(transformParams)) {
-                Map<String, List> transformResult = dataTransformService.adapt(transformParams, sourceResult);
-                dataSinkService.adapt(transformResult, sinkParams);
+            Map<String,Object> sourceResult = dataSourceService.adapt(paramsMap.get("source"));
+            if (ObjectUtil.isNotEmpty(paramsMap.get("transform"))) {
+                Map<String, Object> transformResult = dataTransformService.adapt(paramsMap.get("transform"), sourceResult);
+                dataSinkService.adapt(transformResult, paramsMap.get("sink"));
             } else {
-                dataSinkService.adapt(sourceResult, sinkParams);
+                dataSinkService.adapt(sourceResult, paramsMap.get("sink"));
             }
             return ReturnT.SUCCESS;
         } catch (Exception e) {
+            e.printStackTrace();
             XxlJobLogger.log(e.getMessage());
             logger.error(e.getMessage());
             return ReturnT.FAIL;
         }
 
     }
-
 
     private Map<String, Map<String, String>> parserParams(String params) {
         if (StringUtil.isBlank(params)) {
@@ -96,16 +92,16 @@ public class DataExtractJob {
             XxlJobLogger.log("params is not format json ! ");
             return null;
         }
-        if (ObjectUtil.isEmpty(param.get("sink"))) {
-            XxlJobLogger.log("sink is empty ! ");
+        if (ObjectUtil.isEmpty(param.get("source"))) {
+            XxlJobLogger.log("source is empty ! ");
             return null;
         }
         if (ObjectUtil.isNull(param.get("transform"))) {
-            XxlJobLogger.log("transform is empty ! ");
+            XxlJobLogger.log("transform is null ! ");
             return null;
         }
-        if (ObjectUtil.isEmpty(param.get("source"))) {
-            XxlJobLogger.log("source is empty ! ");
+        if (ObjectUtil.isNull(param.get("sink"))) {
+            XxlJobLogger.log("sink is null ! ");
             return null;
         }
         return param;

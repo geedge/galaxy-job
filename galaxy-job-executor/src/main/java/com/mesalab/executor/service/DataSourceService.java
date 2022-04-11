@@ -3,19 +3,27 @@ package com.mesalab.executor.service;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
+import cn.hutool.core.io.StreamProgress;
 import cn.hutool.core.io.file.FileReader;
-import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.db.DbUtil;
 import cn.hutool.db.Entity;
 import cn.hutool.db.handler.EntityListHandler;
 import cn.hutool.db.sql.SqlExecutor;
+import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
 import com.mesalab.executor.core.utils.DBUtils;
+import com.mesalab.executor.core.utils.HttpClientUtils;
+import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.DBParam;
+import com.mesalab.executor.pojo.HttpParam;
+import com.xxl.job.core.handler.IJobHandler;
+import com.zdjizhi.utils.JsonMapper;
+import io.netty.handler.codec.http.HttpMethod;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.springframework.stereotype.Service;
 
@@ -37,26 +45,107 @@ public class DataSourceService {
 
     private Log logger = Log.get();
 
-    public Map<String, List> adapt(Map<String, String> sourceParams) throws Exception {
+    public Map<String,Object> adapt(Map<String, String> sourceParams) throws Exception {
         String type = sourceParams.get("type");
         //1. 文件类型 2. 选择处理工具 3. 转为格式数据
-        if ("file".equals(type)) {
-            return fileSource(sourceParams);
-        } else if ("mysql".equals(type) || "mariadb".equals(type)) {
-            return MapUtil.of("mysql", mysqlSource(sourceParams));
+        Map<String, Object> sourceResult = new HashMap<>();
+        switch (type) {
+            case "file":
+                sourceResult = fileSource(sourceParams);
+                break;
+            case "mysql":
+                sourceResult.put("mysql", mysqlSource(sourceParams));
+                break;
+            case "mariadb":
+                sourceResult.put("mysql", mysqlSource(sourceParams));
+                break;
+            case "spider":
+                sourceResult.put("spider", spider(sourceParams));
+                break;
+            case "http":
+                sourceResult.put("http", http(sourceParams));
+                break;
+            default:
+                break;
+        }
+        return sourceResult;
+    }
+
+    /**
+     * 网址数据源
+     *
+     * @param sourceParams url,method,requestBody,resultKey,tableName
+     * @return
+     */
+    private Map http(Map<String,String> sourceParams) throws Exception {
+
+        String url = String.valueOf(sourceParams.get("url"));
+        String method = String.valueOf(sourceParams.get("method"));
+        Map requestBody = JSONUtil.toBean(JsonMapper.toJsonString(sourceParams.get("requestBody")), Map.class);
+
+        String resultMessage = "";
+        if (HttpMethod.POST.name().equalsIgnoreCase(method)) {
+            resultMessage = HttpClientUtils.httpPost(url, JsonMapper.toJsonString(requestBody));
+        } else if (HttpMethod.GET.name().equalsIgnoreCase(method)) {
+            resultMessage = HttpClientUtils.httpGet(url);
+        } else {
+            throw new BusinessException(IJobHandler.FAIL.getCode(), "Not support Method:" + method);
+        }
+        if (resultMessage.equals("-1")) {
+            throw new BusinessException(IJobHandler.FAIL.getCode(), "Http Client connection Error!");
+        }
+        Map map = (Map) JsonMapper.fromJsonString(resultMessage, Map.class);
+
+        return map;
+    }
+
+    private Map spider(Map<String, String> sourceParams) throws Exception {
+
+        HttpParam httpParam = HttpParam.parserHttpParam(JSONUtil.toJsonStr(sourceParams));
+
+        if (ObjectUtil.isEmpty(httpParam)) {
+            throw new BusinessException("params parser error");
+        }
+        if (HttpMethod.GET.name().equalsIgnoreCase(httpParam.getMethod())) {
+            //带进度显示的文件下载
+            HttpUtil.downloadFile(httpParam.getUrl(), FileUtil.file(httpParam.getStore()), new StreamProgress() {
+                @Override
+                public void start() {
+                    logger.info("start download . . . ");
+                }
+
+                @Override
+                public void progress(long progressSize) {
+                    logger.info("loading {}", FileUtil.readableFileSize(progressSize));
+                }
+
+                @Override
+                public void finish() {
+                    logger.info("download over !");
+                }
+            });
+        } else {
+            throw new BusinessException(IJobHandler.FAIL.getCode(), "Not support Method:" + httpParam.getMethod());
         }
         return null;
     }
 
     private List<Map> mysqlSource(Map<String, String> sourceParams) throws Exception {
         DBParam dbParam = BeanUtil.fillBeanWithMap(sourceParams, new DBParam(), false);
-        DBUtils dbUtils = new DBUtils();
-        Connection conn = dbUtils.getDBConn(sourceParams);
-        String sql = dbParam.getSql();
-        List<Entity> entityList = SqlExecutor.query(conn, sql, new EntityListHandler());
-        logger.info("query result size {}", entityList.size());
-        List<Map> collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
-        DbUtil.close(conn);
+        List<Map> collect;
+        Connection conn = null;
+        DBUtils dbUtils = null;
+        try {
+            dbUtils = new DBUtils();
+            conn = dbUtils.getDBConn(sourceParams);
+            String sql = dbParam.getSql();
+            List<Entity> entityList = SqlExecutor.query(conn, sql, new EntityListHandler());
+            logger.info("query result size {}", entityList.size());
+            collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
+        } finally {
+            DbUtil.close(conn);
+            dbUtils.close();
+        }
         return collect;
     }
 
@@ -69,13 +158,13 @@ public class DataSourceService {
      *
      * @return
      */
-    public Map<String, List> fileSource(Map<String, String> params) throws Exception {
+    public Map<String, Object> fileSource(Map<String, String> params) throws Exception {
         //解析参数
         String path = params.get("path");
         String fileTypeParams = params.get("fileType");
         String[] fileTypes = StrUtil.split(fileTypeParams, ",");
         //处理数据
-        Map<String, List> typeResult = new HashMap();
+        Map<String, Object> typeResult = new HashMap();
         for (String fileType : fileTypes) {
             if ("json".equals(fileType)) {
                 List<File> files = FileUtil.loopFiles(Paths.get(path), 1, FileFilterUtils.suffixFileFilter(fileType));

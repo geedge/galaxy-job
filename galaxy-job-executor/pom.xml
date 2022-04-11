@@ -169,7 +169,7 @@
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.220303</imageTag>
+                        <imageTag>v1.3.2204011-dev</imageTag>
                     </imageTags>
                     <resources>
                         <resource>
