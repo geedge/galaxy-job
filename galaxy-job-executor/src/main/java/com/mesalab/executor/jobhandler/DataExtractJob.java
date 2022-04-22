@@ -74,7 +74,6 @@ public class DataExtractJob {
             }
             return ReturnT.SUCCESS;
         } catch (Exception e) {
-            e.printStackTrace();
             XxlJobLogger.log(e.getMessage());
             logger.error(e.getMessage());
             return ReturnT.FAIL;

@@ -481,7 +481,10 @@ public class LogStorageQuotaJob {
                             logger.info("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
                             for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                                 try {
-                                    HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
+                                    //排除默认桶
+                                    if(!"default".equals(bucket.getName())){
+                                        HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
+                                    }
                                 } catch (BusinessException e) {
                                     failCount++;
                                     logger.error("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));

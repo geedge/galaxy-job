@@ -11,6 +11,7 @@ import java.util.TimeZone;
 public class GalaxyExecutorApplication {
 
 	public static void main(String[] args) {
+		System.setProperty("JM.SNAPSHOT.PATH", "config");
 		System.setProperty("user.timezone", "UTC");
 		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
 		System.setProperty("jasypt.encryptor.password", "galaxy");

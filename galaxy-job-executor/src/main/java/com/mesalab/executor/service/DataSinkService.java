@@ -8,6 +8,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.JobUtil;
+import com.xxl.job.core.log.XxlJobLogger;
 import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
 import org.apache.commons.lang3.StringUtils;
@@ -51,6 +52,11 @@ public class DataSinkService {
     }
 
     public void fileSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
+        if(ObjectUtil.isEmpty(transformResult)){
+            logger.info("data is empty ");
+            XxlJobLogger.log("data is empty ");
+            return;
+        }
         String fileType = sinkParams.get("fileType");
         String path = sinkParams.get("path");
         String prefix = sinkParams.get("prefix");
@@ -76,6 +82,11 @@ public class DataSinkService {
     public void mysqlSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
         Map<String, List> transform = (Map<String, List>) JsonMapper.fromJsonString(JsonMapper.toJsonString(transformResult), Map.class);
         List list = JobUtil.getFirstNotNull(transform);
+        if(ObjectUtil.isEmpty(list)){
+            logger.info("data is empty ");
+            XxlJobLogger.log("data is empty ");
+            return;
+        }
         exec(list, sinkParams);
     }
 
@@ -92,17 +103,25 @@ public class DataSinkService {
             dbUtils = new DBUtils();
             //创建数据库连接库对象
             conn = dbUtils.getDBConn(sinkParams);
-            String sql = dbUtils.getInsertSql(transformResult, tableName);
-
+            String sql = "";
+            if ("update".equals(sinkParams.get("option"))) {
+                sql = dbUtils.getUpdateSql(transformResult, tableName);
+            } else {
+                sql = dbUtils.getInsertSql(transformResult, tableName);
+            }
             long start = System.currentTimeMillis();
             conn.setAutoCommit(false);
             pst = conn.prepareStatement(sql);
             int count = 0;
             int index = 1;
-            for (int i = 1; i < transformResult.size(); i++) {
-                for (Object val : transformResult.get(i - 1).values()) {
+            for (int i = 0; i < transformResult.size(); i++) {
+                for (Object val : transformResult.get(i).values()) {
                     if (val instanceof Long) {
                         pst.setLong((index++), Long.valueOf(StrUtil.toString(val)));
+                    } else if (val instanceof Integer) {
+                        pst.setInt((index++), Integer.valueOf(StrUtil.toString(val)));
+                    } else if (val instanceof Boolean) {
+                        pst.setBoolean((index++), Boolean.valueOf(StrUtil.toString(val)));
                     } else {
                         pst.setString((index++), StrUtil.toString(val));
                     }
@@ -111,15 +130,17 @@ public class DataSinkService {
                 pst.addBatch();
                 //1w提交一次
                 if (i % 10000 == 0) {
-                    ++count;
-                    pst.executeBatch();
+                    int[] ints = pst.executeBatch();
+                    count = count + ints.length;
                     conn.commit();
                     pst.clearBatch();
                 }
             }
-            pst.executeBatch();
+            int[] ints = pst.executeBatch();
+            count = count + ints.length;
             conn.commit();
-            logger.info("花费的时间: {}" + (System.currentTimeMillis() - start) + "ms");
+            logger.info("{} table {} , count {} ,  take {}", sinkParams.get("option"), tableName, count, (System.currentTimeMillis() - start) + "ms");
+            XxlJobLogger.log("{} table {} , count {} ,  take {}", sinkParams.get("option"), tableName, count, (System.currentTimeMillis() - start) + "ms");
         } catch (SQLException e) {
             logger.error(e.getMessage());
             throw e;

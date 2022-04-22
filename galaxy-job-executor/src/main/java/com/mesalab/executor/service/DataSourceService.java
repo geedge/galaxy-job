@@ -22,6 +22,7 @@ import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.DBParam;
 import com.mesalab.executor.pojo.HttpParam;
 import com.xxl.job.core.handler.IJobHandler;
+import com.xxl.job.core.log.XxlJobLogger;
 import com.zdjizhi.utils.JsonMapper;
 import io.netty.handler.codec.http.HttpMethod;
 import org.apache.commons.io.filefilter.FileFilterUtils;
@@ -57,7 +58,7 @@ public class DataSourceService {
                 sourceResult.put("mysql", mysqlSource(sourceParams));
                 break;
             case "mariadb":
-                sourceResult.put("mysql", mysqlSource(sourceParams));
+                sourceResult.put("mariadb", mysqlSource(sourceParams));
                 break;
             case "spider":
                 sourceResult.put("spider", spider(sourceParams));
@@ -81,10 +82,10 @@ public class DataSourceService {
 
         String url = String.valueOf(sourceParams.get("url"));
         String method = String.valueOf(sourceParams.get("method"));
-        Map requestBody = JSONUtil.toBean(JsonMapper.toJsonString(sourceParams.get("requestBody")), Map.class);
 
         String resultMessage = "";
         if (HttpMethod.POST.name().equalsIgnoreCase(method)) {
+            Map requestBody = JSONUtil.toBean(JsonMapper.toJsonString(sourceParams.get("requestBody")), Map.class);
             resultMessage = HttpClientUtils.httpPost(url, JsonMapper.toJsonString(requestBody));
         } else if (HttpMethod.GET.name().equalsIgnoreCase(method)) {
             resultMessage = HttpClientUtils.httpGet(url);
@@ -141,6 +142,7 @@ public class DataSourceService {
             String sql = dbParam.getSql();
             List<Entity> entityList = SqlExecutor.query(conn, sql, new EntityListHandler());
             logger.info("query result size {}", entityList.size());
+            XxlJobLogger.log("query result size {}", entityList.size());
             collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
         } finally {
             DbUtil.close(conn);

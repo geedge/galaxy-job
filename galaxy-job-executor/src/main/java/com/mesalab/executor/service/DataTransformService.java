@@ -1,13 +1,25 @@
 package com.mesalab.executor.service;
 
+import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import cn.hutool.log.Log;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.core.utils.JobUtil;
+import com.mesalab.executor.core.utils.UrlUtil;
+import com.mesalab.executor.core.utils.async.HttpKit;
+import com.mesalab.executor.enums.DataTypeEnum;
+import com.xxl.job.core.log.XxlJobLogger;
 import org.apache.commons.collections4.ListUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @description:
@@ -16,6 +28,8 @@ import java.util.*;
  **/
 @Service
 public class DataTransformService {
+
+    private Log logger = Log.get();
 
     private static final String SOFTWARE = "software";
     private static final String ASSOCIATED_GROUPS = "associated groups";
@@ -40,10 +54,61 @@ public class DataTransformService {
             case "websketch":
                 transformResult.put("websketch", webSketch(sourceResult));
                 break;
+            case "websketch-fqdn-accessible":
+                transformResult.put("websketch-fqdn-accessible", isFqdnAccessible(sourceResult,params));
+                break;
             default:
                 break;
         }
         return transformResult;
+    }
+
+    /**
+     * 探测域名是否可访问
+     *
+     *
+     * @param params
+     * @param sourceResult
+     * @return
+     */
+    private List<Map> isFqdnAccessible(Object sourceResult, Map<String, String> params) {
+        Map<String, List> source = JSONUtil.toBean(JSON.toJSONString(sourceResult, SerializerFeature.WriteNullStringAsEmpty), Map.class);
+        List<Map> mariadbResult = source.get(DataTypeEnum.MARIADB.getName());
+        Vector<Map> transformResult = new Vector<>();
+        //判断是否可达
+        long start = System.currentTimeMillis();
+        int threadNum = Integer.valueOf(StrUtil.toString(params.get("parallelism")));//线程数
+        int partitionSize = (mariadbResult.size() / threadNum) >0?mariadbResult.size() / threadNum:1;
+        List<List<Map>> split = ListUtil.split(mariadbResult, partitionSize);
+        int t = split.size();
+        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(t);
+        logger.info("当前线程数为：" + t);
+        // 用于计数线程是否执行完成
+        CountDownLatch countDownLatch = new CountDownLatch(t);
+        for (List<Map> mapList : split) {
+            fixedThreadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    for (Map map : mapList) {
+                        Map m = new ConcurrentHashMap();
+                        m.put("status_code", HttpKit.getStatus(UrlUtil.getUrl(map.get("fqdn"))));
+                        m.put("id", map.get("id"));
+                        transformResult.add(m);
+                    }
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        try {
+            countDownLatch.await();
+            fixedThreadPool.shutdown();
+        } catch (InterruptedException e) {
+            logger.error(e.getMessage());
+        }
+        logger.info("websketch-fqdn-accessible transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - start);
+        XxlJobLogger.log("websketch-fqdn-accessible transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - start);
+        return transformResult;
+
     }
 
     /**
@@ -55,7 +120,7 @@ public class DataTransformService {
         Map<String, List> source = JSONUtil.toBean(JSONUtil.toJsonStr(sourceResult), Map.class);
         List<Map> json = source.get("json");
         List<Map> malwareData = source.get("xlsx");
-        Map<String, Map<String, List<String>>> malware = getMalware(malwareData);
+        Map<String, Map<String, List<String>>> malware = getMalwareByExcel(malwareData);
         Map<String, List<String>> soft = malware.get(SOFTWARE);
         Map<String, List<String>> associatedGroups = malware.get(ASSOCIATED_GROUPS);
         Map<String, List<String>> techniquesUsed = malware.get(TECHNIQUES_USED);
@@ -69,7 +134,7 @@ public class DataTransformService {
         final String PE = "payload delivery";// ioc_type改为port
         final String FIELDS = "ioc_type,threat_type,malware_alias,confidence_level,reference";
 
-        long now = System.currentTimeMillis() / 1000;
+        long now = System.currentTimeMillis() ;
         //处理   ioc=iov_value
         List<Map> transformResult = new ArrayList<>();
         for (Map map : json) {
@@ -120,13 +185,14 @@ public class DataTransformService {
                     extMap.put("source", SOURCE);
                     extMap.put("malware_name", malwareName);
 
-                    extMap.put("create_time", now);
-                    extMap.put("update_time", now);
-
+                    extMap.put("create_time", now/ 1000);
+                    extMap.put("update_time", now/ 1000);
                     transformResult.add(extMap);
                 }
             }
         }
+        logger.info("websketch transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - now);
+        XxlJobLogger.log("websketch transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - now);
         return transformResult;
     }
 
@@ -137,7 +203,7 @@ public class DataTransformService {
      * @return
      */
 
-    public Map<String, Map<String, List<String>>> getMalware(List<Map> malwareData) throws Exception {
+    public Map<String, Map<String, List<String>>> getMalwareByExcel(List<Map> malwareData) throws Exception {
 
         Map<String, List<String>> newS = new HashMap();
         Map<String, List<String>> newAG = new HashMap();

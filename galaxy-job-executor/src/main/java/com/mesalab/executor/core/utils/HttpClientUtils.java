@@ -218,8 +218,7 @@ public class HttpClientUtils {
             msg = EntityUtils.toString(entity, "UTF-8");
 
             if (statusCode != HttpStatus.SC_OK) {
-                throw new BusinessException(response.getStatusLine().getStatusCode(),
-                        "Http get content is :" + msg);
+                throw new BusinessException(statusCode, "Http get content is :" + msg);
             }
 
         } catch (URISyntaxException e) {
@@ -289,8 +288,7 @@ public class HttpClientUtils {
             msg = EntityUtils.toString(entity, "UTF-8");
             
             if (statusCode != HttpStatus.SC_OK) {
-                throw new BusinessException(response.getStatusLine().getStatusCode(),
-                        "Http post content is :" + msg);
+                throw new BusinessException(statusCode, "Http post content is :" + msg);
             }
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e.getMessage());
@@ -353,8 +351,7 @@ public class HttpClientUtils {
             msg = EntityUtils.toString(entity, "UTF-8");
             
             if (statusCode != HttpStatus.SC_OK) {
-                throw new BusinessException(response.getStatusLine().getStatusCode(),
-                        "Http put content is :" + msg);
+                throw new BusinessException(statusCode, "Http put content is :" + msg);
             }
         } catch (URISyntaxException e) {
         	logger.error("URI 转换错误: {}", e.getMessage());
@@ -414,8 +411,7 @@ public class HttpClientUtils {
             msg = EntityUtils.toString(entity, "UTF-8");
 
             if (statusCode != HttpStatus.SC_OK) {
-                throw new BusinessException(response.getStatusLine().getStatusCode(),
-                        "Http put content is :" + msg);
+                throw new BusinessException(statusCode, "Http put content is :" + msg);
             }
         } catch (URISyntaxException e) {
             logger.error("URI 转换错误: {}", e.getMessage());
@@ -471,8 +467,7 @@ public class HttpClientUtils {
             msg = EntityUtils.toString(entity, "UTF-8");
             
             if (statusCode != HttpStatus.SC_OK) {
-                throw new BusinessException(response.getStatusLine().getStatusCode(),
-                        "Http post content is :" + msg);
+                throw new BusinessException(statusCode, "Http post content is :" + msg);
             }
             
         } catch (URISyntaxException e) {
@@ -560,6 +555,42 @@ public class HttpClientUtils {
         }
     }
 
+    public static int get(String url) {
+        // 获取客户端连接对象
+        CloseableHttpClient httpClient = getHttpClient();
+        CloseableHttpResponse response = null;
+        int statusCode = 0;
+        try {
+            URL ul = new URL(url);
+            URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
+            HttpGet httpGet = new HttpGet(uri);
+            response = httpClient.execute(httpGet);
+            statusCode = response.getStatusLine().getStatusCode();
 
+            return statusCode;
+        } catch (URISyntaxException e) {
+            logger.error("URI 转换错误: {}", e.getMessage());
+        } catch (ClientProtocolException e) {
+            logger.error("协议错误: {}", e.getMessage());
+            return statusCode;
+        } catch (ParseException e) {
+            logger.error("解析错误: {}", e.getMessage());
+            return statusCode;
+        } catch (IOException e) {
+            logger.error("IO错误: {}",e.getMessage());
+            return statusCode;
+        }  finally {
+            if (null != response) {
+                try {
+                    response.close();
+                } catch (IOException e) {
+                    logger.error("释放链接错误: {}", e.getMessage());
+
+                }
+            }
+        }
+
+        return statusCode;
+    }
 
 }

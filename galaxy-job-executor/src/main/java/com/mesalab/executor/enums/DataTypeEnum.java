@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 public enum DataTypeEnum {
 
     FILE("file"),
+    MARIADB("mariadb"),
     MYSQL("mysql");
 
     private String name;

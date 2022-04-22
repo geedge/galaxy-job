@@ -1,5 +1,6 @@
 package com.mesalab.executor.core.utils;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -62,8 +63,24 @@ public class DBUtils {
         }
         sqlKey = sqlKey.substring(0, sqlKey.length() - 1);
         sqlValue = sqlValue.substring(0, sqlValue.length() - 1);
-        sql = sqlStr1 + sqlKey + sqlStr2 + sqlValue + sqlStr3;
-        logger.info(" get insert SQL：" + sql);
+        sql = StrUtil.concat(true, sqlStr1, sqlKey, sqlStr2, sqlValue, sqlStr3);
+        logger.info(" get insert sql：" + sql);
+        return sql;
+    }
+
+    /**
+     * update table set a=? where id=1;
+     */
+    public String getUpdateSql(List<Map> transformResult, String tableName) {
+        String sqlKV = "";
+        for (Object key : transformResult.get(0).keySet()) {
+            if (!"id".equals(key)) {
+                sqlKV += key + "=?,";
+            }
+        }
+        sqlKV = sqlKV.substring(0, sqlKV.length() - 1);
+        String sql = StrUtil.join(" ", "UPDATE", tableName, "SET", sqlKV, "WHERE id=?");
+        logger.info(" get update sql: " + sql);
         return sql;
     }
 }

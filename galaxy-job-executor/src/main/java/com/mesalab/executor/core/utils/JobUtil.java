@@ -81,7 +81,9 @@ public class JobUtil {
     }
 
     public static Object nullToDef(Map datum, String key, String def) {
-        if (datum.get(key) instanceof JSONNull) {
+        if (ObjectUtil.isNull(datum.get(key))) {
+            return def;
+        } else if (datum.get(key) instanceof JSONNull) {
             return def;
         } else if (datum.get(key) instanceof String) {
             return datum.get(key) == null || "null".equals(datum.get(key)) ? def : StrUtil.toString(datum.get(key));
@@ -90,20 +92,23 @@ public class JobUtil {
     }
 
     public static Object nullToDef(Object dataum, String def) {
-        if (dataum instanceof JSONNull) {
+        if (ObjectUtil.isNull(dataum)) {
+            return def;
+        } else if (dataum instanceof JSONNull) {
             return def;
         } else if (dataum instanceof String) {
             return dataum == null || "null".equals(dataum) ? def : StrUtil.toString(dataum);
         }
         return dataum;
     }
+
     /**
      * 获取map中的指定字段
      * 1.将null转为""
      */
     public static Map extractMap(Map source, String keys) {
         String[] keysArr = StrUtil.split(keys, ",");
-        Map m = new HashMap();
+        Map m = new LinkedHashMap();
         for (String key : keysArr) {
             m.put(key, JobUtil.nullToDef(source, key, ""));
         }
