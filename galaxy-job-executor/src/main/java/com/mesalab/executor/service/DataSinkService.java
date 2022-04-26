@@ -52,9 +52,9 @@ public class DataSinkService {
     }
 
     public void fileSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
-        if(ObjectUtil.isEmpty(transformResult)){
-            logger.info("data is empty ");
-            XxlJobLogger.log("data is empty ");
+        if (ObjectUtil.isEmpty(transformResult)) {
+            logger.info("file sink data is empty ");
+            XxlJobLogger.log("file sink data is empty ");
             return;
         }
         String fileType = sinkParams.get("fileType");
@@ -69,10 +69,12 @@ public class DataSinkService {
             FileWriter fileWriter = new FileWriter(filePath.concat(".json"));
             File file = fileWriter.write(JSON.toJSONString(transformResult, SerializerFeature.PrettyFormat));
             logger.info("download json data to path {}", file.getAbsolutePath());
+            XxlJobLogger.log("download json data to path {}", file.getAbsolutePath());
         } else if ("csv".equals(fileType)) {
             List<Map> transform = (List<Map>) JsonMapper.fromJsonString(JsonMapper.toJsonString(transformResult), List.class);
             File file = JobUtil.createCsvFile(transform, filePath.concat(".csv"));
             logger.info("download {} pieces of csv data to path {}", transform.size(), file.getAbsolutePath());
+            XxlJobLogger.log("download {} pieces of csv data to path {}", transform.size(), file.getAbsolutePath());
         }
     }
 
@@ -80,11 +82,13 @@ public class DataSinkService {
      * @return
      */
     public void mysqlSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
+
+        logger.info("mysql sink param {} ", sinkParams);
         Map<String, List> transform = (Map<String, List>) JsonMapper.fromJsonString(JsonMapper.toJsonString(transformResult), Map.class);
         List list = JobUtil.getFirstNotNull(transform);
-        if(ObjectUtil.isEmpty(list)){
-            logger.info("data is empty ");
-            XxlJobLogger.log("data is empty ");
+        if (ObjectUtil.isEmpty(list)) {
+            logger.info("mysql sink data is empty ");
+            XxlJobLogger.log("mysql sink data is empty ");
             return;
         }
         exec(list, sinkParams);

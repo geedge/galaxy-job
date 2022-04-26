@@ -46,7 +46,7 @@ public class DataSourceService {
 
     private Log logger = Log.get();
 
-    public Map<String,Object> adapt(Map<String, String> sourceParams) throws Exception {
+    public Map<String, Object> adapt(Map<String, String> sourceParams) throws Exception {
         String type = sourceParams.get("type");
         //1. 文件类型 2. 选择处理工具 3. 转为格式数据
         Map<String, Object> sourceResult = new HashMap<>();
@@ -78,7 +78,7 @@ public class DataSourceService {
      * @param sourceParams url,method,requestBody,resultKey,tableName
      * @return
      */
-    private Map http(Map<String,String> sourceParams) throws Exception {
+    private Map http(Map<String, String> sourceParams) throws Exception {
 
         String url = String.valueOf(sourceParams.get("url"));
         String method = String.valueOf(sourceParams.get("method"));
@@ -102,6 +102,7 @@ public class DataSourceService {
 
     private Map spider(Map<String, String> sourceParams) throws Exception {
 
+        logger.info("spider data source starting,param is {}", sourceParams);
         HttpParam httpParam = HttpParam.parserHttpParam(JSONUtil.toJsonStr(sourceParams));
 
         if (ObjectUtil.isEmpty(httpParam)) {
@@ -132,6 +133,7 @@ public class DataSourceService {
     }
 
     private List<Map> mysqlSource(Map<String, String> sourceParams) throws Exception {
+        logger.info("mysql data source starting, param is {}", sourceParams);
         DBParam dbParam = BeanUtil.fillBeanWithMap(sourceParams, new DBParam(), false);
         List<Map> collect;
         Connection conn = null;
@@ -161,6 +163,7 @@ public class DataSourceService {
      * @return
      */
     public Map<String, Object> fileSource(Map<String, String> params) throws Exception {
+        logger.info("mysql data source starting, param is {}", params);
         //解析参数
         String path = params.get("path");
         String fileTypeParams = params.get("fileType");

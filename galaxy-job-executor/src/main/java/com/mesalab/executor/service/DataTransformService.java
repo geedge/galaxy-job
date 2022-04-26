@@ -55,7 +55,7 @@ public class DataTransformService {
                 transformResult.put("websketch", webSketch(sourceResult));
                 break;
             case "websketch-fqdn-accessible":
-                transformResult.put("websketch-fqdn-accessible", isFqdnAccessible(sourceResult,params));
+                transformResult.put("websketch-fqdn-accessible", isFqdnAccessible(sourceResult, params));
                 break;
             default:
                 break;
@@ -66,34 +66,44 @@ public class DataTransformService {
     /**
      * 探测域名是否可访问
      *
-     *
      * @param params
      * @param sourceResult
      * @return
      */
-    private List<Map> isFqdnAccessible(Object sourceResult, Map<String, String> params) {
+    private List<Map> isFqdnAccessible(Object sourceResult, Map<String, String> params) throws Exception {
         Map<String, List> source = JSONUtil.toBean(JSON.toJSONString(sourceResult, SerializerFeature.WriteNullStringAsEmpty), Map.class);
         List<Map> mariadbResult = source.get(DataTypeEnum.MARIADB.getName());
         Vector<Map> transformResult = new Vector<>();
         //判断是否可达
         long start = System.currentTimeMillis();
         int threadNum = Integer.valueOf(StrUtil.toString(params.get("parallelism")));//线程数
-        int partitionSize = (mariadbResult.size() / threadNum) >0?mariadbResult.size() / threadNum:1;
+        int partitionSize = (mariadbResult.size() / threadNum) > 0 ? mariadbResult.size() / threadNum : 1;
         List<List<Map>> split = ListUtil.split(mariadbResult, partitionSize);
         int t = split.size();
         ExecutorService fixedThreadPool = Executors.newFixedThreadPool(t);
         logger.info("当前线程数为：" + t);
         // 用于计数线程是否执行完成
         CountDownLatch countDownLatch = new CountDownLatch(t);
+        //1.已经探测过不用重复探测 2.探测结果与数据库相同不用更新
+        Map uniqueFqdns = new ConcurrentHashMap();
         for (List<Map> mapList : split) {
             fixedThreadPool.execute(new Runnable() {
                 @Override
                 public void run() {
                     for (Map map : mapList) {
-                        Map m = new ConcurrentHashMap();
-                        m.put("status_code", HttpKit.getStatus(UrlUtil.getUrl(map.get("fqdn"))));
-                        m.put("id", map.get("id"));
-                        transformResult.add(m);
+                        int code = 0;
+                        if (uniqueFqdns.containsKey(map.get("fqdn"))) {
+                            code = Integer.valueOf(String.valueOf(uniqueFqdns.get("fqdn")));
+                        } else {
+                            code = HttpKit.getStatus(UrlUtil.getUrl(map.get("fqdn")));
+                        }
+                        uniqueFqdns.put(map.get("fqdn"), code);
+                        if (Integer.valueOf(String.valueOf(map.get("status_code"))) != code) {
+                            Map m = new ConcurrentHashMap();
+                            m.put("status_code", code);
+                            m.put("id", map.get("id"));
+                            transformResult.add(m);
+                        }
                     }
                     countDownLatch.countDown();
                 }
@@ -105,6 +115,7 @@ public class DataTransformService {
         } catch (InterruptedException e) {
             logger.error(e.getMessage());
         }
+        //去掉重复无效
         logger.info("websketch-fqdn-accessible transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - start);
         XxlJobLogger.log("websketch-fqdn-accessible transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - start);
         return transformResult;
@@ -134,7 +145,7 @@ public class DataTransformService {
         final String PE = "payload delivery";// ioc_type改为port
         final String FIELDS = "ioc_type,threat_type,malware_alias,confidence_level,reference";
 
-        long now = System.currentTimeMillis() ;
+        long now = System.currentTimeMillis();
         //处理   ioc=iov_value
         List<Map> transformResult = new ArrayList<>();
         for (Map map : json) {
@@ -185,8 +196,8 @@ public class DataTransformService {
                     extMap.put("source", SOURCE);
                     extMap.put("malware_name", malwareName);
 
-                    extMap.put("create_time", now/ 1000);
-                    extMap.put("update_time", now/ 1000);
+                    extMap.put("create_time", now / 1000);
+                    extMap.put("update_time", now / 1000);
                     transformResult.add(extMap);
                 }
             }

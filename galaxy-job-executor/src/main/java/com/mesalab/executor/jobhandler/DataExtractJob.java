@@ -14,6 +14,7 @@ import com.zdjizhi.utils.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,7 +36,7 @@ public class DataExtractJob {
     private Log logger = Log.get();
 
     /**
-     * {
+     * [{
      * "source": {
      * "type": "file",
      * "path": "/",
@@ -51,27 +52,29 @@ public class DataExtractJob {
      * "username": "root",
      * "pin": ""
      * }
-     * }
+     * }]
      *
      * @param params
      */
     @XxlJob("dataExtractJobHandler")
     public ReturnT<String> dataExtract(String params) {
         try {
-            Map<String, Map<String, String>> paramsMap = parserParams(params);
-            if (ObjectUtil.isEmpty(paramsMap)) {
+            logger.info("query params is {}", params);
+            List<Map> paramsMaps = parserParams(params);
+            if (ObjectUtil.isEmpty(paramsMaps)) {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            logger.info("query params is {}", params);
-
-            Map<String,Object> sourceResult = dataSourceService.adapt(paramsMap.get("source"));
-            if (ObjectUtil.isNotEmpty(paramsMap.get("transform"))) {
-                Map<String, Object> transformResult = dataTransformService.adapt(paramsMap.get("transform"), sourceResult);
-                dataSinkService.adapt(transformResult, paramsMap.get("sink"));
-            } else {
-                dataSinkService.adapt(sourceResult, paramsMap.get("sink"));
+            for (Map<String, Map<String, String>> paramsMap : paramsMaps) {
+                Map<String, Object> sourceResult = dataSourceService.adapt(paramsMap.get("source"));
+                if (ObjectUtil.isNotEmpty(paramsMap.get("transform"))) {
+                    Map<String, Object> transformResult = dataTransformService.adapt(paramsMap.get("transform"), sourceResult);
+                    dataSinkService.adapt(transformResult, paramsMap.get("sink"));
+                } else {
+                    dataSinkService.adapt(sourceResult, paramsMap.get("sink"));
+                }
             }
+
             return ReturnT.SUCCESS;
         } catch (Exception e) {
             XxlJobLogger.log(e.getMessage());
@@ -81,28 +84,30 @@ public class DataExtractJob {
 
     }
 
-    private Map<String, Map<String, String>> parserParams(String params) {
+    private List<Map> parserParams(String params) {
         if (StringUtil.isBlank(params)) {
             XxlJobLogger.log("params is empty!");
             return null;
         }
-        Map<String, Map<String, String>> param = JSONUtil.toBean(params, Map.class);
-        if (ObjectUtil.isNull(param)) {
-            XxlJobLogger.log("params is not format json ! ");
-            return null;
+        List<Map> paramList = JSONUtil.toList(params, Map.class);
+        for (Map<String, Map<String, String>> param : paramList) {
+            if (ObjectUtil.isNull(param)) {
+                XxlJobLogger.log("params is not format json ! ");
+                return null;
+            }
+            if (ObjectUtil.isEmpty(param.get("source"))) {
+                XxlJobLogger.log("source is empty ! ");
+                return null;
+            }
+            if (ObjectUtil.isNull(param.get("transform"))) {
+                XxlJobLogger.log("transform is null ! ");
+                return null;
+            }
+            if (ObjectUtil.isNull(param.get("sink"))) {
+                XxlJobLogger.log("sink is null ! ");
+                return null;
+            }
         }
-        if (ObjectUtil.isEmpty(param.get("source"))) {
-            XxlJobLogger.log("source is empty ! ");
-            return null;
-        }
-        if (ObjectUtil.isNull(param.get("transform"))) {
-            XxlJobLogger.log("transform is null ! ");
-            return null;
-        }
-        if (ObjectUtil.isNull(param.get("sink"))) {
-            XxlJobLogger.log("sink is null ! ");
-            return null;
-        }
-        return param;
+        return paramList;
     }
 }

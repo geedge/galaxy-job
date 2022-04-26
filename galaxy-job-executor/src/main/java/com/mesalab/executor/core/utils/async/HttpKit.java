@@ -15,9 +15,11 @@ import java.util.concurrent.ExecutionException;
 
 public class HttpKit {
 
-    private static final String DEFAULT_CHARSET = "UTF-8";
     private static final String USER_AGENT = "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; .NET CLR 2.0.50727";
-    private static final int CONNECT_TIME_OUT = 2000; //链接超时时间
+    private static final int CONNECT_TIME_OUT = 3000; //链接超时时间
+    private static final int REQUEST_TIME_OUT = 3000; //请求超时时间
+    private static final int READ_TIME_OUT = 5000; //请求超时时间
+    private static final int MAX_CONNECTIONS = 100000; //最大连接数
 
     private static SSLContext ssl_context = null;
 
@@ -42,19 +44,21 @@ public class HttpKit {
             e.printStackTrace();
         }
     }
-    public static AsyncHttpClient getHttpClient(){
+
+    public static AsyncHttpClient getHttpClient() {
         AsyncHttpClient http = new AsyncHttpClient(new AsyncHttpClientConfig.Builder()
-                .setAllowPoolingConnections(true)
-                .setMaxConnections(100000)
+                .setMaxConnections(MAX_CONNECTIONS)
                 .setSSLContext(ssl_context)
-                .setRequestTimeout(3000)
-                .setMaxRequestRetry(0)
-                .setReadTimeout(3000)
+                .setRequestTimeout(REQUEST_TIME_OUT)
+                .setMaxRequestRetry(1)
+                .setReadTimeout(READ_TIME_OUT)
                 .setFollowRedirect(true)
                 .setMaxRedirects(3)
-                .setConnectTimeout(CONNECT_TIME_OUT).build());
+                .setConnectTimeout(CONNECT_TIME_OUT)
+                .build());
         return http;
     }
+
     /**
      * @param url 请求地址
      * @return 请求失败返回null
@@ -71,7 +75,7 @@ public class HttpKit {
             return statusCode;
         } catch (ExecutionException e) {
             return statusCode;
-        }finally {
+        } finally {
             httpClient.close();
         }
         return statusCode;
