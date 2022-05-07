@@ -132,7 +132,7 @@ public class DataSourceService {
         return null;
     }
 
-    private List<Map> mysqlSource(Map<String, String> sourceParams) throws Exception {
+    public List<Map> mysqlSource(Map<String, String> sourceParams) throws Exception {
         logger.info("mysql data source starting, param is {}", sourceParams);
         DBParam dbParam = BeanUtil.fillBeanWithMap(sourceParams, new DBParam(), false);
         List<Map> collect;

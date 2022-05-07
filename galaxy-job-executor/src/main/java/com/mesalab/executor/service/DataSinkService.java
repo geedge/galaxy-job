@@ -1,5 +1,6 @@
 package com.mesalab.executor.service;
 
+import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -99,10 +101,15 @@ public class DataSinkService {
      * @throws Exception
      */
     public void exec(List<Map> transformResult, Map<String, String> sinkParams) throws Exception {
+        if (ObjectUtil.isEmpty(transformResult)) {
+            logger.info("sink data is empty ");
+            return;
+        }
         Connection conn = null;
         DBUtils dbUtils = null;
         PreparedStatement pst = null;
         try {
+
             String tableName = sinkParams.get("table");
             dbUtils = new DBUtils();
             //创建数据库连接库对象
@@ -118,8 +125,8 @@ public class DataSinkService {
             pst = conn.prepareStatement(sql);
             int count = 0;
             int index = 1;
-            for (int i = 0; i < transformResult.size(); i++) {
-                for (Object val : transformResult.get(i).values()) {
+            for (int i = 1; i <= transformResult.size(); i++) {
+                for (Object val : transformResult.get(i - 1).values()) {
                     if (val instanceof Long) {
                         pst.setLong((index++), Long.valueOf(StrUtil.toString(val)));
                     } else if (val instanceof Integer) {
@@ -146,15 +153,20 @@ public class DataSinkService {
             logger.info("{} table {} , count {} ,  take {}", sinkParams.get("option"), tableName, count, (System.currentTimeMillis() - start) + "ms");
             XxlJobLogger.log("{} table {} , count {} ,  take {}", sinkParams.get("option"), tableName, count, (System.currentTimeMillis() - start) + "ms");
         } catch (Exception e) {
-            conn.rollback();
-            logger.error(e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException e1) {
+                    logger.error(e1);
+                }
+            }
+            logger.error(e);
             throw e;
         } finally {
-            pst.close();
-            conn.close();
+            IoUtil.close(pst);
+            IoUtil.close(conn);
             dbUtils.close();
         }
     }
-
 
 }

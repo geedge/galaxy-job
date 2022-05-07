@@ -86,6 +86,9 @@ public class DataTransformService {
         CountDownLatch countDownLatch = new CountDownLatch(t);
         //1.已经探测过不用重复探测 2.探测结果与数据库相同不用更新
         Map uniqueFqdns = new ConcurrentHashMap();
+        final String STATUS_CODE = "status_code";
+        XxlJobLogger.log("fqdn accessible task starting ");
+        logger.info("fqdn accessible task starting ");
         for (List<Map> mapList : split) {
             fixedThreadPool.execute(new Runnable() {
                 @Override
@@ -98,9 +101,9 @@ public class DataTransformService {
                             code = HttpKit.getStatus(UrlUtil.getUrl(map.get("fqdn")));
                         }
                         uniqueFqdns.put(map.get("fqdn"), code);
-                        if (Integer.valueOf(String.valueOf(map.get("status_code"))) != code) {
+                        if (ObjectUtil.isEmpty(map.get(STATUS_CODE))||Integer.valueOf(String.valueOf(map.get(STATUS_CODE))) != code) {
                             Map m = new ConcurrentHashMap();
-                            m.put("status_code", code);
+                            m.put(STATUS_CODE, code);
                             m.put("id", map.get("id"));
                             transformResult.add(m);
                         }
@@ -110,10 +113,12 @@ public class DataTransformService {
             });
         }
         try {
+            logger.info("websketch-fqdn-accessible transform running...");
+            XxlJobLogger.log("websketch-fqdn-accessibe transform running");
             countDownLatch.await();
             fixedThreadPool.shutdown();
         } catch (InterruptedException e) {
-            logger.error(e.getMessage());
+            logger.error(e);
         }
         //去掉重复无效
         logger.info("websketch-fqdn-accessible transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - start);
@@ -121,7 +126,61 @@ public class DataTransformService {
         return transformResult;
 
     }
+    public List<Map> isFqdnAccessible(List<Map> mariadbResult , Map<String, String> params) throws Exception {
+        Vector<Map> transformResult = new Vector<>();
+        //判断是否可达
+        long start = System.currentTimeMillis();
+        int threadNum = Integer.valueOf(StrUtil.toString(Optional.ofNullable(params.get("parallelism")).orElse("5")));//线程数
+        int partitionSize = (mariadbResult.size() / threadNum) > 0 ? mariadbResult.size() / threadNum : 1;
+        List<List<Map>> split = ListUtil.split(mariadbResult, partitionSize);
+        int t = split.size();
+        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(t);
+        logger.info("threads total count is ：" + t);
+        // 用于计数线程是否执行完成
+        CountDownLatch countDownLatch = new CountDownLatch(t);
+        //1.已经探测过不用重复探测 2.探测结果与数据库相同不用更新
+        Map uniqueFqdns = new ConcurrentHashMap();
+        final String STATUS_CODE = "status_code";
+        XxlJobLogger.log("fqdn accessible task starting ");
+        logger.info("fqdn accessible task starting ");
+        for (List<Map> mapList : split) {
+            fixedThreadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    for (Map map : mapList) {
+                        int code = 0;
+                        if (uniqueFqdns.containsKey(map.get("fqdn"))) {
+                            code = Integer.valueOf(String.valueOf(uniqueFqdns.get("fqdn")));
+                        } else {
+                            code = HttpKit.getStatus(UrlUtil.getUrl(map.get("fqdn")));
+                        }
+                        uniqueFqdns.put(map.get("fqdn"), code);
+                        if (ObjectUtil.isEmpty(map.get(STATUS_CODE))||Integer.valueOf(String.valueOf(map.get(STATUS_CODE))) != code) {
+                            Map m = new ConcurrentHashMap();
+                            m.put(STATUS_CODE, code);
+                            m.put("id", map.get("id"));
+                            transformResult.add(m);
+                        }
+                    }
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        try {
+            logger.info("websketch-fqdn-accessible transform running...");
+            XxlJobLogger.log("websketch-fqdn-accessibe transform running");
+            countDownLatch.await();
+            fixedThreadPool.shutdown();
+        } catch (InterruptedException e) {
+            logger.error(e);
+            fixedThreadPool.shutdownNow();
+        }
+        //去掉重复无效
+        logger.info("websketch-fqdn-accessible transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - start);
+        XxlJobLogger.log("websketch-fqdn-accessible transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - start);
+        return transformResult;
 
+    }
     /**
      * @param sourceResult ioc_value
      *                     threat_type 字段相同则不入库

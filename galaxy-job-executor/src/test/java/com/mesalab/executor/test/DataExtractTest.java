@@ -21,7 +21,6 @@ import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
-import com.google.common.collect.Lists;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
@@ -31,6 +30,8 @@ import com.mesalab.executor.enums.DataTypeEnum;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.service.DataSinkService;
 import com.mesalab.executor.service.DataSourceService;
+import com.mesalab.executor.service.DataTransformService;
+import com.xxl.job.core.log.XxlJobLogger;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zdjizhi.utils.DateUtils;
@@ -413,14 +414,17 @@ public class DataExtractTest {
 
     @Test
     public void test12() {
-        ArrayList<Object> objects = new ArrayList<>();
-        objects.add(1);
-        objects.add(2);
-        objects.add(3);
-        objects.add(4);
-
-        System.err.println(ListUtil.split(objects, 3));
-        System.err.println(Lists.partition(objects, 3));
+//        ArrayList<Object> objects = new ArrayList<>();
+//        objects.add(1);
+//        objects.add(2);
+//        objects.add(3);
+//        objects.add(4);
+//
+////        System.err.println(ListUtil.split(objects, 3));
+////        System.err.println(Lists.partition(objects, 3));
+        String fileTypeParams = "json";
+        String[] fileTypes = StrUtil.split(fileTypeParams, ",");
+        System.err.println(Arrays.toString(fileTypes));
     }
 
     @Test
@@ -444,9 +448,23 @@ public class DataExtractTest {
 //            Map<String, Object> map = new LinkedHashMap<>();
 //            map.put("fqdn", s);
 //            result.add(map);
-            fileWriter.write("update domain_category_reputation set submit_user='tsg' where fqdn='"+s+"';\n",true);
+            fileWriter.write("update domain_category_reputation set submit_user='tsg' where fqdn='" + s + "';\n", true);
         }
 //        dbUpdate(result);
+    }
+
+    @Test
+    public void txtUpdate() {
+
+        String operator = "FWDNS";
+        FileReader fr = new FileReader("D:\\test\\test\\ip\\" + operator + ".txt");
+        List<String> strings = fr.readLines();
+        FileWriter fw = new FileWriter("D:\\test\\test\\ip\\" + operator + ".sql");
+        for (String s : strings) {
+            fw.write("INSERT IGNORE INTO dns_server_info " +
+                    "(ip_addr, dns_server_role, create_time, update_time) " +
+                    "VALUES('" + StrUtil.trim(s) + "', '" + operator + "', current_timestamp(), current_timestamp());\n", true);
+        }
     }
 
     public void dbUpdate(List<Map> transformResult) {
@@ -506,5 +524,76 @@ public class DataExtractTest {
             IoUtil.close(conn);
             dbUtils.close();
         }
+    }
+
+    static Map<String, Map> paramsMap = new HashMap<>();
+
+    static {
+        Map<String, String> sourceParams = new HashMap<>();
+        sourceParams.put("ip", "192.168.44.12");
+        sourceParams.put("type", "mariadb");
+        sourceParams.put("database", "web_sketch");
+        sourceParams.put("table", "domain_category_reputation");
+        sourceParams.put("username", "root");
+        sourceParams.put("pin", "galaxy2019");
+        sourceParams.put("sql", "SELECT id,fqdn,status_code FROM domain_category_reputation");
+        sourceParams.put("sharding", "5");
+        paramsMap.put("source", sourceParams);
+    }
+
+    @Autowired
+    DataTransformService dataTransformService;
+
+    @Test
+    public void shardingTest() {
+        Map<String, String> params = new HashMap<>();
+        params.put("parallelism", "5");
+        Map<String, String> sinkParams = new HashMap<>();
+        sinkParams.put("type", "mariadb");
+        sinkParams.put("ip", "192.168.44.12");
+        sinkParams.put("database", "web_sketch");
+        sinkParams.put("table", "domain_category_reputation");
+        sinkParams.put("username", "root");
+        sinkParams.put("pin", "galaxy2019");
+        sinkParams.put("option", "update");
+        try {
+            long start = System.currentTimeMillis();
+            Map<String, String> map = paramsMap.get("source");
+            Map<String, String> countParams = new HashMap<>();
+            countParams.putAll(map);
+            countParams.put("sql", "select count(*) AS count from " + countParams.get("table"));
+            List<Map> countMap = dataSourceService.mysqlSource(countParams);
+            String parentSql = map.get("sql");
+            int sharding = Integer.valueOf(map.get("sharding"));
+            int count = Integer.valueOf(StrUtil.toString(countMap.get(0).get("count")));
+            logger.info("query result data count {} , sharding {}", count, sharding);
+            int shardingSize = count % sharding == 0 ? count / sharding : count / sharding + 1;
+            for (int i = 0; i < sharding; i++) {
+                logger.info("sharding {} source execute start", i + 1);
+                XxlJobLogger.log("sharding {} source execute start", i + 1);
+                String shardingSql = parentSql + " order by id desc limit " + i * shardingSize + "," + ((i + 1) * shardingSize > count ? count : (i + 1) * shardingSize);
+                map.put("sql", shardingSql);
+                List<Map> shardingResult = dataSourceService.mysqlSource(map);
+                logger.info("sharding {} source execute end", i + 1);
+                XxlJobLogger.log("sharding {} source execute end", i + 1);
+
+                logger.info("sharding {} transform execute start", i + 1);
+                XxlJobLogger.log("sharding {} transform execute start", i + 1);
+                List<Map> transformResult = dataTransformService.isFqdnAccessible(shardingResult, params);
+                logger.info("sharding {} transform execute end", i + 1);
+                XxlJobLogger.log("sharding {} transform execute end", i + 1);
+
+                logger.info("sharding {} sink execute start", i + 1);
+                XxlJobLogger.log("sharding {} sink execute start", i + 1);
+                dataSinkService.exec(transformResult, sinkParams);
+                logger.info("sharding {} sink execute end", i + 1);
+                XxlJobLogger.log("sharding {} sink execute end", i + 1);
+            }
+            logger.info("sharding task end, take time {}ms", System.currentTimeMillis() - start);
+            XxlJobLogger.log("sharding task end, take time {}ms", System.currentTimeMillis() - start);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 }
