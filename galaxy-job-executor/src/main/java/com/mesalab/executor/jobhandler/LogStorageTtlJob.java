@@ -34,7 +34,7 @@ public class LogStorageTtlJob {
 
     private Log logger = Log.get();
 
-    private static final String trafficPort = "8123";
+    private static final String trafficPort = "8124";
 
     @Autowired
     StorageQuotaService storageQuotaService;
@@ -52,8 +52,8 @@ public class LogStorageTtlJob {
      *
      * @param params {"maxdays":30}
      */
-    @XxlJob("changeColumnTtlJobHandler")
-    public ReturnT<String> changeColumnTtl(String params) {
+    @XxlJob("changeCkTtlJobHandler")
+    public ReturnT<String> changeCkTtl(String params) {
         try {
 
             UrlBuilder ckurlBuilder = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8);
@@ -206,7 +206,7 @@ public class LogStorageTtlJob {
 
                 if (content != null && !"".equals(content)) {
 
-                    String getdatabaseDDL = "SELECT name ,extract(engine_full, '.*toIntervalSecond\\((\\d+)\\)') as tablettl  from `system`.tables where tablettl!='' and  database = '" + deletionConfig.getTrafficDatasource() + "' and engine ='MergeTree' and engine_full like '%TTL%' format JSON";
+                    String getTableDdlsql = "SELECT name ,extract(engine_full, '.*toIntervalSecond\\((\\d+)\\)') as tablettl  from `system`.tables where tablettl!='' and  database = '" + deletionConfig.getTrafficDatasource() + "' and engine ='MergeTree' and engine_full like '%TTL%' format JSON";
 
                     String databaseschema = "$..data[*]";
                     // String tableschema = "$.[data]";
@@ -214,8 +214,9 @@ public class LogStorageTtlJob {
                     //  List<Map<String, Object>> schemaTableMessageList = JsonPath.using(conf2).parse(content).read(tableschema, List.class);
 
                     for (String ip : addressForCKs) {
-                        String databaseDdl = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams("http://" + ip, deleteParamMap), getdatabaseDDL);
-                        List<Map<String, Object>> databaseMessageList = JsonPath.using(conf2).parse(databaseDdl).read(databaseschema, List.class);
+                        String tableDdl = gettableDdl(ip,getTableDdlsql);
+
+                        List<Map<String, Object>> databaseMessageList = JsonPath.using(conf2).parse(tableDdl).read(databaseschema, List.class);
                         Map<String, Integer> tableobj = new HashMap<>();
                         for (Map<String, Object> obj : databaseMessageList) {
                             String tName = (String) obj.get("name");
@@ -275,6 +276,16 @@ public class LogStorageTtlJob {
         }
 
         return null;
+    }
+
+    private String gettableDdl(String ip, String getTableDdlsql) {
+
+        Map<String, Object> deleteParamMap = getDeleteSource();
+        String httpResult = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams("http://" + ip, deleteParamMap), getTableDdlsql);
+        if ("-1".equals(httpResult)) {
+            throw new BusinessException("http request error url = " + ip);
+        }
+        return httpResult;
     }
 
     /**
@@ -487,21 +498,6 @@ public class LogStorageTtlJob {
         return true;
     }
 
-    /**
-     * 更新标准时间
-     *
-     * @param logType
-     * @param maxdays
-     */
-    private void modifyLastStorage(String logType, Integer maxdays) {
-        // 设置标准时间,如果now - 标准时间 > maxdays,则更新 标准时间 = 当前时间-maxday
-        Long lastStorage = storageQuotaService.getLastStorage(logType);
-        Long now = System.currentTimeMillis() / 1000;
-        Long max = maxdays * 24 * 60 * 60L;// 单位秒
-        if (now - lastStorage > max) {
-            storageQuotaService.modifyLastStorage(logType, String.valueOf(now - max));
-        }
-    }
 
 
 }
