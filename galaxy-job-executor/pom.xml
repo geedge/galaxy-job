@@ -180,7 +180,7 @@
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.220426-dev</imageTag>
+                        <imageTag>v1.3.220601</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

@@ -77,6 +77,8 @@ public class LogStorageTtlJob {
 
             } else {
                 logger.info("ddl queue  busy ");
+                XxlJobLogger.log("ddl queue  busy ");
+                return ReturnT.FAIL;
             }
 
 
@@ -397,14 +399,25 @@ public class LogStorageTtlJob {
                             if (schemaColumnHasDoc.containsKey("ttl")) {
 
                                 Integer ttltime = (Integer) schemaColumnHasDoc.get("ttl");
-                                String ttlvalue = "toDateTime(" + partitionKey + ") + toIntervalSecond(" + ttltime + ")";
-                                if (!ttlvalue.equals(tableobj.get(column).getTtl().trim())) {
-                                    tableobj.get(column).setTtl(ttlvalue);
-                                    modifyTtlColumns.put(column, tableobj.get(column));
-                                    //  XxlJobLogger.log("ChangeTtlColumns error! ip:"+ip+" tablename :"+tablename+" different ttl columns: "+be.getMessage());
+                                if(ttltime!=null) {
+                                    String ttlvalue = "toDateTime(" + partitionKey + ") + toIntervalSecond(" + ttltime + ")";
+                                    if (!ttlvalue.equals(tableobj.get(column).getTtl().trim())) {
+                                        tableobj.get(column).setTtl(ttlvalue);
+                                        modifyTtlColumns.put(column, tableobj.get(column));
+                                        //  XxlJobLogger.log("ChangeTtlColumns error! ip:"+ip+" tablename :"+tablename+" different ttl columns: "+be.getMessage());
+
+                                    }
+                                }
+                                else {
+                                    if (tableobj.containsKey(column)) {
+                                        if (tableobj.get(column).getTtl() != null && !("").equals(tableobj.get(column).getTtl())) {
+                                            tableobj.get(column).setTtl("");
+                                            dropTtlColumns.put(column, tableobj.get(column));
+
+                                        }
+                                    }
 
                                 }
-
 
                             } else {
 
