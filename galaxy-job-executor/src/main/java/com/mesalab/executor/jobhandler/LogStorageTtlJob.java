@@ -224,10 +224,9 @@ public class LogStorageTtlJob {
 
                         if (schemaobj.containsKey("doc")) {
                             Map<String, Object> schemaHasDoc = (Map<String, Object>) schemaobj.get("doc");
-                            if (schemaHasDoc.containsKey("partition_key")) {
+                            if (schemaHasDoc.containsKey("partition_key") && schemaHasDoc.containsKey("ttl")) {
 
-                                if (schemaHasDoc.containsKey("ttl")) {
-
+                                if (schemaHasDoc.get("ttl")!=null && schemaHasDoc.get("partition_key")!=null) {
                                     ttltime = schemaHasDoc.get("ttl").toString().trim();
                                     partitionKey = schemaHasDoc.get("partition_key").toString().trim();
                                 } else {
@@ -236,8 +235,8 @@ public class LogStorageTtlJob {
                                 }
                             } else {
 
-                                logger.error("table " + tablename + " schema  not containsKey partition_key  error ");
-                                XxlJobLogger.log("table " + tablename + " schema  not containsKey partition_key  error ");
+                                logger.error("table " + tablename + " schema  not containsKey partition_key or ttl error ");
+                                XxlJobLogger.log("table " + tablename + " schema  not containsKey partition_key or ttl error ");
                             }
                         } else {
                             logger.error("table " + tablename + " schema  not containsKey doc  error ");
@@ -289,7 +288,6 @@ public class LogStorageTtlJob {
                     }
 
                 } catch (RuntimeException be) {
-
                     logger.error(" getChangeTtltables foreach table " + tablename + "  error " + be.getMessage());
                     XxlJobLogger.log(" getChangeTtltables foreach table " + tablename + "  error " + be.getMessage());
 
@@ -367,7 +365,7 @@ public class LogStorageTtlJob {
                     return null;
                 }
             } else {
-                logger.error("table " + tablename + " schema  not  exist ");
+                logger.warn("table " + tablename + " schema  not  exist ");
                 XxlJobLogger.log(tablename + " table is not exist in schema !");
                 return null;
             }
