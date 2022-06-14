@@ -143,15 +143,16 @@ public class LogStorageQuotaJob {
 
                 try {
                     List<String> partitionList = getSystemDataForCK(ckUrl, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemParts() + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
-
+                    logger.info("reset storage days table {}, drop partition size {} ", table, partitionList.size());
+                    XxlJobLogger.log("reset storage days table {}, drop partition size {} ", table, partitionList.size());
                     partitionList.forEach(partition -> {
                         String deleteSql = Joiner.on("").join(prefixDeleteSql, table, suffixDeleteSql, "'",partition,"'");
                         deleteParamMap.put("query", deleteSql);
-                        XxlJobLogger.log("reset storage days clickhouse sql:{}", deleteSql);
+                        logger.info("reset storage days clickhouse sql:{}", deleteSql);
 
-                        String deleteMessage = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(ckUrl, deleteParamMap), null);
-                        XxlJobLogger.log("reset storage days table {} success, message:{}", table, deleteMessage);
-                        logger.info("reset storage days table {} success, message:{}", table, deleteMessage);
+                        HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(ckUrl, deleteParamMap), null);
+                        logger.info("reset storage days table {} partition {} success", table, partition);
+                        XxlJobLogger.log("reset storage days table {} partition {}", table, partition);
                     });
                 } catch (BusinessException e) {
                     failCount++;

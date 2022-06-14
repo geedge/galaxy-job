@@ -7,7 +7,6 @@ import java.util.TimeZone;
 
 
 @SpringBootApplication
-//@SpringBootApplication(exclude= {DataSourceAutoConfiguration.class})
 public class GalaxyExecutorApplication {
 
 	public static void main(String[] args) {

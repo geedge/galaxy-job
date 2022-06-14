@@ -141,12 +141,14 @@ public class DataExtractJob {
                     List<Map> transformResult = dataTransformService.isFqdnAccessible(sourceResult, transformParams);
                     logger.info("sharding {} ,paging {} transform execute end", shardingIndex, pageNum);
                     XxlJobLogger.log("sharding {} ,paging {} transform execute end", shardingIndex, pageNum);
+                    sourceResult = null;
                     //数据入库
                     logger.info("sharding {} ,paging {} sink execute start", shardingIndex, pageNum);
                     XxlJobLogger.log("sharding {} ,paging {} sink execute start", shardingIndex, pageNum);
                     dataSinkService.exec(transformResult, sinkParams);
                     logger.info("sharding {} ,paging {} sink execute end", shardingIndex, pageNum);
                     XxlJobLogger.log("sharding {} ,paging {} sink execute end", shardingIndex, pageNum);
+                    transformResult = null;
                 }
                 logger.info("sharding {} task end, take time {}ms", shardingIndex, System.currentTimeMillis() - start);
                 XxlJobLogger.log("sharding {} task end, take time {}ms", shardingIndex, System.currentTimeMillis() - start);
