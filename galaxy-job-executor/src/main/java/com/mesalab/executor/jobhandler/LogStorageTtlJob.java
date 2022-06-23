@@ -235,11 +235,11 @@ public class LogStorageTtlJob {
                                 }
                             } else {
 
-                                logger.error("table " + tablename + " schema  not containsKey partition_key or ttl error ");
+                                logger.warn("table " + tablename + " schema  not containsKey partition_key or ttl error ");
                                 XxlJobLogger.log("table " + tablename + " schema  not containsKey partition_key or ttl error ");
                             }
                         } else {
-                            logger.error("table " + tablename + " schema  not containsKey doc  error ");
+                            logger.warn("table " + tablename + " schema  not containsKey doc  error ");
                             XxlJobLogger.log("table " + tablename + " schema  not containsKey doc  error ");
 
                         }
@@ -354,13 +354,13 @@ public class LogStorageTtlJob {
                         schemaColumnMessageList = JsonPath.using(conf2).parse(content).read(schema, List.class);
 
                     } else {
-                        logger.error("table " + tablename + " schema  not containsKey partition_key  error ");
+                        logger.warn("table " + tablename + " schema  not containsKey partition_key  error ");
                         XxlJobLogger.log("table " + tablename + " schema  not containsKey partition_key  error ");
                         return null;
                     }
                 }else {
 
-                    logger.error("table " + tablename + " schema  not containsKey doc  error ");
+                    logger.warn("table " + tablename + " schema  not containsKey doc  error ");
                     XxlJobLogger.log("table " + tablename + " schema  not containsKey doc  error ");
                     return null;
                 }
