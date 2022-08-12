@@ -7,6 +7,7 @@ import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.core.utils.async.HttpKit;
@@ -152,7 +153,8 @@ public class DataTransformService {
                         if (uniqueFqdns.containsKey(map.get("fqdn"))) {
                             code = Integer.valueOf(String.valueOf(uniqueFqdns.get("fqdn")));
                         } else {
-                            code = HttpKit.getStatus(UrlUtil.getUrl(map.get("fqdn")));
+//                            code = HttpKit.getStatus(UrlUtil.getUrl(map.get("fqdn")));
+                            code = HttpClientUtils.get(UrlUtil.getUrl(map.get("fqdn")));
                         }
                         uniqueFqdns.put(map.get("fqdn"), code);
                         if (ObjectUtil.isEmpty(map.get(STATUS_CODE))||Integer.valueOf(String.valueOf(map.get(STATUS_CODE))) != code) {

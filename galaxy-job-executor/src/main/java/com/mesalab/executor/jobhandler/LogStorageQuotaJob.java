@@ -42,6 +42,7 @@ public class LogStorageQuotaJob {
     private static final String analyticUrl = "/druid/v2/sql";
     private static final String trafficPort = "8123";
     private static final String ck_cluster = "ck_cluster";
+    private static final String max_days = "maxDays";
 
     @Autowired
     StorageQuotaService storageQuotaService;
@@ -69,7 +70,7 @@ public class LogStorageQuotaJob {
 
             //根据服务器地址，表，分区去删除数据
             String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", deletionConfig.getTrafficDatasource(), ".");
-            String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
+            String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
             UrlBuilder urlBuilder = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8);
             List<String> addressForCKs = getAddressForCK(urlBuilder.toString());
             int failCount = 0;
@@ -107,7 +108,7 @@ public class LogStorageQuotaJob {
                     XxlJobLogger.log("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                 }
             }
-            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
+            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
             if (failCount > 0) {
                 throw new BusinessException("reset storage clickhouse ttl error ,failCount " + failCount);
             }
@@ -132,7 +133,7 @@ public class LogStorageQuotaJob {
 
             String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", deletionConfig.getTrafficDatasource(), ".");
             String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ", ck_cluster, " DROP PARTITION ");
-            Integer maxdays = Integer.valueOf(String.valueOf(paramsMap.get("maxdays")));
+            Integer maxdays = Integer.valueOf(String.valueOf(paramsMap.get(max_days)));
             String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -maxdays);
 
             String ckUrl = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8).toString();
@@ -190,8 +191,8 @@ public class LogStorageQuotaJob {
             }
 
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%' " + deletionConfig.getNotInSql("datasource", deletionConfig.getAnalyticExclusion()) + " \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-            modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
-            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), false);
+            modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
+            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get(max_days))), false);
 
         } catch (BusinessException be) {
             logger.error(be.getMessage());
@@ -219,7 +220,7 @@ public class LogStorageQuotaJob {
                 return IJobHandler.FAIL;
             }
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks  WHERE datasource LIKE '%hot%' " + deletionConfig.getNotInSql("datasource", deletionConfig.getAnalyticExclusion()) + " \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))), true);
+            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get(max_days))), true);
         } catch (BusinessException be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
@@ -321,7 +322,7 @@ public class LogStorageQuotaJob {
                             List<ListAllMyBucketsResult.Buckets.Bucket> bucketList = buckets.getBucket();
 
                             LifecycleConfiguration lc = new LifecycleConfiguration();
-                            lc.getRule().setExpiration(new LifecycleConfiguration.Expiration(String.valueOf(paramsMap.get("maxdays"))));
+                            lc.getRule().setExpiration(new LifecycleConfiguration.Expiration(String.valueOf(paramsMap.get(max_days))));
 
                             for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                                 try {
@@ -350,7 +351,7 @@ public class LogStorageQuotaJob {
                     failCount++;
                 }
             }
-            modifyLastStorage(Constant.FILES, Integer.valueOf(String.valueOf(paramsMap.get("maxdays"))));
+            modifyLastStorage(Constant.FILES, Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
             if (failCount > 0) {
                 throw new BusinessException(" number of total endpoints " + endpointList.size() + ", number of failed count " + failCount);
             }
@@ -447,7 +448,7 @@ public class LogStorageQuotaJob {
             String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
             String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", deleteStartTime + "/", deleteEndDate, "\"}");
             //3恢复加载规则
-            String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get("maxdays"), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
+            String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get(max_days), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
             //清库时注意不操作hot结尾的表
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
             List<String> analyticTables = getAnalyticTables(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryTablesSql);
