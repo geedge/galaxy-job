@@ -296,7 +296,7 @@ public class LogStorageQuotaJob {
      *
      * @param params{"maxdays":30}
      */
-    @XxlJob("deleteFilesJobHandler")
+    @XxlJob("deleteFilesOldJobHandler")
     public ReturnT<String> deleteFiles(String params) {
         try {
             Map<String, Object> paramsMap = validParams(params);
