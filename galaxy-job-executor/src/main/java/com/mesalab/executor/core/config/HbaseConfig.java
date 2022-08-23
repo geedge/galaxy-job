@@ -23,6 +23,8 @@ public class HbaseConfig {
 
     private Integer connect_pool;
 
+    private Integer delete_file_thread;
+
     private Integer scanner_timeout;
 
     private Integer scanner_max_result_size;
@@ -50,6 +52,14 @@ public class HbaseConfig {
     private Integer scan_batch;
 
     private Long executeTime;
+
+    public Integer getDelete_file_thread() {
+        return delete_file_thread;
+    }
+
+    public void setDelete_file_thread(Integer delete_file_thread) {
+        this.delete_file_thread = delete_file_thread;
+    }
 
     public Long getExecuteTime() {
         return executeTime;

@@ -53,16 +53,8 @@ public class HbaseUtil {
 
     @Bean(name = "threadPool")
     public ExecutorService getThreadPool() {
-        return Executors.newFixedThreadPool(hbaseConfig.getConnect_pool());
+        return Executors.newFixedThreadPool(hbaseConfig.getDelete_file_thread());
     }
 
-    public static long dateToTimestamp(String date) {
-        return DateUtil.parse(date).getTime();
-    }
 
-    public static String getRowKey(String filename) {
-        String md5str = DigestUtil.md5Hex(filename);
-        md5str = md5str.substring(8, 24);
-        return md5str;
-    }
 }
