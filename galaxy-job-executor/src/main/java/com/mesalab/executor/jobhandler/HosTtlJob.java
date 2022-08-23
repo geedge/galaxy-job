@@ -43,7 +43,7 @@ public class HosTtlJob {
      *
      * @param params{"maxdays":30}
      */
-    @XxlJob("deleteHosFilesJobHandler")
+    @XxlJob("deleteFilesJobHandler")
     public ReturnT<String> deleteExpiredFile(String params) {
         try {
             Map<String, Object> paramsMap = validParams(params);
@@ -109,7 +109,6 @@ public class HosTtlJob {
                         scan.setCaching(hbaseConfig.getScanner_caching());
                         scan.setLimit(hbaseConfig.getScan_batch());
                         scanner = index_time_table.getScanner(scan);
-                        ArrayList<Row> rows = new ArrayList<>();
                         for (Result rs : scanner) {
                             if (!rs.isEmpty()) {
                                 startRow = Bytes.toString(rs.getRow());
@@ -120,13 +119,9 @@ public class HosTtlJob {
                                 get.addColumn(Bytes.toBytes("meta"), Bytes.toBytes("partname"));
                                 get.addColumn(Bytes.toBytes("meta"), Bytes.toBytes("filesize"));
                                 get.addColumn(Bytes.toBytes("meta"), Bytes.toBytes("filename"));
-                                Increment increment = new Increment(rs.getRow());
-                                increment.addColumn("meta".getBytes(), "scancount".getBytes(), 1);
-                                rows.add(increment);
                                 fileGets.add(get);
                             }
                         }
-                        index_time_table.batch(rows, null);
                     } catch (Exception be) {
                         logger.error("scan index_time_" + tableName + " data error, start row is " + startRow + ". " + be.getMessage());
                         XxlJobLogger.log("scan index_time_table error, start row is " + startRow + ". " + be.getMessage());
@@ -145,6 +140,7 @@ public class HosTtlJob {
                                     deleteData(tableName, date, maxDays, result);
                                 }
                             });
+                            deleteCount++;
                         }
                     }
                 }
@@ -178,6 +174,10 @@ public class HosTtlJob {
                         index_filename_table.delete(new Delete(filenamekey.getBytes()));
                         table.delete(new Delete(result.getRow()));
                         index_time_table.delete(new Delete(timekey.getBytes()));
+                    }else {
+                        Increment increment = new Increment(timekey.getBytes());
+                        increment.addColumn("meta".getBytes(), "scancount".getBytes(), 1);
+                        index_time_table.increment(increment);
                     }
                 } else if (isparent == 1) {
                     Cell partNameCell = result.getColumnLatestCell(Bytes.toBytes("meta"), Bytes.toBytes("partname"));
@@ -200,6 +200,13 @@ public class HosTtlJob {
                             if (!"".equals(tk)) {
                                 index_time_table.delete(new Delete(tk.getBytes()));
                             }
+                        }
+                    }else {
+                        String[] timekeys = timekey.split(",");
+                        for (String tk : timekeys) {
+                            Increment increment = new Increment(tk.getBytes());
+                            increment.addColumn("meta".getBytes(), "scancount".getBytes(), 1);
+                            index_time_table.increment(increment);
                         }
                     }
                 } else if (isparent == 3) {
@@ -235,18 +242,20 @@ public class HosTtlJob {
                                 index_time_table.delete(new Delete(tk.getBytes()));
                             }
                         }
+                    }else {
+                        String[] timekeys = timekey.split(",");
+                        for (String tk : timekeys) {
+                            Increment increment = new Increment(tk.getBytes());
+                            increment.addColumn("meta".getBytes(), "scancount".getBytes(), 1);
+                            index_time_table.increment(increment);
+                        }
                     }
-                }
-                synchronized (this) {
-                    deleteCount++;
                 }
             }
         } catch (Exception be) {
             logger.error("delete " + tableName + " " + fileName + " error. " + be.getMessage());
             XxlJobLogger.log("delete " + tableName + " " + fileName + " error. " + be.getMessage());
-            synchronized (this) {
-                deleteErrorCount++;
-            }
+            deleteErrorCount++;
         } finally {
             IoUtil.close(table);
             IoUtil.close(index_filename_table);
