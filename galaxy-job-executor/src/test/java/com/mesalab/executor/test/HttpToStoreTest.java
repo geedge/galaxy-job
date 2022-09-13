@@ -177,7 +177,7 @@ public class HttpToStoreTest {
         String insertSql = "INSERT INTO tsg_galaxy_v3.assessment_event " +
                 "(common_log_id, common_recv_time, assessment_date, lot_number, flie_name, assessment_file, assessment_type, features, `size`, file_checksum_sha)" +
                 "VALUES(0, 0, 0, '', '', '', '', '', " + length + ", '" + sha256Hex + "');";
-        Map<String, Object> ckParamMap = ckConfig.getDeleteSource();
+        Map<String, Object> ckParamMap = ckConfig.getCkSource();
 
         ckParamMap.put("query", insertSql);
 

@@ -43,7 +43,7 @@ public class StorageQuotaService {
      * 用于获取 ClickHouse 当前存储大小 若获取 failquerydruid内最新的值替补当前值
      */
     private Long getClickHouseCurr(String point) {
-        Map<String, Object> deleteParamMap = storgeConfig.getDeleteSource();
+        Map<String, Object> deleteParamMap = storgeConfig.getCkSource();
         String currSql = "SELECT SUM(`bytes_on_disk`) FROM " + storgeConfig.getSystemPartsCluster() + " WHERE database = '" + storgeConfig.getTrafficDatasource() + "';";
         deleteParamMap.put("query", currSql);
         String currResult = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(point), deleteParamMap));
@@ -57,7 +57,7 @@ public class StorageQuotaService {
      * 用于获取ClickHouse最大存储大小 若获取 failquerydruid内最新的值替补当前值
      */
     private Long getClickHouseMax(String point) {
-        Map<String, Object> deleteParamMap = storgeConfig.getDeleteSource();
+        Map<String, Object> deleteParamMap = storgeConfig.getCkSource();
         String maxSql = "SELECT SUM(`total_space`) FROM ".concat(storgeConfig.getSystemDisks()).concat(";");
         deleteParamMap.put("query", maxSql);
         String maxResult = HttpClientUtils
@@ -72,7 +72,7 @@ public class StorageQuotaService {
      */
     private Long getClickHouseDiff(String point) {
         String date = DateUtils.getDateOfYesterday("yyyyMMdd");
-        Map<String, Object> deleteParamMap = storgeConfig.getDeleteSource();
+        Map<String, Object> deleteParamMap = storgeConfig.getCkSource();
         String diffSql = "SELECT SUM(bytes_on_disk) FROM ".concat(storgeConfig.getSystemPartsCluster()).concat(" WHERE database = '" ).concat(storgeConfig.getTrafficDatasource())
                 .concat("' AND partition = '").concat(date).concat("';");
         deleteParamMap.put("query", diffSql);

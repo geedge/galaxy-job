@@ -4,10 +4,13 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.TypeUtil;
 import cn.hutool.core.util.ZipUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.log.Log;
+import com.alibaba.fastjson.util.TypeUtils;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
 import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
@@ -31,6 +34,10 @@ import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
+import static com.mesalab.executor.core.utils.Constant.DEFAULT_VSYS_ID_VALUE;
+import static com.mesalab.executor.core.utils.Constant.VSYS_ID;
 
 @Component
 public class DataflowJob {
@@ -153,8 +160,11 @@ public class DataflowJob {
             String assessmentType = "web-sketch";
             String features = "";
             String dataSource = "tsg_galaxy_v3.assessment_event";
-            String insertTemplate = "INSERT INTO {0} (common_log_id,common_recv_time,assessment_date,lot_number,file_name,assessment_file,assessment_type,features,`size`,file_checksum_sha) " +
-                    "VALUES({1,number,#},{2,number,#},{3,number,#},''{4}'',''{5}'',''{6}'',''{7}'',''{8}'',{9,number,#},''{10}'');";
+            String vsysId = UrlUtil.getParamByUrl(httpParams.get(0).getUrl(), VSYS_ID);
+            //vsys_id,内置虚拟系统id默认为 1
+            String defVsysId = Optional.ofNullable(vsysId).orElse(DEFAULT_VSYS_ID_VALUE);
+            String insertTemplate = "INSERT INTO {0} (common_log_id,common_recv_time,assessment_date,lot_number,file_name,assessment_file,assessment_type,features,`size`,file_checksum_sha,vsys_id) " +
+                    "VALUES({1,number,#},{2,number,#},{3,number,#},''{4}'',''{5}'',''{6}'',''{7}'',''{8}'',{9,number,#},''{10}'',{11,number,#});";
             long logId = SnowflakeId.generateId(1, 1);
             long now = System.currentTimeMillis() / 1000;
             String tmpDir = "";
@@ -170,6 +180,12 @@ public class DataflowJob {
                 XxlJobLogger.log("query clickhouse for {} domain", store);
                 logger.info("query clickhouse for {} domain", store);
                 features = i == httpParams.size() - 1 ? features.concat(store).concat(" domains") : features.concat(store).concat(" domains,");
+
+                HttpParam httpParam = httpParams.get(i);
+                if (vsysId == null) {
+                   httpParam.setUrl(UrlUtil.appendUrl(httpParam.getUrl(), ImmutableMap.of(VSYS_ID, defVsysId)));
+                }
+
                 tmpFiles[i] = JobUtil.createCsvFile(queryCk(httpParams.get(i)), tmpDir.concat(filePrefix).concat("-").concat(store).concat(".csv"));
             }
             File zipFile = ZipUtil.zip(FileUtil.file(tmpDir.concat(zipName)), false, tmpFiles);
@@ -199,8 +215,8 @@ public class DataflowJob {
                 }
             }
             //元数据存入ck库
-            String insertSql = MessageFormat.format(insertTemplate, dataSource, logId, now, now, lotNumber, zipName, assessmentFile, assessmentType, features, fileSize, sha256Hex);
-            Map<String, Object> ckParamMap = storeConfig.getDeleteSource();
+            String insertSql = MessageFormat.format(insertTemplate, dataSource, logId, now, now, lotNumber, zipName, assessmentFile, assessmentType, features, fileSize, sha256Hex, TypeUtils.castToInt(defVsysId));
+            Map<String, Object> ckParamMap = storeConfig.getCkSource();
             ckParamMap.put("query", insertSql);
 
             UrlBuilder urlBuilder = UrlBuilder.ofHttp(storeConfig.getTrafficServer(), StandardCharsets.UTF_8);
@@ -236,7 +252,6 @@ public class DataflowJob {
         List<Map> results = (List<Map>) resultObj;
         return results;
     }
-
 
 
 }
