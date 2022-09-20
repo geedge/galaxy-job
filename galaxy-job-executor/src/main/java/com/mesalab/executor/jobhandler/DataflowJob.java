@@ -160,9 +160,8 @@ public class DataflowJob {
             String assessmentType = "web-sketch";
             String features = "";
             String dataSource = "tsg_galaxy_v3.assessment_event";
-            String vsysId = UrlUtil.getParamByUrl(httpParams.get(0).getUrl(), VSYS_ID);
             //vsys_id,内置虚拟系统id默认为 1
-            String defVsysId = Optional.ofNullable(vsysId).orElse(DEFAULT_VSYS_ID_VALUE);
+            Integer defVsysId =DEFAULT_VSYS_ID_VALUE;
             String insertTemplate = "INSERT INTO {0} (common_log_id,common_recv_time,assessment_date,lot_number,file_name,assessment_file,assessment_type,features,`size`,file_checksum_sha,vsys_id) " +
                     "VALUES({1,number,#},{2,number,#},{3,number,#},''{4}'',''{5}'',''{6}'',''{7}'',''{8}'',{9,number,#},''{10}'',{11,number,#});";
             long logId = SnowflakeId.generateId(1, 1);
@@ -182,9 +181,6 @@ public class DataflowJob {
                 features = i == httpParams.size() - 1 ? features.concat(store).concat(" domains") : features.concat(store).concat(" domains,");
 
                 HttpParam httpParam = httpParams.get(i);
-                if (vsysId == null) {
-                   httpParam.setUrl(UrlUtil.appendUrl(httpParam.getUrl(), ImmutableMap.of(VSYS_ID, defVsysId)));
-                }
 
                 tmpFiles[i] = JobUtil.createCsvFile(queryCk(httpParams.get(i)), tmpDir.concat(filePrefix).concat("-").concat(store).concat(".csv"));
             }
@@ -215,7 +211,7 @@ public class DataflowJob {
                 }
             }
             //元数据存入ck库
-            String insertSql = MessageFormat.format(insertTemplate, dataSource, logId, now, now, lotNumber, zipName, assessmentFile, assessmentType, features, fileSize, sha256Hex, TypeUtils.castToInt(defVsysId));
+            String insertSql = MessageFormat.format(insertTemplate, dataSource, logId, now, now, lotNumber, zipName, assessmentFile, assessmentType, features, fileSize, sha256Hex, defVsysId);
             Map<String, Object> ckParamMap = storeConfig.getCkSource();
             ckParamMap.put("query", insertSql);
 
