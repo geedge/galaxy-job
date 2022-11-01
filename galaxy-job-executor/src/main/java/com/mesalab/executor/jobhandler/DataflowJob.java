@@ -160,8 +160,13 @@ public class DataflowJob {
             String assessmentType = "web-sketch";
             String features = "";
             String dataSource = "tsg_galaxy_v3.assessment_event";
-            //vsys_id,内置虚拟系统id默认为 1
-            Integer defVsysId =DEFAULT_VSYS_ID_VALUE;
+            //vsys_id,内置虚拟系统id默认为 0
+            Integer defVsysId = DEFAULT_VSYS_ID_VALUE;
+            Map<String, Object> requestBody = httpParams.get(0).getRequestBody();
+            if(ObjectUtil.isNotEmpty(requestBody)&&ObjectUtil.isNotEmpty(requestBody.get("vsysId"))){
+                defVsysId = TypeUtils.castToInt(requestBody.get("vsysId"));
+            }
+
             String insertTemplate = "INSERT INTO {0} (common_log_id,common_recv_time,assessment_date,lot_number,file_name,assessment_file,assessment_type,features,`size`,file_checksum_sha,vsys_id) " +
                     "VALUES({1,number,#},{2,number,#},{3,number,#},''{4}'',''{5}'',''{6}'',''{7}'',''{8}'',{9,number,#},''{10}'',{11,number,#});";
             long logId = SnowflakeId.generateId(1, 1);
