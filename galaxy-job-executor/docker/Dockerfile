@@ -19,6 +19,7 @@ COPY --from=builder /build .
 COPY config config
 ARG JAR_FILE
 COPY ${JAR_FILE} galaxy-job-executor.xjar
+RUN mkdir -p /usr/lib/jvm && ln -s /opt/jdk/ /usr/lib/jvm/jdk1.8.0_73
 
 #dockercompose set JAVA_OPTS
 ENV JAVA_OPTS=" -Xms1024m -Xmx2048m "
