@@ -21,7 +21,10 @@ import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
@@ -31,6 +34,7 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 
 import javax.net.ssl.*;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -38,6 +42,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -412,6 +417,68 @@ public class HttpClientUtils {
 
             if (statusCode != HttpStatus.SC_OK) {
                 throw new BusinessException(statusCode, "Http put content is :" + msg);
+            }
+        } catch (URISyntaxException e) {
+            logger.error("URI 转换错误: {}", e.getMessage());
+        } catch (ClientProtocolException e) {
+            logger.error("协议错误: {}", e.getMessage());
+        } catch (ParseException e) {
+            logger.error("解析错误: {}", e.getMessage());
+        } catch (IOException e) {
+            logger.error("IO错误: {}", e.getMessage());
+        } finally {
+            if (null != response) {
+                try {
+                    EntityUtils.consumeQuietly(response.getEntity());
+                    response.close();
+                } catch (IOException e) {
+                    logger.error("释放链接错误: {}", e.getMessage());
+
+                }
+            }
+        }
+        return msg;
+    }
+
+    public static String httpPostFile(String url, File file, Map<String,Object> params, Header... headers) {
+        String msg = "-1";
+        // 获取客户端连接对象
+        CloseableHttpClient httpClient = getHttpClient();
+        CloseableHttpResponse response = null;
+        try {
+            URL ul = new URL(url);
+            URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
+            logger.info("http post uri:{} ", url);
+
+            HttpPost httpost = new HttpPost(uri);
+            if (StringUtil.isNotEmpty(headers)) {
+                for (Header h : headers) {
+                    httpost.addHeader(h);
+                    logger.info("request header : {}",h);
+                }
+            }
+
+            MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder.create()
+                    .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+                    .setCharset(Consts.UTF_8)
+                    .setContentType(ContentType.MULTIPART_FORM_DATA)
+                    .addBinaryBody("file", file);
+            if (params != null) {
+                for (Map.Entry<String, Object> entry : params.entrySet()) {
+                    multipartEntityBuilder.addTextBody(entry.getKey(), String.valueOf(entry.getValue()), ContentType.create("text/plain", Charset.forName("UTF-8")));
+                }
+            }
+
+            httpost.setEntity(multipartEntityBuilder.build());
+            response = httpClient.execute(httpost);
+            int statusCode = response.getStatusLine().getStatusCode();
+            // 获取响应实体
+            HttpEntity entity = response.getEntity();
+            // 获取响应信息
+            msg = EntityUtils.toString(entity, "UTF-8");
+
+            if (statusCode != HttpStatus.SC_OK) {
+                throw new BusinessException(statusCode, "Http post content is :" + msg);
             }
         } catch (URISyntaxException e) {
             logger.error("URI 转换错误: {}", e.getMessage());

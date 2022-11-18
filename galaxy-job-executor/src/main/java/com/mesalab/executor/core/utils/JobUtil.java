@@ -2,17 +2,23 @@ package com.mesalab.executor.core.utils;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IORuntimeException;
+import cn.hutool.core.io.IoUtil;
+import cn.hutool.core.io.file.FileReader;
 import cn.hutool.core.text.csv.CsvUtil;
 import cn.hutool.core.text.csv.CsvWriter;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONNull;
+import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.util.*;
 
 public class JobUtil {
@@ -113,5 +119,47 @@ public class JobUtil {
             m.put(key, JobUtil.nullToDef(source, key, ""));
         }
         return m;
+    }
+
+    public static int executeCommand(String command) {
+        int exitValue = -1;
+
+        BufferedReader bufferedReader = null;
+        try {
+            logger.info("execute command: " + command);
+            // command process
+//            ProcessBuilder processBuilder = new ProcessBuilder();
+//            processBuilder.command(command);
+//            processBuilder.redirectErrorStream(true);
+//
+//            Process process = processBuilder.start();
+//            Process process = Runtime.getRuntime().exec(command);
+            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c", command});
+            BufferedInputStream bufferedInputStream = new BufferedInputStream(process.getInputStream());
+            bufferedReader = new BufferedReader(new InputStreamReader(bufferedInputStream));
+
+            XxlJobLogger.log("process running...");
+            // command log
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                XxlJobLogger.log(line);
+                logger.info(line);
+            }
+            // command exit
+            process.waitFor();
+            exitValue = process.exitValue();
+        } catch (Exception e) {
+            logger.error(e);
+            XxlJobLogger.log(e);
+        } finally {
+            IoUtil.close(bufferedReader);
+        }
+        return exitValue;
+    }
+
+    public static <T> T readJsonFile(String path, Class<T> c) throws Exception {
+        FileReader fr = new FileReader(path);
+        T t = JSONUtil.toBean(fr.readString(), c);
+        return t;
     }
 }
