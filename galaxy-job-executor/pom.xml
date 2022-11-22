@@ -116,11 +116,6 @@
             <artifactId>async-http-client</artifactId>
             <version>1.9.40</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.hbase</groupId>
-            <artifactId>hbase-client</artifactId>
-            <version>2.2.3</version>
-        </dependency>
     </dependencies>
 
     <build>
@@ -189,7 +184,7 @@
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.221116</imageTag>
+                        <imageTag>v1.3.221122</imageTag>
                     </imageTags>
                     <resources>
                         <resource>
