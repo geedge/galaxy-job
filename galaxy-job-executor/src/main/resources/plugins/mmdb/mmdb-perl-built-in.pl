@@ -10,7 +10,7 @@ use POSIX qw(strftime);
 binmode(STDIN,":encoding(gbk)");
 
 ###################数据库连接信息###################
-my $url="http://192.168.44.3:8080/v1/geolocation/dict/detail?isBuiltin=1&VSYS=1";
+my $url="http://192.168.44.3:8080/v1/global/geolocation/dict/detail?isBuiltin=1&VSYS=1";
 my $token="aa2bdec5518ad131f71944b13ce5c298&1&";
 my $help = 0;
 my $outfileV6 = 'ip_v6_built_in.mmdb';
@@ -119,11 +119,6 @@ $request->header('Authorization' => $token);
 my $response = $ua->request($request);
 my $json = new JSON;
 my $obj = $json->decode($response->content);
-my $list=$obj->{"data"}->{"list"};
-$total=$obj->{"data"}->{"total"};
-my $JSON =JSON->new->allow_nonref;
-my $data = $JSON->encode($list);
-my $arraydata=decode_json($data);
 
 $pageNo+=1;
 #记录日志
@@ -134,6 +129,12 @@ $requestMsg=$obj->{"msg"};
 
 open(MMDBLOG, "+>>$mmdbLog");
 printf MMDBLOG "$gmtDatestring MMDB request pageNum: $pageNo, code: $requestCode, msg: $requestMsg\n";
+
+my $list=$obj->{"data"}->{"list"};
+$total=$obj->{"data"}->{"total"};
+my $JSON =JSON->new->allow_nonref;
+my $data = $JSON->encode($list);
+my $arraydata=decode_json($data);
 
 if(@$arraydata[0]->{'addrType'} == 4){
   push(@ipv4Sample, @$arraydata[0]->{'startIp'});

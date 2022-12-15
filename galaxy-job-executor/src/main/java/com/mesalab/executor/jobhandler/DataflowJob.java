@@ -159,7 +159,8 @@ public class DataflowJob {
             String bucketName = "assessment_hos_bucket";
             String assessmentType = "web-sketch";
             String features = "";
-            String dataSource = "tsg_galaxy_v3.assessment_event";
+            String trafficDatasource = storeConfig.getTrafficDatasource();
+            String dataSource = trafficDatasource + ".assessment_event";
             //vsys_id,内置虚拟系统id默认为 0
             Integer defVsysId = DEFAULT_VSYS_ID_VALUE;
             Map<String, Object> requestBody = httpParams.get(0).getRequestBody();
@@ -184,9 +185,6 @@ public class DataflowJob {
                 XxlJobLogger.log("query clickhouse for {} domain", store);
                 logger.info("query clickhouse for {} domain", store);
                 features = i == httpParams.size() - 1 ? features.concat(store).concat(" domains") : features.concat(store).concat(" domains,");
-
-                HttpParam httpParam = httpParams.get(i);
-
                 tmpFiles[i] = JobUtil.createCsvFile(queryCk(httpParams.get(i)), tmpDir.concat(filePrefix).concat("-").concat(store).concat(".csv"));
             }
             File zipFile = ZipUtil.zip(FileUtil.file(tmpDir.concat(zipName)), false, tmpFiles);
