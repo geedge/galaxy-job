@@ -124,25 +124,7 @@ public class DruidMergeHistoryDataJob {
     public String getSegmentGranularities(DruidNativeMergeParam druidNativeMergeParam){
         try{
             String segmentGranularity = druidNativeMergeParam.getSegmentGranularity();
-            if (druidNativeMergeParam!=null){
-                //segmentGranularity
-                switch (segmentGranularity){
-                    case "DAY":
-                        druidNativeMergeParam.setSegmentGranularity("DAY");
-                        break;
-                    case "WEEK":
-                        druidNativeMergeParam.setSegmentGranularity("WEEK");
-                        break;
-                    case "MONTH":
-                        druidNativeMergeParam.setSegmentGranularity("MONTH");
-                        break;
-                    case "QUARTER":
-                        druidNativeMergeParam.setSegmentGranularity("QUARTER");
-                        break;
-                    default:
-                        XxlJobLogger.log("Could not resolve type id {} into a subtype of setSegmentGranularity,known type ids = [day,week,month]",segmentGranularity);
-                        return null;
-                }
+            if (segmentGranularity!=null){
                 return segmentGranularity;
             }
             return null;
@@ -156,28 +138,10 @@ public class DruidMergeHistoryDataJob {
     /**
      * 时间粒度为1min、5min、10min、15min
      */
-    public String getQueryGranularity(DruidNativeMergeParam druidNativeMergeParam){
+    public String getQueryGranularities(DruidNativeMergeParam druidNativeMergeParam){
         try{
             String queryGranularity = druidNativeMergeParam.getQueryGranularity();
-            if (druidNativeMergeParam!=null){
-                //segmentGranularity
-                switch (queryGranularity){
-                    case "PT1M":
-                        druidNativeMergeParam.setQueryGranularity("PT1M");
-                        break;
-                    case "PT5M":
-                        druidNativeMergeParam.setQueryGranularity("PT5M");
-                        break;
-                    case "PT10M":
-                        druidNativeMergeParam.setQueryGranularity("PT10M");
-                        break;
-                    case "PT15M":
-                        druidNativeMergeParam.setQueryGranularity("PT15M");
-                        break;
-                    default:
-                        XxlJobLogger.log("Could not resolve type id {} into a subtype of setQueryGranularity,known type ids = [1min,5min,10min,15min]",queryGranularity);
-                        return null;
-                }
+            if (queryGranularity!=null){
                 return queryGranularity;
             }
             return null;
@@ -216,7 +180,7 @@ public class DruidMergeHistoryDataJob {
                         "      \"dataSource\"" + ":" + "\"" + getDataSource(druidNativeMergeParam) + "\"," + "\n" +
                         "      \"granularitySpec\": {\n" +
                         "        \"type\": \"uniform\",\n" +
-                        "        \"queryGranularity\": {\"type\": \"period\", \"period\""+":"+"\""+getQueryGranularity(druidNativeMergeParam)+"\""+","+ "\"timeZone\": \"Asia/Hong_Kong\"},\n" +
+                        "        \"queryGranularity\": {\"type\": \"period\", \"period\""+":"+"\""+getQueryGranularities(druidNativeMergeParam)+"\""+","+ "\"timeZone\": \"Asia/Hong_Kong\"},\n" +
                         "        \"rollup\": true,\n" +
                         "        \"segmentGranularity\"" + ":" + "\"" + getSegmentGranularities(druidNativeMergeParam) + "\"" + "\n" +
                         "      },\n" +
@@ -277,7 +241,7 @@ public class DruidMergeHistoryDataJob {
                         "      \"dataSource\"" + ":" + "\"" + getDataSource(druidNativeMergeParam) + "\"," + "\n" +
                         "      \"granularitySpec\": {\n" +
                         "        \"type\": \"uniform\",\n" +
-                        "        \"queryGranularity\": {\"type\": \"period\", \"period\""+":"+"\""+getQueryGranularity(druidNativeMergeParam)+"\""+","+ "\"timeZone\": \"Asia/Hong_Kong\"},\n" +
+                        "        \"queryGranularity\": {\"type\": \"period\", \"period\""+":"+"\""+getQueryGranularities(druidNativeMergeParam)+"\""+","+ "\"timeZone\": \"Asia/Hong_Kong\"},\n" +
                         "        \"rollup\": true,\n" +
                         "        \"segmentGranularity\"" + ":" + "\"" + getSegmentGranularities(druidNativeMergeParam) + "\"" + "\n" +
                         "      },\n" +
@@ -360,7 +324,7 @@ public class DruidMergeHistoryDataJob {
                         "      \"dataSource\": \"traffic_shaping_metrics\",\n" +
                         "      \"granularitySpec\": {\n" +
                         "        \"type\": \"uniform\",\n" +
-                        "         \"queryGranularity\": {\"type\": \"period\", \"period\""+":"+"\""+getQueryGranularity(druidNativeMergeParam)+"\""+","+ "\"timeZone\": \"Asia/Hong_Kong\"},\n" +
+                        "         \"queryGranularity\": {\"type\": \"period\", \"period\""+":"+"\""+getQueryGranularities(druidNativeMergeParam)+"\""+","+ "\"timeZone\": \"Asia/Hong_Kong\"},\n" +
                         "        \"rollup\": true,\n" +
                         "        \"segmentGranularity\"" + ":" + "\"" + getSegmentGranularities(druidNativeMergeParam) + "\"" + "\n" +
                         "      },\n" +
