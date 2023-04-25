@@ -200,10 +200,6 @@ public class DruidMergeHistoryDataJob {
                         "            {\n" +
                         "              \"name\": \"sf_profile_id\",\n" +
                         "              \"type\": \"long\"\n" +
-                        "            },\n" +
-                        "            {\n" +
-                        "              \"name\": \"sf_status\",\n" +
-                        "              \"type\": \"long\"\n" +
                         "            }\n" +
                         "          ]\n" +
                         "      },\n" +
@@ -213,13 +209,19 @@ public class DruidMergeHistoryDataJob {
                         "        \"name\": \"sf_latency_us\",\n" +
                         "        \"fieldName\": \"sf_latency_us\",\n" +
                         "        \"expression\": null\n" +
+                        "      },\n" +
+                        "        {\n" +
+                        "        \"type\": \"longMax\",\n" +
+                        "        \"name\": \"sf_status\",\n" +
+                        "        \"fieldName\": \"sf_status\",\n" +
+                        "        \"expression\": null\n" +
                         "      }\n" +
                         "      ]\n" +
                         "    }\n" +
                         "  }\n" +
                         "}";
                 HttpClientUtils.httpPost(url, functionJson);
-            } else if ("service_chaining_metrics".equals(druidNativeMergeParam.getDataSource())){
+            } else if ("service_chaining_rule_hits".equals(druidNativeMergeParam.getDataSource())){
                 String chainingJson = "{\n" +
                         "  \"type\": \"index_parallel\",\n" +
                         "  \"spec\": {\n" +
@@ -302,7 +304,7 @@ public class DruidMergeHistoryDataJob {
                         "  }\n" +
                         "}";
                 HttpClientUtils.httpPost(url, chainingJson);
-            }else if ("traffic_shaping_metrics".equals(druidNativeMergeParam.getDataSource())){
+            }else if ("traffic_shaping_rule_hits".equals(druidNativeMergeParam.getDataSource())){
                 String shapingJson ="{\n" +
                         "  \"type\": \"index_parallel\",\n" +
                         "  \"spec\": {\n" +
@@ -321,7 +323,7 @@ public class DruidMergeHistoryDataJob {
                         "      }\n" +
                         "    },\n" +
                         "    \"dataSchema\": {\n" +
-                        "      \"dataSource\": \"traffic_shaping_metrics\",\n" +
+                        "      \"dataSource\": \"traffic_shaping_rule_hits\",\n" +
                         "      \"granularitySpec\": {\n" +
                         "        \"type\": \"uniform\",\n" +
                         "         \"queryGranularity\": {\"type\": \"period\", \"period\""+":"+"\""+getQueryGranularities(druidNativeMergeParam)+"\""+","+ "\"timeZone\": \"Asia/Hong_Kong\"},\n" +
@@ -356,58 +358,28 @@ public class DruidMergeHistoryDataJob {
                         "          ]\n" +
                         "      },\n" +
                         "      \"metricsSpec\": [\n" +
-                        "          {\n" +
-                        "        \"type\": \"longMax\",\n" +
-                        "        \"name\": \"active_sessions\",\n" +
-                        "        \"fieldName\": \"active_sessions\",\n" +
+                        "      {\n" +
+                        "        \"type\": \"longSum\",\n" +
+                        "        \"name\": \"in_bytes\",\n" +
+                        "        \"fieldName\": \"in_bytes\",\n" +
                         "        \"expression\": null\n" +
                         "      },\n" +
                         "      {\n" +
                         "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"in_rx_pkts\",\n" +
-                        "        \"fieldName\": \"in_rx_pkts\",\n" +
+                        "        \"name\": \"out_bytes\",\n" +
+                        "        \"fieldName\": \"out_bytes\",\n" +
                         "        \"expression\": null\n" +
                         "      },\n" +
                         "      {\n" +
                         "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"in_tx_pkts\",\n" +
-                        "        \"fieldName\": \"in_tx_pkts\",\n" +
+                        "        \"name\": \"in_pkts\",\n" +
+                        "        \"fieldName\": \"in_pkts\",\n" +
                         "        \"expression\": null\n" +
                         "      },\n" +
                         "      {\n" +
                         "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"in_rx_bytes\",\n" +
-                        "        \"fieldName\": \"in_rx_bytes\",\n" +
-                        "        \"expression\": null\n" +
-                        "      },\n" +
-                        "      {\n" +
-                        "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"in_tx_bytes\",\n" +
-                        "        \"fieldName\": \"in_tx_bytes\",\n" +
-                        "        \"expression\": null\n" +
-                        "      },\n" +
-                        "      {\n" +
-                        "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"out_rx_pkts\",\n" +
-                        "        \"fieldName\": \"out_rx_pkts\",\n" +
-                        "        \"expression\": null\n" +
-                        "      },\n" +
-                        "      {\n" +
-                        "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"out_tx_pkts\",\n" +
-                        "        \"fieldName\": \"out_tx_pkts\",\n" +
-                        "        \"expression\": null\n" +
-                        "      },\n" +
-                        "      {\n" +
-                        "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"out_rx_bytes\",\n" +
-                        "        \"fieldName\": \"out_rx_bytes\",\n" +
-                        "        \"expression\": null\n" +
-                        "      },\n" +
-                        "      {\n" +
-                        "        \"type\": \"longSum\",\n" +
-                        "        \"name\": \"out_tx_bytes\",\n" +
-                        "        \"fieldName\": \"out_tx_bytes\",\n" +
+                        "        \"name\": \"out_pkts\",\n" +
+                        "        \"fieldName\": \"out_pkts\",\n" +
                         "        \"expression\": null\n" +
                         "      },\n" +
                         "      {\n" +
