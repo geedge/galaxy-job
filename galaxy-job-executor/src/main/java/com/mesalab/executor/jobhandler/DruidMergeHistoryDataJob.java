@@ -80,7 +80,7 @@ public class DruidMergeHistoryDataJob {
     }
 
     /**
-     * 根据传入参数来确定更新数据的时间范围,可输入数字，如："1"，也可输入时间范围，如："2023-02-22/2021-02-23"
+     * 根据传入参数来确定更新数据的时间范围,可输入数字，如："1"，时间范围即为："2023-02-25/2023-03-25"
      */
     public String getTimeInterval (DruidNativeMergeParam druidNativeMergeParam) {
         try {
@@ -95,14 +95,18 @@ public class DruidMergeHistoryDataJob {
                     Calendar initPastTime = Calendar.getInstance();
                     SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd");
                     //当前时间
-                    String intervalTime = "" + initTime.get(Calendar.YEAR) + "-" + "" + (initTime.get(Calendar.MONTH) + 1) + "-"
-                            + "" + (initTime.get(Calendar.DAY_OF_MONTH));
-                    //当前时间格式化
-                    Date formatCurrentTime = timeFormat.parse(intervalTime);
+//                    String intervalTime = "" + initTime.get(Calendar.YEAR) + "-" + "" + (initTime.get(Calendar.MONTH) + 1) + "-"
+//                            + "" + (initTime.get(Calendar.DAY_OF_MONTH));
+//                    //当前时间格式化
+//                    Date formatCurrentTime = timeFormat.parse(intervalTime);
                     //根据传入参数，输出历史时间
-                    initPastTime.add(Calendar.DATE, -Integer.parseInt(druidNativeMergeParam.getInternalOrNumOfHistory()));
+//                    initPastTime.add(Calendar.MONTH, -Integer.parseInt(druidNativeMergeParam.getInternalOrNumOfHistory()));
+                    initTime.add(Calendar.MONTH, -Integer.parseInt(druidNativeMergeParam.getInternalOrNumOfHistory()));
+//                    initTime.add(Calendar.MONTH, -Integer.parseInt(druidNativeMergeParam.getInternalOrNumOfHistory()));
+                    initPastTime.add(Calendar.MONTH, -Integer.parseInt(druidNativeMergeParam.getInternalOrNumOfHistory())-1);
                     //格式化当前和历史时间
-                    String intervalEndTime = timeFormat.format(formatCurrentTime.getTime());
+//                    String intervalEndTime = timeFormat.format(formatCurrentTime.getTime());
+                    String intervalEndTime = timeFormat.format(initTime.getTime());
                     String intervalStartTime = timeFormat.format(initPastTime.getTime());
                     interval=intervalStartTime+"/"+intervalEndTime;
                     return interval;
@@ -112,9 +116,10 @@ public class DruidMergeHistoryDataJob {
         }catch (BusinessException be){
             logger.error(be.getMessage());
             XxlJobLogger.log("interval  is empty , interval could not be null");
-        } catch (ParseException e) {
-            e.printStackTrace();
         }
+//        catch (ParseException e) {
+//            e.printStackTrace();
+//        }
         return null;
     }
 
