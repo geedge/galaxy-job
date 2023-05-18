@@ -19,10 +19,13 @@ public class Constant {
 	public static final Integer DEFAULT_VSYS_ID_VALUE = 0;
 	public static final String VSYS_ID = "vsys_id";
 
-
-
-
-
+	public static final String MARIADB = "mariadb";
+	public static final String MYSQL = "mysql";
+	public static final String FILE = "file";
+	public static final String SPIDER = "spider";
+	public static final String HTTP = "http";
+	public static final String HOS = "hos";
+	public static final String WORK_PATH = "/home/tsg/galaxy/galaxy-job/data/";
 
 
 }

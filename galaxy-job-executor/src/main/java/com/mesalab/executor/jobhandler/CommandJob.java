@@ -10,6 +10,7 @@ import com.alibaba.fastjson.JSONPath;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.pojo.IpLocateLibraryParam;
+import com.mesalab.executor.pojo.KnowledgeBase;
 import com.mesalab.executor.pojo.MMDBStatus;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
@@ -66,7 +67,7 @@ public class CommandJob {
                         //push knowledge
                         int successCount = 0;
                         Map<String, String> historyMMDBInfo = historyMMDBInfo(parserParams);
-                        for (IpLocateLibraryParam.KnowledgeBase knowledgeBase : parserParams.getKnowledgeBaseList()) {
+                        for (KnowledgeBase knowledgeBase : parserParams.getKnowledgeBaseList()) {
 
                             File file = new File(StringUtil.join(parserParams.getPath(), File.separator, knowledgeBase.getName(), ".", knowledgeBase.getFormat()));
                             String newFile = DigestUtil.sha256Hex(file);
@@ -117,10 +118,10 @@ public class CommandJob {
         String result = HttpClientUtils.httpGet(ipLocateLibraryParam.getKnowledgeBaseServer());
         Object extract = JSONPath.extract(result, "$.data[version=='latest']");
         JSONArray objects = JSONUtil.parseArray(extract);
-        List<IpLocateLibraryParam.KnowledgeBase> infos = JSONUtil.toList(objects, IpLocateLibraryParam.KnowledgeBase.class);
+        List<KnowledgeBase> infos = JSONUtil.toList(objects, KnowledgeBase.class);
 
         Map<String, String> historyInfo = new HashMap<>();
-        for (IpLocateLibraryParam.KnowledgeBase info : infos) {
+        for (KnowledgeBase info : infos) {
             historyInfo.put(info.getName(), info.getSha256());
         }
 
@@ -158,7 +159,7 @@ public class CommandJob {
         String v6User = "";
         boolean builtContains =  false;
         boolean userContains =  false;
-        for (IpLocateLibraryParam.KnowledgeBase knowledgeBase : parserParams.getKnowledgeBaseList()) {
+        for (KnowledgeBase knowledgeBase : parserParams.getKnowledgeBaseList()) {
             String filePath = StringUtil.join(path, knowledgeBase.getName(), ".", knowledgeBase.getFormat());
             logger.info("ip locate library load path {} ", filePath);
             XxlJobLogger.log("ip locate library load path {} ", filePath);

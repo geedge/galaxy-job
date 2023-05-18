@@ -9,6 +9,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.JobUtil;
+import com.mesalab.executor.pojo.JDBCParam;
 import com.xxl.job.core.log.XxlJobLogger;
 import com.zdjizhi.utils.DateUtils;
 import com.zdjizhi.utils.JsonMapper;
@@ -21,6 +22,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+
+import static com.mesalab.executor.core.utils.Constant.*;
 
 /**
  * @description:
@@ -37,19 +40,20 @@ public class DataSinkService {
         }
         //1. 文件类型 2. 选择处理工具 3. 转为格式数据
         switch (sinkParams.get("type")) {
-            case "mariadb":
+            case MARIADB:
                 mysqlSink(transformResult, sinkParams);
                 break;
-            case "mysql":
+            case MYSQL:
                 mysqlSink(transformResult, sinkParams);
                 break;
-            case "file":
+            case FILE:
                 fileSink(JobUtil.getFirstNotNull(transformResult), sinkParams);
                 break;
             default:
                 break;
         }
     }
+
 
     public void fileSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
         if (ObjectUtil.isEmpty(transformResult)) {
@@ -85,7 +89,6 @@ public class DataSinkService {
      * @return
      */
     public void mysqlSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
-
         logger.info("mysql sink param {} ", sinkParams);
         Map<String, List> transform = (Map<String, List>) JsonMapper.fromJsonString(JsonMapper.toJsonString(transformResult), Map.class);
         List list = JobUtil.getFirstNotNull(transform);
@@ -110,10 +113,11 @@ public class DataSinkService {
         PreparedStatement pst = null;
         try {
 
-            String tableName = sinkParams.get("table");
+            JDBCParam jdbcParam = new JDBCParam(sinkParams);
+            String tableName = jdbcParam.getTable();
             dbUtils = new DBUtils();
             //创建数据库连接库对象
-            conn = dbUtils.getDBConn(sinkParams);
+            conn = dbUtils.getDBConn(jdbcParam);
             String sql = "";
             if ("update".equals(sinkParams.get("option"))) {
                 sql = dbUtils.getUpdateSql(transformResult, tableName);

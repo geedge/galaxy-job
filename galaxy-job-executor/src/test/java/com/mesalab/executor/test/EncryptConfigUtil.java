@@ -21,5 +21,7 @@ public class EncryptConfigUtil {
         String pin = textEncryptor.encrypt("galaxy2019");
         System.err.println("user: "+user);
         System.err.println("pin: "+pin);
+        System.err.println("user: "+textEncryptor.decrypt("iW8ekP1SZC6v/7cfJKAqXXrjApJox+cH"));
+        System.err.println("pin: "+textEncryptor.decrypt("LDEb2OekU7iZWiFw6pUYBSozVKP27r1y"));
     }
 }

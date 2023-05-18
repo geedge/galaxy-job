@@ -28,6 +28,7 @@ import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.core.utils.async.HttpKit;
 import com.mesalab.executor.enums.DataTypeEnum;
 import com.mesalab.executor.exception.BusinessException;
+import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.service.DataSinkService;
 import com.mesalab.executor.service.DataSourceService;
 import com.mesalab.executor.service.DataTransformService;
@@ -481,7 +482,7 @@ public class DataExtractTest {
         try {
             String tableName = sinkParams.get("table");
             dbUtils = new DBUtils();
-            conn = dbUtils.getDBConn(sinkParams);
+            conn = dbUtils.getDBConn(new JDBCParam(sinkParams));
             final String submitUser = "'tsg'";
             String sql = "update " + sinkParams.get("table") + " set submit_user=" + submitUser + " where fqdn=?";
             System.err.println(sql);

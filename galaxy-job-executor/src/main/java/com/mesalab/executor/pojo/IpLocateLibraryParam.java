@@ -19,16 +19,6 @@ public class IpLocateLibraryParam implements Serializable {
     private String knowledgeBaseServer;
     private List<KnowledgeBase> knowledgeBaseList;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @ToString
-    public static class KnowledgeBase {
 
-        private String name;
-        private String format = "mmdb";
-        private String type = "ip_location";
-        private String sha256 ;
-    }
 
 }

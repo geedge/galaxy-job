@@ -4,6 +4,7 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IORuntimeException;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.io.file.FileReader;
+import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.text.csv.CsvUtil;
 import cn.hutool.core.text.csv.CsvWriter;
 import cn.hutool.core.util.CharsetUtil;
@@ -12,6 +13,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 
@@ -134,7 +137,7 @@ public class JobUtil {
 //
 //            Process process = processBuilder.start();
 //            Process process = Runtime.getRuntime().exec(command);
-            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh","-c", command});
+            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", command});
             BufferedInputStream bufferedInputStream = new BufferedInputStream(process.getInputStream());
             bufferedReader = new BufferedReader(new InputStreamReader(bufferedInputStream));
 
@@ -161,5 +164,25 @@ public class JobUtil {
         FileReader fr = new FileReader(path);
         T t = JSONUtil.toBean(fr.readString(), c);
         return t;
+    }
+
+    public static void infoLog(String msg, Object... arguments) {
+        logger.info(msg, arguments);
+        XxlJobLogger.log(msg, arguments);
+    }
+
+    public static void errorLog(String msg, Object... arguments) {
+        logger.error(msg, arguments);
+        XxlJobLogger.log(msg, arguments);
+    }
+
+    //    public static void errorLog(Throwable throwable) {
+//        String msg = throwable.getMessage() == null ? throwable.getCause().getMessage() : throwable.getMessage();
+//        logger.error(msg);
+//        XxlJobLogger.log(msg);
+//    }
+    public static void errorLog(Throwable throwable) {
+        logger.error(throwable);
+        XxlJobLogger.log(throwable);
     }
 }

@@ -2,6 +2,7 @@ package com.mesalab.executor.core.utils;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
+import com.mesalab.executor.pojo.JDBCParam;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -15,17 +16,12 @@ public class DBUtils {
     private Log logger = Log.get();
     private static HikariDataSource hikariDataSource;
 
-
-    public Connection getDBConn(Map<String, String> sinkParams) throws SQLException {
-        String ip = sinkParams.get("ip");
-        String database = sinkParams.get("database");
-        String username = sinkParams.get("username");
-        String pin = sinkParams.get("pin");
-        String url = "jdbc:mysql://" + ip + ":3306/" + database + "?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&serverTimezone=Asia/Shanghai";
+    public Connection getDBConn(JDBCParam jdbcParam) throws SQLException {
+        String url = "jdbc:mysql://" + jdbcParam.getIp() + ":3306/" + jdbcParam.getDatabase() + "?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false";
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(url);
-        config.setUsername(username);
-        config.setPassword(pin);
+        config.setUsername(jdbcParam.getUsername());
+        config.setPassword(jdbcParam.getPin());
 
         config.setConnectionTestQuery("SELECT 1");
         config.setMinimumIdle(2);

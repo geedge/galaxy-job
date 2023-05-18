@@ -16,10 +16,12 @@ import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
+import com.mesalab.executor.core.utils.Constant;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.HttpClientUtils;
+import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.exception.BusinessException;
-import com.mesalab.executor.pojo.DBParam;
+import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.HttpParam;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.log.XxlJobLogger;
@@ -36,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.mesalab.executor.core.utils.Constant.*;
+
 /**
  * @description:
  * @author: zhq
@@ -51,24 +55,25 @@ public class DataSourceService {
         //1. 文件类型 2. 选择处理工具 3. 转为格式数据
         Map<String, Object> sourceResult = new HashMap<>();
         switch (type) {
-            case "file":
+            case FILE:
                 sourceResult = fileSource(sourceParams);
                 break;
-            case "mysql":
-                sourceResult.put("mysql", mysqlSource(sourceParams));
+            case MYSQL:
+                sourceResult.put(MYSQL, mysqlSource(sourceParams));
                 break;
-            case "mariadb":
-                sourceResult.put("mariadb", mysqlSource(sourceParams));
+            case MARIADB:
+                sourceResult.put(MARIADB, mysqlSource(sourceParams));
                 break;
-            case "spider":
-                sourceResult.put("spider", spider(sourceParams));
+            case SPIDER:
+                sourceResult.put(SPIDER, spider(sourceParams));
                 break;
-            case "http":
-                sourceResult.put("http", http(sourceParams));
+            case HTTP:
+                sourceResult.put(HTTP, http(sourceParams));
                 break;
             default:
                 break;
         }
+        JobUtil.infoLog("get dataSource success ...");
         return sourceResult;
     }
 
@@ -134,15 +139,14 @@ public class DataSourceService {
 
     public List<Map> mysqlSource(Map<String, String> sourceParams) throws Exception {
         logger.info("mysql data source starting, param is {}", sourceParams);
-        DBParam dbParam = BeanUtil.fillBeanWithMap(sourceParams, new DBParam(), false);
+        JDBCParam jdbcParam = new JDBCParam(sourceParams);
         List<Map> collect;
         Connection conn = null;
         DBUtils dbUtils = null;
         try {
             dbUtils = new DBUtils();
-            conn = dbUtils.getDBConn(sourceParams);
-            String sql = dbParam.getSql();
-            List<Entity> entityList = SqlExecutor.query(conn, sql, new EntityListHandler());
+            conn = dbUtils.getDBConn(jdbcParam);
+            List<Entity> entityList = SqlExecutor.query(conn, jdbcParam.getSql(), new EntityListHandler());
             logger.info("query result size {}", entityList.size());
             XxlJobLogger.log("query result size {}", entityList.size());
             collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
