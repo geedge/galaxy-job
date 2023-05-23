@@ -199,7 +199,7 @@ public class StorageQuotaService {
             logger.info("query standard time last_storage success,{}", lastStorage);
 
             return Long.valueOf(nodeData);
-        } catch (BusinessException e) {
+        } catch (Exception e) {
             logger.error("query standard time last_storage fail,{}", JobUtil.getErrorMsg(e));
             throw new BusinessException("query standard time last_storage fail ," + JobUtil.getErrorMsg(e));
         }

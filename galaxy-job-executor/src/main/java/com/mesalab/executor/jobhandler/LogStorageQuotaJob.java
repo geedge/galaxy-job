@@ -6,7 +6,6 @@ import cn.hutool.log.Log;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
@@ -47,8 +46,7 @@ public class LogStorageQuotaJob {
     @Autowired
     StorageQuotaService storageQuotaService;
 
-    private static  StorgeConfig deletionConfig =  (StorgeConfig)SpringContextUtil.getBean("storgeConfig");
-
+    private StorgeConfig deletionConfig =  (StorgeConfig)SpringContextUtil.getBean("storgeConfig");
     //*********************************************设置存储策略**********************************************************
 
 
@@ -394,7 +392,7 @@ public class LogStorageQuotaJob {
             for (String endpoint : addressForCKs) {
                 try {
                     String url = UrlUtil.getUrl(endpoint);
-                    List<String> tablesForCKs = getTablesForCK(url, "");
+                    List<String> tablesForCKs = getTablesForCK(url, deletionConfig.getNotInSql("name", deletionConfig.getTafficExclusion()));
                     for (String table : tablesForCKs) {
                         try {
                             deleteParamMap.put("query", deleteSql.concat(table));
@@ -447,7 +445,7 @@ public class LogStorageQuotaJob {
             int failCount = 0;
             try {
                 String url = UrlUtil.getUrl(deletionConfig.getTrafficServer());
-                List<String> tablesForCKs = getTablesForCK(url, "");
+                List<String> tablesForCKs = getTablesForCK(url, deletionConfig.getNotInSql("name", deletionConfig.getTafficExclusion()));
                 logger.info("delete storage clickhouse endpoint = {}, tables = {}", url, tablesForCKs);
                 XxlJobLogger.log("delete storage clickhouse endpoint = {}, tables = {}", url, tablesForCKs);
 
@@ -519,7 +517,8 @@ public class LogStorageQuotaJob {
             //3恢复加载规则
             String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get(max_days), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
             //清库时注意不操作hot结尾的表
-            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%' " + deletionConfig.getNotInSql("datasource", deletionConfig.getAnalyticExclusion()) + " \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+
             List<String> analyticTables = getAnalyticTables(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryTablesSql);
             int failCount = 0;
             for (String table : analyticTables) {
@@ -588,6 +587,8 @@ public class LogStorageQuotaJob {
             }
             Header header = new BasicHeader(Constant.TOKEN, deletionConfig.getFilesToken());
             List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesHosServer());
+            List<String> whiteList = StringUtil.isEmpty(deletionConfig.getFilesExclusion()) ? null : Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesExclusion());
+
             int failCount = 0;
             for (String endpoint : endpointList) {
                 try {
@@ -605,8 +606,8 @@ public class LogStorageQuotaJob {
                             logger.info("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
                             for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
                                 try {
-                                    //排除默认桶
-                                    if (!"default".equals(bucket.getName())) {
+                                    //排除白名单
+                                    if (ObjectUtils.isEmpty(whiteList) || !whiteList.contains(bucket.getName())) {
                                         HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
                                     }
                                 } catch (BusinessException e) {

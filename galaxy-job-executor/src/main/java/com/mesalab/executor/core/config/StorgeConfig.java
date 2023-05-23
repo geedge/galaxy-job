@@ -3,7 +3,6 @@ package com.mesalab.executor.core.config;
 import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
-import com.mesalab.executor.core.utils.UrlUtil;
 import com.zdjizhi.utils.StringUtil;
 import lombok.Data;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Data

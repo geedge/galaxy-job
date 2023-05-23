@@ -87,7 +87,7 @@ public class ZookeeperUtils implements Watcher {
 		try {
 			byte[] resByte = zookeeper.getData(path, true, stat);
 			result = new String(resByte, 0, resByte.length);
-		} catch (KeeperException | InterruptedException e) {
+		} catch (Exception e) {
 			logger.error("Get node information exception");
 			logger.error(e);
 			return null;
