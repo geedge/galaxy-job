@@ -135,7 +135,7 @@ public class CommandJob {
      * @param parserParams
      * @return
      */
-    private boolean checkIpMMDBSample(IpLocateLibraryParam parserParams) throws Exception {
+    public static boolean checkIpMMDBSample(IpLocateLibraryParam parserParams) throws Exception {
 
         String builtStatusFile = "built-status.json";
         String userStatusFile = "user-status.json";
@@ -143,14 +143,12 @@ public class CommandJob {
         String path = parserParams.getPath().concat(File.separator);
         MMDBStatus builtMMDBStatus = JobUtil.readJsonFile(path + builtStatusFile, MMDBStatus.class);
         Integer builtStatus = builtMMDBStatus.getStatus();
-        logger.info("built ip locate library result: status {}, message {}", builtMMDBStatus.getStatus(), builtMMDBStatus.getMessage());
-        XxlJobLogger.log("built ip locate library result: status {}, message {}", builtMMDBStatus.getStatus(), builtMMDBStatus.getMessage());
+        JobUtil.infoLog("built ip locate library result: status {}, message {}", builtMMDBStatus.getStatus(), builtMMDBStatus.getMessage());
 
         MMDBStatus userMMDBStatus = JobUtil.readJsonFile(path + userStatusFile, MMDBStatus.class);
-        Integer userStatus = builtMMDBStatus.getStatus();
-        logger.info("user ip locate library result: status {}, message {}", userMMDBStatus.getStatus(), userMMDBStatus.getMessage());
-        XxlJobLogger.log("user ip locate library result: status {}, message {}", userMMDBStatus.getStatus(), userMMDBStatus.getMessage());
-        if (200 != Integer.valueOf(builtStatus) || 200 != Integer.valueOf(userStatus)) {
+        Integer userStatus = userMMDBStatus.getStatus();
+        JobUtil.infoLog("user ip locate library result: status {}, message {}", userMMDBStatus.getStatus(), userMMDBStatus.getMessage());
+        if (200 != builtStatus || 200 != userStatus) {
             return false;
         }
         String v4Built = "";
@@ -161,8 +159,7 @@ public class CommandJob {
         boolean userContains =  false;
         for (KnowledgeBase knowledgeBase : parserParams.getKnowledgeBaseList()) {
             String filePath = StringUtil.join(path, knowledgeBase.getName(), ".", knowledgeBase.getFormat());
-            logger.info("ip locate library load path {} ", filePath);
-            XxlJobLogger.log("ip locate library load path {} ", filePath);
+            JobUtil.infoLog("ip locate library load path {} ", filePath);
             if (knowledgeBase.getName().contains("v4_built")) {
                 v4Built = filePath;
                 builtContains= true;
@@ -190,8 +187,7 @@ public class CommandJob {
                     .flatMap(Collection::stream).collect(Collectors.toList());
             for (String sampleIp : builtIpSampleList) {
                 if (ObjectUtil.isEmpty(ipLookup.latLngLookup(sampleIp))) {
-                    logger.info("built ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
-                    XxlJobLogger.log("built ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
+                    JobUtil.infoLog("built ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
                     return false;
                 }
             }
@@ -203,8 +199,7 @@ public class CommandJob {
                     .flatMap(Collection::stream).collect(Collectors.toList());
             for (String sampleIp : userIpSampleList) {
                 if (ObjectUtil.isEmpty(ipLookup.latLngLookup(sampleIp))) {
-                    logger.info("user ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
-                    XxlJobLogger.log("user ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
+                    JobUtil.infoLog("user ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
                     return false;
                 }
             }

@@ -1,5 +1,8 @@
 package com.mesalab.executor.jobhandler.knowledgeBase;
 
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONUtil;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.jobhandler.ValidParamUtil;
 import com.mesalab.executor.service.DataSourceService;
@@ -9,6 +12,8 @@ import com.xxl.job.core.handler.annotation.XxlJob;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.text.MessageFormat;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,23 +25,26 @@ public class KnowledgeBaseJob {
     @Resource
     KnowledgeBaseService knowledgeBaseService;
 
+    private static final String KNOWLEDGE_BASE_META_SQL = "SELECT a.knowledge_id id,name,version,`status` isValid,source FROM cn_knowledge_base_sync_version a LEFT JOIN cn_knowledge_base b ON a.knowledge_id=b.knowledge_id WHERE `status`=1";
+    private String KNOWLEDGE_BASE_SQL = "SELECT * FROM {0} WHERE knowledge_id={1}";
+
     /**
      * [{
      * "source": {
-     *   "type": "mariadb",
-     *   "ip": "*.*.*.*",
-     *   "database": "",
-     *   "username": "",
-     *   "pin": "",
-     *   "sql": "SELECT * FROM cn_domain_tag_user_defined"
+     * "type": "mariadb",
+     * "ip": "*.*.*.*",
+     * "database": "",
+     * "username": "",
+     * "pin": ""
      * },
      * "transform": {},
      * "sink": {
-     *   "type": "http_binary",
-     *   "url": "http://IP:9999/knowledge_base/v1",
-     *   "params": {"name": "domain",format:"csv",type:"dns"}
+     * "type": "http_binary",
+     * "url": "http://IP:9999/knowledge_base/v1",
+     * "params": [{"name": "domain",format:"csv",type:"dns"}]
      * }
      * }]
+     *
      * @param params
      * @return
      */
@@ -52,8 +60,41 @@ public class KnowledgeBaseJob {
         List<Map> paramsMaps = ValidParamUtil.parserParams(params);
         for (Map<String, Map> paramsMap : paramsMaps) {
             try {
-                Map<String, Object> sourceData = dataSourceService.adapt(paramsMap.get("source"));
-                knowledgeBaseService.pushKnowledgeBase(sourceData, paramsMap.get("sink"));
+                Map source = paramsMap.get("source");
+                Map sink = paramsMap.get("sink");
+                Map<Object, Map> sinkParamFormatMap = getSinkParamFormat(sink);
+                List<Map> knowledgeMeta = getKnowledgeMeta(source);
+                for (Map dbKm : knowledgeMeta) {
+                    Map sinkParam = sinkParamFormatMap.get(dbKm.get("source"));
+                    if (sinkParam == null || metadataNoChanged(dbKm)) {
+                        continue;
+                    }
+                    dbKm.put("format", sinkParam.get("format"));
+                    dbKm.put("type", sinkParam.get("type"));
+                    sink.put("params", dbKm);
+                    JobUtil.infoLog("knowledgeBase config info : {}", dbKm);
+                    //1.mmdb格式调度perl脚本，2.其它格式
+
+                    boolean hasPush = false;
+                    if ("mmdb".equals(sinkParam.get("format"))) {
+                        //1.脚本，2.状态
+                        hasPush = knowledgeBaseService.mmdbBuildPush(sink);
+                    } else {
+                        source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source"), dbKm.get("id")));
+                        Map sourceData = dataSourceService.adapt(source);
+                        JobUtil.infoLog("knowledgeBase id : {} query success", dbKm.get("id"));
+                        //推送到知识库接口
+                        hasPush = knowledgeBaseService.push(sourceData, sink);
+                    }
+                    String kmMeta = JSONUtil.toJsonStr(dbKm);
+                    if (hasPush) {
+                        knowledgeBaseService.modifyMetadata(String.valueOf(dbKm.get("id")), kmMeta);
+                        JobUtil.infoLog("knowledgeBase push success, metadata : {}  ", kmMeta);
+                    } else {
+                        JobUtil.infoLog("knowledgeBase push fail, metadata : {}  ", kmMeta);
+                    }
+                }
+
             } catch (Exception e) {
                 JobUtil.errorLog(e);
                 return ReturnT.FAIL;
@@ -62,8 +103,53 @@ public class KnowledgeBaseJob {
         return ReturnT.SUCCESS;
     }
 
-    void checkStatus() {
-        //1. 查询数据库是否要更新，哪些需要更新
-
+    /**
+     * 版本是否变化
+     *
+     * @param km
+     * @return
+     */
+    private boolean metadataNoChanged(Map km) {
+        String knowledgeBaseMetadata = knowledgeBaseService.getMetadata(String.valueOf(km.get("id")));
+        if (StrUtil.isNotEmpty(knowledgeBaseMetadata)) {
+            Map historyMetadata = JSONUtil.toBean(knowledgeBaseMetadata, Map.class);
+            if (historyMetadata.get("version").equals(km.get("version"))) {
+                JobUtil.infoLog("knowledgeBase meta no change {}", knowledgeBaseMetadata);
+                return true;
+            }
+        }
+        return false;
     }
+
+    /**
+     * 匹配配置信息执行
+     *
+     * @param sink
+     * @return
+     */
+    private Map<Object, Map> getSinkParamFormat(Map sink) {
+        JSONArray sinkParamsArr = JSONUtil.parseArray(sink.get("params"));
+        List<Map> sinkParams = JSONUtil.toList(sinkParamsArr, Map.class);
+        //获取设置的格式
+        Map<Object, Map> sinkMap = new HashMap<>();
+        for (Map sinkParam : sinkParams) {
+            sinkMap.put(sinkParam.get("name"), sinkParam);
+        }
+        return sinkMap;
+    }
+
+    /**
+     * 元数据信息
+     *
+     * @param source
+     * @return
+     * @throws Exception
+     */
+    private List<Map> getKnowledgeMeta(Map source) throws Exception {
+        source.put("sql", KNOWLEDGE_BASE_META_SQL);
+        List<Map> kbMetas = dataSourceService.mysqlSource(source);
+        JobUtil.infoLog("get database knowledge metadata {}", kbMetas);
+        return kbMetas;
+    }
+
 }

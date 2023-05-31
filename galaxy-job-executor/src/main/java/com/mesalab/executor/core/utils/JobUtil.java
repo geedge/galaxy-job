@@ -4,7 +4,6 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IORuntimeException;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.io.file.FileReader;
-import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.text.csv.CsvUtil;
 import cn.hutool.core.text.csv.CsvWriter;
 import cn.hutool.core.util.CharsetUtil;
@@ -13,8 +12,6 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 
@@ -158,6 +155,35 @@ public class JobUtil {
             IoUtil.close(bufferedReader);
         }
         return exitValue;
+    }
+
+    public static String exeCmd(String command) {
+        int exitValue = -1;
+        BufferedReader bufferedReader = null;
+        StringBuffer sb = new StringBuffer();
+        List<String> results = new ArrayList<>();
+        try {
+            logger.info("execute command: " + command);
+            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", command});
+            BufferedInputStream bufferedInputStream = new BufferedInputStream(process.getInputStream());
+            bufferedReader = new BufferedReader(new InputStreamReader(bufferedInputStream));
+
+            XxlJobLogger.log("process running...");
+            // command log
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                sb.append(line);
+            }
+            // command exit
+            process.waitFor();
+            process.exitValue();
+        } catch (Exception e) {
+            logger.error(e);
+            XxlJobLogger.log(e);
+        } finally {
+            IoUtil.close(bufferedReader);
+        }
+        return sb.toString();
     }
 
     public static <T> T readJsonFile(String path, Class<T> c) throws Exception {

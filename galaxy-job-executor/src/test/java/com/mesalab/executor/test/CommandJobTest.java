@@ -9,19 +9,13 @@ import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.pojo.IpLocateLibraryParam;
 import com.mesalab.executor.pojo.KnowledgeBase;
 import com.zdjizhi.utils.IpLookupV2;
-import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.parser.CCJSqlParserManager;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.File;
-import java.io.StringReader;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -34,13 +28,20 @@ public class CommandJobTest {
     @Test
     public void getIPMMDBFile() {
         IpLookupV2 ipLookup = new IpLookupV2.Builder(false)
-                .loadDataFileV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v4_built_in.mmdb")
-                .loadDataFileV6("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
-                .loadDataFilePrivateV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
-                .loadDataFilePrivateV6("")
+//                .loadDataFileV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v4_built_in.mmdb")
+//                .loadDataFileV6("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
+//                .loadDataFilePrivateV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
+//                .loadDataFile("C:\\test\\1.mmdb")
+                .loadDataFileV4("C:\\test\\1.mmdb")
+//                .loadDataFilePrivateV6("")
                 .build();
 
-        String latLngLookup = ipLookup.latLngLookup("1.0.0.1");
+        String latLngLookup = ipLookup.latLngLookup("0.0.0.0");
+        System.err.println(latLngLookup);
+        System.err.println(ipLookup.countryLookup("::"));
+        System.err.println(ipLookup.countryLookup("0.0.0.0"));
+        System.err.println(ipLookup.cityLookup("1.0.0.0"));
+
 
         Assert.assertNotEquals("ip is not found", ObjectUtil.isEmpty("latLngLookup"));
 
@@ -108,18 +109,14 @@ public class CommandJobTest {
 
     @Test
     public void testTable() {
-
-        String sql = "SELECT * FROM test1 JOIN ttt12 ON table1.id = table2.id WHERE table1.name = 'test'";
-        CCJSqlParserManager parserManager = new CCJSqlParserManager();
-        try {
-            Select select = (Select) parserManager.parse(new StringReader(sql));
-            TablesNamesFinder tablesNamesFinder = new TablesNamesFinder();
-            List<String> tableList = tablesNamesFinder.getTableList(select);
-            System.err.println("Tables used in the SQL: " + tableList);
-        } catch (JSQLParserException e) {
-            e.printStackTrace();
-        }
-
+        Integer a = Integer.valueOf("200");
+        Integer b = Integer.valueOf(200);
+        int c = 200;
+        System.out.println("int1_1 == int1_2: " + (a == b));          // true
+        System.out.println("int1_1 == int1_2: " + (c == b));          // true
+        System.out.println("int1_1 == int1_2: " + (200 == a));          // true
+        System.out.println("int1_1 == int1_2: " + (Integer.valueOf(200) == b));          // true
+        System.out.println("int1_1 equals int1_2: " + a.equals(b));   // true
 
     }
 

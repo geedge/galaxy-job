@@ -85,6 +85,10 @@ public class ZookeeperUtils implements Watcher {
 		Stat stat = new Stat();
 		connectZookeeper(zookeeperIp);
 		try {
+			Stat exists = zookeeper.exists(path, true);
+			if (exists == null) {
+				return null;
+			}
 			byte[] resByte = zookeeper.getData(path, true, stat);
 			result = new String(resByte, 0, resByte.length);
 		} catch (Exception e) {
