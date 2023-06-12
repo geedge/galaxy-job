@@ -7,7 +7,6 @@ import cn.hutool.core.io.StreamProgress;
 import cn.hutool.core.io.file.FileReader;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.db.DbUtil;
 import cn.hutool.db.Entity;
 import cn.hutool.db.handler.EntityListHandler;
 import cn.hutool.db.sql.SqlExecutor;
@@ -16,15 +15,13 @@ import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
-import com.mesalab.executor.core.utils.Constant;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.exception.BusinessException;
-import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.HttpParam;
+import com.mesalab.executor.pojo.JDBCParam;
 import com.xxl.job.core.handler.IJobHandler;
-import com.xxl.job.core.log.XxlJobLogger;
 import com.zdjizhi.utils.JsonMapper;
 import io.netty.handler.codec.http.HttpMethod;
 import org.apache.commons.io.filefilter.FileFilterUtils;
@@ -33,6 +30,10 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,22 +141,19 @@ public class DataSourceService {
     public List<Map> mysqlSource(Map<String, String> sourceParams) throws Exception {
         logger.info("mysql data source starting, param is {}", sourceParams);
         JDBCParam jdbcParam = new JDBCParam(sourceParams);
-        List<Map> collect;
-        Connection conn = null;
-        DBUtils dbUtils = null;
-        try {
-            dbUtils = new DBUtils();
-            conn = dbUtils.getDBConn(jdbcParam);
+        List<Map> collect = new ArrayList<>();
+        try (Connection conn = DBUtils.getDBConn(jdbcParam)){
             List<Entity> entityList = SqlExecutor.query(conn, jdbcParam.getSql(), new EntityListHandler());
-            logger.info("query result size {}", entityList.size());
-            XxlJobLogger.log("query result size {}", entityList.size());
+            JobUtil.infoLog("query result size {}", entityList.size());
             collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
-        } finally {
-            DbUtil.close(conn);
-            dbUtils.close();
+            entityList.clear();
+        }catch (Exception e) {
+            throw e;
         }
         return collect;
     }
+
+
 
     /**
      * v1: 支持 json ,xlsx

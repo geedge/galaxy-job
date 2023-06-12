@@ -7,39 +7,48 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
 public class DBUtils {
 
-    private Log logger = Log.get();
-    private static HikariDataSource hikariDataSource;
+    private static Log logger = Log.get();
+//    private static HikariDataSource hikariDataSource;
 
-    public Connection getDBConn(JDBCParam jdbcParam) throws SQLException {
-        String url = "jdbc:mysql://" + jdbcParam.getIp() + ":3306/" + jdbcParam.getDatabase() + "?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false";
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(url);
-        config.setUsername(jdbcParam.getUsername());
-        config.setPassword(jdbcParam.getPin());
+    public static Connection getDBConn(JDBCParam jdbcParam) throws SQLException {
+        String url = "jdbc:mysql://" + jdbcParam.getIp() + ":3306/" + jdbcParam.getDatabase() + "?useUnicode=true&serverTimezone=UTC&zeroDateTimeBehavior=convertToNull&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&tinyInt1isBit=false&transformedBitIsBoolean=false";
+//        HikariConfig config = new HikariConfig();
+//        config.setJdbcUrl(url);
+//        config.setUsername(jdbcParam.getUsername());
+//        config.setPassword(jdbcParam.getPin());
+//
+//        config.setConnectionTestQuery("SELECT 1");
+//        config.setMinimumIdle(1);
+//        config.setMaximumPoolSize(10);
+//        config.setConnectionTimeout(10000);
+//        config.setIdleTimeout(60000);
+//        config.setMaxLifetime(300000);
+//
+//        hikariDataSource = new HikariDataSource(config);
 
-        config.setConnectionTestQuery("SELECT 1");
-        config.setMinimumIdle(2);
-        config.setMaximumPoolSize(20);
-        config.setConnectionTimeout(10000);
-        config.setIdleTimeout(60000);
-        config.setMaxLifetime(3000000);
+//        Connection connection = hikariDataSource.getConnection();
+        Connection connection = null;
 
-        hikariDataSource = new HikariDataSource(config);
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            connection = DriverManager.getConnection(url, jdbcParam.getUsername(), jdbcParam.getPin());
+            logger.info("create dataSource connection success");
+        } catch (ClassNotFoundException e) {
+            logger.error(e);
+        }
 
-        Connection connection = hikariDataSource.getConnection();
-        logger.info("create dataSource connection success");
         return connection;
 
     }
-
     public void close() {
-        hikariDataSource.close();
+//        hikariDataSource.close();
     }
 
     /**

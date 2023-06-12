@@ -15,10 +15,7 @@ import cn.hutool.log.Log;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.*;
 
 public class JobUtil {
@@ -66,7 +63,23 @@ public class JobUtil {
             return null;
         }
     }
-
+    public static File createCsvFile(List<Map> maps, String filePath,boolean append) {
+        File file = FileUtil.newFile(filePath);
+        try (CsvWriter writer = CsvUtil.getWriter(file, CharsetUtil.CHARSET_UTF_8)) {
+            List result = new ArrayList<String[]>();
+            if (ObjectUtil.isNotEmpty(maps)) {
+                Object[] fieldArr = maps.get(0).keySet().toArray();
+                result.add(Arrays.asList(fieldArr));
+                maps.forEach(m -> result.add(m.values()));
+            }
+            writer.write(result);
+            return file;
+        } catch (IORuntimeException e) {
+            logger.error(e.getMessage());
+            XxlJobLogger.log(e.getMessage());
+            return null;
+        }
+    }
     /**
      * 获取map中第一个非空数据值
      *
@@ -121,7 +134,7 @@ public class JobUtil {
         return m;
     }
 
-    public static int executeCommand(String command) {
+    public static int executeCommand(String command) throws IOException, InterruptedException {
         int exitValue = -1;
 
         BufferedReader bufferedReader = null;
@@ -149,8 +162,8 @@ public class JobUtil {
             process.waitFor();
             exitValue = process.exitValue();
         } catch (Exception e) {
-            logger.error(e);
-            XxlJobLogger.log(e);
+            JobUtil.errorLog(e);
+            throw e;
         } finally {
             IoUtil.close(bufferedReader);
         }

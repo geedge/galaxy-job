@@ -169,7 +169,6 @@ public class DataSinkService {
         } finally {
             IoUtil.close(pst);
             IoUtil.close(conn);
-            dbUtils.close();
         }
     }
 

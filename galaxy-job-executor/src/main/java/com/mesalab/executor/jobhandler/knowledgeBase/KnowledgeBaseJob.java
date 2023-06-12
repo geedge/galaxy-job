@@ -25,7 +25,7 @@ public class KnowledgeBaseJob {
     @Resource
     KnowledgeBaseService knowledgeBaseService;
 
-    private static final String KNOWLEDGE_BASE_META_SQL = "SELECT a.knowledge_id id,name,version,`status` isValid,source FROM cn_knowledge_base_sync_version a LEFT JOIN cn_knowledge_base b ON a.knowledge_id=b.knowledge_id WHERE `status`=1";
+    private static final String KNOWLEDGE_BASE_META_SQL = "SELECT a.knowledge_id knowledge_id,name,version,source FROM cn_knowledge_base_sync_version a LEFT JOIN cn_knowledge_base b ON a.knowledge_id=b.knowledge_id WHERE `status`=1";
     private String KNOWLEDGE_BASE_SQL = "SELECT * FROM {0} WHERE knowledge_id={1}";
 
     /**
@@ -50,48 +50,46 @@ public class KnowledgeBaseJob {
      */
     @XxlJob("knowledgeBaseJob")
     public ReturnT<String> knowledgeBaseJob(String params) {
-
-        //1. 通用查询数据库模块，查询版本控制表，判断是否更新
-        //2. 通用格式数据mysql-> mmdb,csv,json
-        //3. 通用数据转存文件流模块
-        //4. 通用调用kb api上传接口模块
-        //5. 通用调用kb api 查询模块
-
         List<Map> paramsMaps = ValidParamUtil.parserParams(params);
+        int failedTask = 0;
         for (Map<String, Map> paramsMap : paramsMaps) {
             try {
                 Map source = paramsMap.get("source");
                 Map sink = paramsMap.get("sink");
-                Map<Object, Map> sinkParamFormatMap = getSinkParamFormat(sink);
-                List<Map> knowledgeMeta = getKnowledgeMeta(source);
-                for (Map dbKm : knowledgeMeta) {
-                    Map sinkParam = sinkParamFormatMap.get(dbKm.get("source"));
-                    if (sinkParam == null || metadataNoChanged(dbKm)) {
-                        continue;
-                    }
-                    dbKm.put("format", sinkParam.get("format"));
-                    dbKm.put("type", sinkParam.get("type"));
-                    sink.put("params", dbKm);
-                    JobUtil.infoLog("knowledgeBase config info : {}", dbKm);
-                    //1.mmdb格式调度perl脚本，2.其它格式
-
-                    boolean hasPush = false;
-                    if ("mmdb".equals(sinkParam.get("format"))) {
-                        //1.脚本，2.状态
-                        hasPush = knowledgeBaseService.mmdbBuildPush(sink);
-                    } else {
-                        source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source"), dbKm.get("id")));
-                        Map sourceData = dataSourceService.adapt(source);
-                        JobUtil.infoLog("knowledgeBase id : {} query success", dbKm.get("id"));
-                        //推送到知识库接口
-                        hasPush = knowledgeBaseService.push(sourceData, sink);
-                    }
-                    String kmMeta = JSONUtil.toJsonStr(dbKm);
-                    if (hasPush) {
-                        knowledgeBaseService.modifyMetadata(String.valueOf(dbKm.get("id")), kmMeta);
-                        JobUtil.infoLog("knowledgeBase push success, metadata : {}  ", kmMeta);
-                    } else {
-                        JobUtil.infoLog("knowledgeBase push fail, metadata : {}  ", kmMeta);
+                List<Map> sinkParamFormat = getSinkParamFormat(sink);
+                List<Map> dbKnowledgeMeta = getKnowledgeMeta(source);
+                for (Map dbKm : dbKnowledgeMeta) {
+                    try {
+                        if (metadataNoChanged(dbKm)) {
+                            continue;
+                        }
+                        for (Map sinkParam : sinkParamFormat) {
+                            if (sinkParam.get("name").equals(dbKm.get("source"))) {
+                                //1.mmdb格式调度perl脚本，2.其它格式
+                                boolean hasPush = false;
+                                if ("mmdb".equals(sinkParam.get("format"))) {
+                                    if (!String.valueOf(dbKm.get("knowledge_id")).equals(String.valueOf(sinkParam.get("id")))) {
+                                        continue;
+                                    }
+                                    hasPush = knowledgeBaseService.mmdbBuildPush(builtParam(sink, dbKm, sinkParam));
+                                } else {
+                                    source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source"), dbKm.get("knowledge_id")));
+                                    //推送到知识库接口
+                                    hasPush = knowledgeBaseService.commonPushFile(source, builtParam(sink, dbKm, sinkParam));
+                                }
+                                String kmMeta = JSONUtil.toJsonStr(dbKm);
+                                if (hasPush) {
+                                    knowledgeBaseService.modifyMetadata(String.valueOf(dbKm.get("knowledge_id")), kmMeta);
+                                    JobUtil.infoLog("knowledgeBase push success, metadata : {}  ", kmMeta);
+                                } else {
+                                    failedTask++;
+                                    JobUtil.infoLog("knowledgeBase push fail, metadata : {}  ", kmMeta);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        failedTask++;
+                        JobUtil.errorLog(e);
                     }
                 }
 
@@ -100,9 +98,22 @@ public class KnowledgeBaseJob {
                 return ReturnT.FAIL;
             }
         }
+        if (failedTask > 0) {
+            return ReturnT.FAIL;
+        }
         return ReturnT.SUCCESS;
     }
 
+    private Map builtParam(Map sink, Map dbKm, Map sinkParam) {
+        HashMap<String, Object> newParam = new HashMap<>();
+        newParam.put("id", dbKm.get("knowledge_id"));
+        newParam.put("name", dbKm.get("name"));
+        newParam.put("format", sinkParam.get("format"));
+        newParam.put("type", sinkParam.get("type"));
+        newParam.put("isValid", 1);
+        sink.put("params", newParam);
+        return sink;
+    }
     /**
      * 版本是否变化
      *
@@ -110,11 +121,11 @@ public class KnowledgeBaseJob {
      * @return
      */
     private boolean metadataNoChanged(Map km) {
-        String knowledgeBaseMetadata = knowledgeBaseService.getMetadata(String.valueOf(km.get("id")));
+        String knowledgeBaseMetadata = knowledgeBaseService.getMetadata(String.valueOf(km.get("knowledge_id")));
         if (StrUtil.isNotEmpty(knowledgeBaseMetadata)) {
             Map historyMetadata = JSONUtil.toBean(knowledgeBaseMetadata, Map.class);
             if (historyMetadata.get("version").equals(km.get("version"))) {
-                JobUtil.infoLog("knowledgeBase meta no change {}", knowledgeBaseMetadata);
+                JobUtil.infoLog("knowledgeBase version no change {}", knowledgeBaseMetadata);
                 return true;
             }
         }
@@ -123,19 +134,22 @@ public class KnowledgeBaseJob {
 
     /**
      * 匹配配置信息执行
+     * <p>
+     * k->表名#type
+     * v->params
      *
      * @param sink
      * @return
      */
-    private Map<Object, Map> getSinkParamFormat(Map sink) {
+    private List<Map> getSinkParamFormat(Map sink) {
         JSONArray sinkParamsArr = JSONUtil.parseArray(sink.get("params"));
         List<Map> sinkParams = JSONUtil.toList(sinkParamsArr, Map.class);
-        //获取设置的格式
-        Map<Object, Map> sinkMap = new HashMap<>();
-        for (Map sinkParam : sinkParams) {
-            sinkMap.put(sinkParam.get("name"), sinkParam);
-        }
-        return sinkMap;
+//        //获取设置的格式
+//        Map<Object, Map> sinkMap = new HashMap<>();
+//        for (Map sinkParam : sinkParams) {
+//            sinkMap.put(sinkParam.get("name") + "#" + sinkParam.get("type"), sinkParam);
+//        }
+        return sinkParams;
     }
 
     /**
@@ -148,7 +162,7 @@ public class KnowledgeBaseJob {
     private List<Map> getKnowledgeMeta(Map source) throws Exception {
         source.put("sql", KNOWLEDGE_BASE_META_SQL);
         List<Map> kbMetas = dataSourceService.mysqlSource(source);
-        JobUtil.infoLog("get database knowledge metadata {}", kbMetas);
+        JobUtil.infoLog("get database knowledge metadata {}", JSONUtil.toJsonPrettyStr(kbMetas));
         return kbMetas;
     }
 

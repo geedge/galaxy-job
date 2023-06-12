@@ -523,7 +523,6 @@ public class DataExtractTest {
         } finally {
             IoUtil.close(pst);
             IoUtil.close(conn);
-            dbUtils.close();
         }
     }
 

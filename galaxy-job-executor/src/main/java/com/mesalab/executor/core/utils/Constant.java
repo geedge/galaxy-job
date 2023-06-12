@@ -17,6 +17,7 @@ public class Constant {
     public static final String UTF_8 = "UTF-8";
 
     public static final Integer DEFAULT_VSYS_ID_VALUE = 0;
+
     public static final String VSYS_ID = "vsys_id";
 
     public static final String MARIADB = "mariadb";
@@ -29,6 +30,7 @@ public class Constant {
     public static final String ZK_KNOWLEDGE_PATH = "/knowledgeBase/metadata/ids/";
 //    public static String KNOWLEDGE_WORK_DIR = "C:\\home\\tsg\\galaxy\\galaxy-job\\plugins\\mmdb\\";
     public static String KNOWLEDGE_WORK_DIR = "/home/tsg/galaxy/galaxy-job/galaxy-job-executor/plugins/mmdb/";
+    public static final Integer DB_BATCH = 200000;
 
 
 }

@@ -1,12 +1,20 @@
 package com.mesalab.executor.test;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.db.DbUtil;
+import cn.hutool.db.Entity;
+import cn.hutool.db.handler.EntityListHandler;
+import cn.hutool.db.sql.SqlExecutor;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSONPath;
 import com.google.common.collect.ImmutableMap;
+import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.pojo.IpLocateLibraryParam;
+import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.KnowledgeBase;
 import com.zdjizhi.utils.IpLookupV2;
 import org.junit.Assert;
@@ -16,10 +24,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.*;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -32,16 +39,18 @@ public class CommandJobTest {
 //                .loadDataFileV6("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
 //                .loadDataFilePrivateV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
 //                .loadDataFile("C:\\test\\1.mmdb")
-                .loadDataFileV4("C:\\test\\1.mmdb")
+                .loadDataFileV4("C:\\home\\tsg\\galaxy\\galaxy-job\\plugins\\mmdb\\1.mmdb")
+                .loadAsnDataFile("C:\\home\\tsg\\galaxy\\galaxy-job\\plugins\\mmdb\\asn-1.mmdb")
 //                .loadDataFilePrivateV6("")
                 .build();
 
-        String latLngLookup = ipLookup.latLngLookup("0.0.0.0");
-        System.err.println(latLngLookup);
-        System.err.println(ipLookup.countryLookup("::"));
-        System.err.println(ipLookup.countryLookup("0.0.0.0"));
-        System.err.println(ipLookup.cityLookup("1.0.0.0"));
-
+//        String latLngLookup = ipLookup.latLngLookup("0.0.0.0");
+////        System.err.println(latLngLookup);
+////        System.err.println(ipLookup.countryLookup("0000:0000:0000:0000:0000:0000:0000:0000"));
+//        System.err.println(ipLookup.countryLookup("0.0.0.0"));
+//        System.err.println(ipLookup.cityLookup("192.168.1.1"));
+        System.err.println(ipLookup.asnLookupDetail("1.0.0.0"));
+        System.err.println(ipLookup.asnLookupDetail("8.6.146.255"));
 
         Assert.assertNotEquals("ip is not found", ObjectUtil.isEmpty("latLngLookup"));
 
@@ -120,5 +129,88 @@ public class CommandJobTest {
 
     }
 
+    @Test
+    public void keyMap() throws SQLException {
+        Map<String, String> sourceParams = new HashMap<>();
+        sourceParams.put("ip", "192.168.44.53");
+        sourceParams.put("type", "mariadb");
+        sourceParams.put("database", "cn-dev-2306");
+        sourceParams.put("table", "cn_dns_server_info_built_in");
+        sourceParams.put("username", "root");
+        sourceParams.put("pin", "111111");
+        String sql = "select * from cn_dns_server_info_built_in limit 1";
+        JDBCParam jdbcParam = new JDBCParam(sourceParams);
+        Connection conn = null;
+        DBUtils dbUtils = null;
 
+        List<Map> collect;
+        try {
+            dbUtils = new DBUtils();
+            conn = dbUtils.getDBConn(jdbcParam);
+            List<Entity> entityList = SqlExecutor.query(conn, jdbcParam.getSql(), new EntityListHandler());
+            collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
+        } finally {
+            DbUtil.close(conn);
+        }
+
+        System.err.println(1);
+    }
+
+    @Test
+    public void dbTest() throws SQLException {
+        String sql = "select * from cn_knowledge_base limit 1";
+        List<Map<String, Object>> dataBySQL = getDataBySQL(sql);
+        System.err.println(dataBySQL);
+        System.err.println(1);
+
+    }
+
+    public List<Map<String, Object>> getDataBySQL(String sql) {
+        Map<String, String> sourceParams = new HashMap<>();
+        sourceParams.put("ip", "192.168.44.12");
+        sourceParams.put("type", "mariadb");
+        sourceParams.put("database", "knowledge");
+        sourceParams.put("table", "cn_knowledge_base");
+        sourceParams.put("username", "root");
+        sourceParams.put("pin", "galaxy2019");
+        JDBCParam jdbcParam = new JDBCParam(sourceParams);
+
+        List<Map<String, Object>> listMapResult = new ArrayList<>();
+        System.out.println(sql);
+        int index = 1;  // 占位符索引
+        Connection conn = null;
+        DBUtils dbUtils = null;
+        ResultSet resultSet = null;
+
+        PreparedStatement pst = null;
+        try {
+            dbUtils = new DBUtils();
+            conn = dbUtils.getDBConn(jdbcParam);
+            pst = conn.prepareStatement(sql);
+//            for (Object placeholder : params) {
+//                pst.setObject(index++, placeholder);
+//            }
+            resultSet = pst.executeQuery();
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            int columnLength = metaData.getColumnCount();
+            while (resultSet.next()) {
+                Map<String, Object> map = new HashMap<>();
+                for (int i = 0; i < columnLength; i++) {
+                    String columnName = metaData.getColumnName(i + 1);
+                    Object value = resultSet.getObject(columnName);
+                    map.put(columnName, value);
+                }
+                listMapResult.add(map);
+            }
+            return listMapResult;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            IoUtil.close(resultSet);
+            IoUtil.close(pst);
+            IoUtil.close(conn);
+
+        }
+        throw new IllegalArgumentException("No corresponding value found.");
+    }
 }

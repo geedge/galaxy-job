@@ -31,6 +31,7 @@ public class JDBCParam {
     private String username;
     private String pin;
     private String sql;
+    private Integer batch;
 
     public JDBCParam(Map<String, String> sourceParams) {
 
@@ -42,9 +43,10 @@ public class JDBCParam {
         this.table = StrUtil.isEmpty(table) ? getTableName(sql) : table;
         this.username = jdbcParam.getUsername();
         this.pin = jdbcParam.getPin();
+        this.batch = jdbcParam.getBatch();
     }
 
-    public JDBCParam(String type, String ip, String database, String table, String username, String pin, String sql) {
+    public JDBCParam(String type, String ip, String database, String table, String username, String pin, String sql,Integer batch) {
         this.type = type;
         this.ip = ip;
         this.sql = sql;
@@ -52,6 +54,7 @@ public class JDBCParam {
         this.table = StrUtil.isEmpty(table) ? getTableName(sql) : table;
         this.username = username;
         this.pin = pin;
+        this.batch = batch;
     }
 
     public String getTableName(String sql) {
