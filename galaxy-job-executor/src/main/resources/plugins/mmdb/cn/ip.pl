@@ -1,3 +1,7 @@
+#!/usr/bin/perl
+# This source code is subject to the terms of the MIT License. If a
+# copy of the MIT License was not distributed with this file, you can
+# obtain one at http://opensource.org/licenses/MIT.
 use strict;      #use this all times
 use warnings;    #this too - helps a lot!
 use JSON;
@@ -172,58 +176,8 @@ if($resCount < $pageSize){
 
 $dbh->disconnect();
 
-
 open(MMDBLOG, "+>>$mmdbLog");
 my $gmtDateLog = strftime "%Y-%m-%d %H:%M:%S", gmtime;
-
-if($totalv4==0){
- @ipv4Sample=();
-}
-#else{
-#    $treeV4->insert_range(
-#      "0.0.0.0",
-#      "0.0.0.0",
-#  {
-#      AREA_CODE => ' ',
-#      ASN       => ' ',
-#      ISP       => ' ',
-#      LATITUDE  => '00',
-#      LONGITUDE => '00',
-#      COUNTRY   => changeSplit('aa'),
-#      CONTINENT => changeSplit('aa'),
-#      SUPER_ADMINISTRATIVE_AREA => changeSplit('aa'),
-#      ADMINISTRATIVE_AREA => changeSplit('aa'),
-#      SUB_ADMINISTRATIVE_AREA => changeSplit('aa'),
-#      LOCALITY => changeSplit('aa'),
-#      DEPENDENT_LOCALITY => changeSplit('aa'),
-#      DOUBLE_DEPENDENT_LOCALITY => changeSplit('aa'),
-#  },
-#);
-#}
-if($totalv6==0){
- @ipv6Sample=();
-}
-#else{
-#    $treeV6->insert_range(
-#      "0000:0000:0000:0000:0000:0000:0000:0000",
-#      "0000:0000:0000:0000:0000:0000:0000:0000",
-#  {
-#      AREA_CODE => ' ',
-#      ASN       => ' ',
-#      ISP       => ' ',
-#      LATITUDE  => '00',
-#      LONGITUDE => '00',
-#      COUNTRY   => changeSplit('aa'),
-#      CONTINENT => changeSplit('aa'),
-#      SUPER_ADMINISTRATIVE_AREA => changeSplit('aa'),
-#      ADMINISTRATIVE_AREA => changeSplit('aa'),
-#      SUB_ADMINISTRATIVE_AREA => changeSplit('aa'),
-#      LOCALITY => changeSplit('aa'),
-#      DEPENDENT_LOCALITY => changeSplit('aa'),
-#      DOUBLE_DEPENDENT_LOCALITY => changeSplit('aa'),
-#  },
-#);
-#};
 
 if($addrType == 6) {
     open my $fhV6, '>:raw', $outfileV6;

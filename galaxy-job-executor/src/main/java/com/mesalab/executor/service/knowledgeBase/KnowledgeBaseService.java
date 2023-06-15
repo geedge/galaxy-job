@@ -6,11 +6,9 @@ import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONPath;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.mesalab.executor.core.utils.DBUtils;
@@ -31,7 +29,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.mesalab.executor.core.utils.Constant.*;
 
@@ -76,9 +73,6 @@ public class KnowledgeBaseService {
                 pageNum++;
             }
             pushStatus = push(knowledgeBase, tmpFile, url);
-        } catch (Exception e) {
-            JobUtil.errorLog(e);
-            throw e;
         } finally {
             FileUtil.del(tmpDir);
         }
@@ -105,9 +99,6 @@ public class KnowledgeBaseService {
                 }
                 collect.add(map);
             }
-        } catch (Exception e) {
-            JobUtil.errorLog("query mysql fail {}", e.getMessage());
-            throw e;
         }
         return collect;
     }
@@ -178,7 +169,7 @@ public class KnowledgeBaseService {
             String filename = StringUtil.join(script, addrType, ".", knowledgeBase.getFormat());
 
             if (executeResult == 0) {
-                if (ipLocation && !checkIpMMDBSample(KNOWLEDGE_WORK_DIR, filename)) {
+                if (ipLocation && !checkIpMMDBSample(KNOWLEDGE_WORK_DIR, filename, script)) {
                     JobUtil.infoLog("ip locate knowledgeBase perl execute or sample validate fail !");
                     return false;
                 }
@@ -222,26 +213,12 @@ public class KnowledgeBaseService {
     }
 
     /**
-     * 查询知识库最近版本
-     */
-    public Map<String, String> historyKnowledgeSha256(String url) {
-        String result = HttpClientUtils.httpGet(url);
-        Object extract = JSONPath.extract(result, "$.data[version=='latest']");
-        JSONArray objects = JSONUtil.parseArray(extract);
-        List<KnowledgeBase> knowledgeBases = JSONUtil.toList(objects, KnowledgeBase.class);
-        return knowledgeBases.stream().collect(Collectors.toMap(
-                kb -> kb.getName() + kb.getFormat(),
-                KnowledgeBase::getSha256
-        ));
-    }
-
-    /**
      * 检查脚本运行结果和抽样ip是否打到包里
      *
      * @param
      * @return
      */
-    public static boolean checkIpMMDBSample(String path, String filename) throws Exception {
+    public static boolean checkIpMMDBSample(String path, String filename, String script) throws Exception {
 
         String builtStatusFile = "built-status.json";
 
@@ -252,16 +229,22 @@ public class KnowledgeBaseService {
             return false;
         }
         //测试抽样数据能查到结果说明打包成功
-        IpLookupV2 ipLookup = new IpLookupV2.Builder(false)
-                .loadDataFile(path + File.separator + filename)
-                .build();
+        IpLookupV2.Builder builder = new IpLookupV2.Builder(false);
         List<String> ipSample = builtMMDBStatus.getIpv4Sample();
         ipSample.addAll(builtMMDBStatus.getIpv6Sample());
-
         for (String sampleIp : ipSample) {
-            if (ObjectUtil.isEmpty(ipLookup.latLngLookup(sampleIp))) {
-                JobUtil.infoLog("built ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
-                return false;
+            if ("ip".equals(script)) {
+                IpLookupV2 ipLookup = builder.loadDataFile(path + File.separator + filename).build();
+                if (ObjectUtil.isEmpty(ipLookup.latLngLookup(sampleIp))) {
+                    JobUtil.infoLog("built ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
+                    return false;
+                }
+            } else if ("asn".equals(script)) {
+                IpLookupV2 ipLookup = builder.loadAsnDataFile(path + File.separator + filename).build();
+                if (ObjectUtil.isEmpty(ipLookup.asnLookup(sampleIp))) {
+                    JobUtil.infoLog("built asn library sample validate fail, sampleIp {}, asn {}", sampleIp, ipLookup.asnLookup(sampleIp));
+                    return false;
+                }
             }
         }
         return true;

@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
+import com.mesalab.executor.service.knowledgeBase.KnowledgeBaseService;
 import com.zdjizhi.utils.IPUtil;
 import com.zdjizhi.utils.IpLookupV2;
 import org.apache.tomcat.util.net.IPv6Utils;
@@ -140,6 +141,15 @@ public class KnowledgeJobTest {
 
     }
 
+    @Test
+    public void asnTest(){
+        try {
+            boolean asn = KnowledgeBaseService.checkIpMMDBSample("C:\\test\\knowledge\\", "asn6.mmdb", "asn");
+            Assert.assertTrue(asn);
+        } catch (Exception e) {
+            JobUtil.errorLog(e);
+        }
+    }
 
 
 }
