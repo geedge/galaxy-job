@@ -121,6 +121,7 @@ public class KnowledgeBaseJob {
      * @return
      */
     private boolean metadataNoChanged(Map km) {
+
         String knowledgeBaseMetadata = knowledgeBaseService.getMetadata(String.valueOf(km.get("knowledge_id")));
         if (StrUtil.isNotEmpty(knowledgeBaseMetadata)) {
             Map historyMetadata = JSONUtil.toBean(knowledgeBaseMetadata, Map.class);
@@ -144,11 +145,6 @@ public class KnowledgeBaseJob {
     private List<Map> getSinkParamFormat(Map sink) {
         JSONArray sinkParamsArr = JSONUtil.parseArray(sink.get("params"));
         List<Map> sinkParams = JSONUtil.toList(sinkParamsArr, Map.class);
-//        //获取设置的格式
-//        Map<Object, Map> sinkMap = new HashMap<>();
-//        for (Map sinkParam : sinkParams) {
-//            sinkMap.put(sinkParam.get("name") + "#" + sinkParam.get("type"), sinkParam);
-//        }
         return sinkParams;
     }
 

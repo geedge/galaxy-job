@@ -84,7 +84,7 @@ public class KnowledgeBaseService {
         JobUtil.infoLog("mysql data source starting, param is {}", sourceParams);
         JDBCParam jdbcParam = new JDBCParam(sourceParams);
         List<Map> collect = new ArrayList<>();
-        try (Connection conn = DBUtils.getDBConn(jdbcParam);
+        try (Connection conn = DBUtils.getConnPool(jdbcParam);
              PreparedStatement pst = conn.prepareStatement(jdbcParam.getSql());
              ResultSet resultSet = pst.executeQuery()) {
 

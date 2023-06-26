@@ -11,14 +11,14 @@
 		<repository>
 			<id>nexus</id>
 			<name>Team Nexus Repository</name>
-			<url>http://192.168.40.125:8099/content/groups/public</url>
+			<url>http://192.168.40.153:8099/content/repositories/releases/</url>
 		</repository>
 	</repositories>
 	<pluginRepositories>
 		<pluginRepository>
 			<id>nexus</id>
 			<name>Team Nexus Repository</name>
-			<url>http://192.168.40.125:8099/content/groups/public/</url>
+			<url>http://192.168.40.153:8099/content/repositories/releases/</url>
 		</pluginRepository>
 	</pluginRepositories>
 	<modules>
@@ -55,7 +55,7 @@
 		<docker.registry>192.168.40.153</docker.registry>
 		<docker.registry.port>9080</docker.registry.port>
 		<docker.image.prefix>galaxy</docker.image.prefix>
-		<xxl-job-core.version>2.2.0</xxl-job-core.version>
+		<xxl-job-core.version>1.0.0</xxl-job-core.version>
 		<galaxy.version>1.1.0</galaxy.version>
 		<httpclient.version>4.5.6</httpclient.version>
 		<lombok.version>1.16.20</lombok.version>

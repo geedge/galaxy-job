@@ -1,5 +1,6 @@
 package com.mesalab.executor.core.utils;
 
+import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import com.mesalab.executor.pojo.JDBCParam;
@@ -15,27 +16,12 @@ import java.util.Map;
 public class DBUtils {
 
     private static Log logger = Log.get();
-//    private static HikariDataSource hikariDataSource;
+    private static HikariDataSource hikariDataSource;
+    private static String dbParams = "?useUnicode=true&serverTimezone=UTC&zeroDateTimeBehavior=convertToNull&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&tinyInt1isBit=false&transformedBitIsBoolean=false";
 
     public static Connection getDBConn(JDBCParam jdbcParam) throws SQLException {
-        String url = "jdbc:mysql://" + jdbcParam.getIp() + ":3306/" + jdbcParam.getDatabase() + "?useUnicode=true&serverTimezone=UTC&zeroDateTimeBehavior=convertToNull&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&tinyInt1isBit=false&transformedBitIsBoolean=false";
-//        HikariConfig config = new HikariConfig();
-//        config.setJdbcUrl(url);
-//        config.setUsername(jdbcParam.getUsername());
-//        config.setPassword(jdbcParam.getPin());
-//
-//        config.setConnectionTestQuery("SELECT 1");
-//        config.setMinimumIdle(1);
-//        config.setMaximumPoolSize(10);
-//        config.setConnectionTimeout(10000);
-//        config.setIdleTimeout(60000);
-//        config.setMaxLifetime(300000);
-//
-//        hikariDataSource = new HikariDataSource(config);
-
-//        Connection connection = hikariDataSource.getConnection();
+        String url = "jdbc:mysql://" + jdbcParam.getIp() + ":3306/" + jdbcParam.getDatabase() + dbParams;
         Connection connection = null;
-
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             connection = DriverManager.getConnection(url, jdbcParam.getUsername(), jdbcParam.getPin());
@@ -47,6 +33,36 @@ public class DBUtils {
         return connection;
 
     }
+
+    public synchronized static Connection getConnPool(JDBCParam jdbcParam) throws SQLException {
+        String url = "jdbc:mysql://" + jdbcParam.getIp() + ":3306/" + jdbcParam.getDatabase() + dbParams;
+        if (hikariDataSource == null || isDataSourceChanged(url, jdbcParam.getUsername(), jdbcParam.getPin())) {
+            // 关闭旧的数据源
+            if (hikariDataSource != null) {
+                hikariDataSource.close();
+                IoUtil.close(hikariDataSource);
+            }
+            // 创建新的数据源
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(url);
+            config.setUsername(jdbcParam.getUsername());
+            config.setPassword(jdbcParam.getPin());
+            config.setMaximumPoolSize(10);
+            config.setConnectionTimeout(10000);
+            config.setIdleTimeout(60000);
+            config.setMaxLifetime(300000);
+            hikariDataSource = new HikariDataSource(config);
+        }
+
+        return hikariDataSource.getConnection();
+    }
+
+    private static boolean isDataSourceChanged(String url, String username, String password) {
+        return !hikariDataSource.getJdbcUrl().equals(url)
+                || !hikariDataSource.getUsername().equals(username)
+                || !hikariDataSource.getPassword().equals(password);
+    }
+
     public void close() {
 //        hikariDataSource.close();
     }
