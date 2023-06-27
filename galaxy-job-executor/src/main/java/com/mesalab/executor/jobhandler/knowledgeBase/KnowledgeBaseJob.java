@@ -25,7 +25,7 @@ public class KnowledgeBaseJob {
     @Resource
     KnowledgeBaseService knowledgeBaseService;
 
-    private static final String KNOWLEDGE_BASE_META_SQL = "SELECT a.knowledge_id knowledge_id,name,version,source FROM cn_knowledge_base_sync_version a LEFT JOIN cn_knowledge_base b ON a.knowledge_id=b.knowledge_id WHERE `status`=1";
+    private static final String KNOWLEDGE_BASE_META_SQL = "SELECT a.knowledge_id knowledge_id,name,version,source,`status` FROM cn_knowledge_base_sync_version a LEFT JOIN cn_knowledge_base b ON a.knowledge_id=b.knowledge_id WHERE `is_published`=1";
     private String KNOWLEDGE_BASE_SQL = "SELECT * FROM {0} WHERE knowledge_id={1}";
 
     /**
@@ -73,17 +73,17 @@ public class KnowledgeBaseJob {
                                     }
                                     hasPush = knowledgeBaseService.mmdbBuildPush(builtParam(sink, dbKm, sinkParam));
                                 } else {
-                                    source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source"), dbKm.get("knowledge_id")));
+                                    source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source"), String.valueOf(dbKm.get("knowledge_id"))));
                                     //推送到知识库接口
                                     hasPush = knowledgeBaseService.commonPushFile(source, builtParam(sink, dbKm, sinkParam));
                                 }
                                 String kmMeta = JSONUtil.toJsonStr(dbKm);
                                 if (hasPush) {
                                     knowledgeBaseService.modifyMetadata(String.valueOf(dbKm.get("knowledge_id")), kmMeta);
-                                    JobUtil.infoLog("knowledgeBase push success, metadata : {}  ", kmMeta);
+                                    JobUtil.infoLog("knowledgeBase metadata save success, metadata : {}  ", kmMeta);
                                 } else {
                                     failedTask++;
-                                    JobUtil.infoLog("knowledgeBase push fail, metadata : {}  ", kmMeta);
+                                    JobUtil.infoLog("knowledgeBase metadata save fail, metadata : {}  ", kmMeta);
                                 }
                             }
                         }
@@ -110,7 +110,7 @@ public class KnowledgeBaseJob {
         newParam.put("name", dbKm.get("name"));
         newParam.put("format", sinkParam.get("format"));
         newParam.put("type", sinkParam.get("type"));
-        newParam.put("isValid", 1);
+        newParam.put("isValid", dbKm.get("status"));
         sink.put("params", newParam);
         return sink;
     }

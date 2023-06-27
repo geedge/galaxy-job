@@ -1,7 +1,6 @@
 package com.mesalab.executor.service.knowledgeBase;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
@@ -72,10 +71,16 @@ public class KnowledgeBaseService {
                 batchData = null;
                 pageNum++;
             }
-            pushStatus = push(knowledgeBase, tmpFile, url);
-        } finally {
+            JobUtil.infoLog("knowledge push file info filename: {},file format: {} , size: {}", tmpFile.getName(), knowledgeBase.getFormat(), tmpFile.length());
+            if (tmpFile.length() > 0) {
+                pushStatus = push(knowledgeBase, tmpFile, url);
+            }
+        } catch (Exception e) {
+            JobUtil.errorLog(e);
+            throw new BusinessException(e);
+        } /*finally {
             FileUtil.del(tmpDir);
-        }
+        }*/
         return pushStatus;
 
     }
@@ -103,7 +108,7 @@ public class KnowledgeBaseService {
         return collect;
     }
 
-    public File creatFile(List<Map> sourceData, String filePath, String format) {
+    public File creatFile(List<Map> sourceData, String filePath, String format) throws Exception {
         File file = null;
         if ("json".equals(format)) {
             FileWriter fileWriter = new FileWriter(filePath, CharsetUtil.CHARSET_UTF_8);
@@ -111,7 +116,6 @@ public class KnowledgeBaseService {
         } else if ("csv".equals(format)) {
             file = JobUtil.createCsvFile(sourceData, filePath, true);
         }
-        sourceData.clear();
         return file;
     }
 
@@ -127,11 +131,11 @@ public class KnowledgeBaseService {
             if (!"-1".equals(resultStr)) {
                 Map<String, Object> result = JSONUtil.toBean(resultStr, Map.class);
                 if (result.get("status") != null && "200".equals(String.valueOf(result.get("status")))) {
-                    JobUtil.infoLog("ip locate knowledgeBase push success");
+                    JobUtil.infoLog("knowledgeBase push success");
                     return true;
                 }
             } else {
-                JobUtil.errorLog("ip locate knowledgeBase push fail");
+                JobUtil.errorLog("knowledgeBase push fail");
             }
         } catch (Exception e) {
             JobUtil.errorLog(e);

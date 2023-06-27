@@ -65,7 +65,7 @@ public class JobUtil {
     }
     public static File createCsvFile(List<Map> maps, String filePath,boolean append) {
         File file = FileUtil.newFile(filePath);
-        try (CsvWriter writer = CsvUtil.getWriter(file, CharsetUtil.CHARSET_UTF_8)) {
+        try (CsvWriter writer = CsvUtil.getWriter(file, CharsetUtil.CHARSET_UTF_8, append)) {
             List result = new ArrayList<String[]>();
             if (ObjectUtil.isNotEmpty(maps)) {
                 Object[] fieldArr = maps.get(0).keySet().toArray();
