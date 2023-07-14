@@ -174,7 +174,6 @@ public class JobUtil {
         int exitValue = -1;
         BufferedReader bufferedReader = null;
         StringBuffer sb = new StringBuffer();
-        List<String> results = new ArrayList<>();
         try {
             logger.info("execute command: " + command);
             Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", command});

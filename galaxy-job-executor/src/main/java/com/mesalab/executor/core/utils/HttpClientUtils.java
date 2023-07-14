@@ -457,7 +457,6 @@ public class HttpClientUtils {
                     logger.info("request header : {}",h);
                 }
             }
-
             MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder.create()
                     .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
                     .setCharset(Consts.UTF_8)
@@ -465,7 +464,9 @@ public class HttpClientUtils {
                     .addBinaryBody("file", file);
             if (params != null) {
                 for (Map.Entry<String, Object> entry : params.entrySet()) {
-                    multipartEntityBuilder.addTextBody(entry.getKey(), String.valueOf(entry.getValue()), ContentType.create("text/plain", Charset.forName("UTF-8")));
+                    if(entry.getValue()!=null){
+                        multipartEntityBuilder.addTextBody(entry.getKey(), String.valueOf(entry.getValue()), ContentType.create("application/json", Charset.forName("UTF-8")));
+                    }
                 }
             }
 

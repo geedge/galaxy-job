@@ -80,10 +80,10 @@ public class KnowledgeBaseJob {
                                 String kmMeta = JSONUtil.toJsonStr(dbKm);
                                 if (hasPush) {
                                     knowledgeBaseService.modifyMetadata(String.valueOf(dbKm.get("knowledge_id")), kmMeta);
-                                    JobUtil.infoLog("knowledgeBase metadata save success, metadata : {}  ", kmMeta);
+                                    JobUtil.infoLog("knowledgeBase push success, metadata : {}  ", kmMeta);
                                 } else {
                                     failedTask++;
-                                    JobUtil.infoLog("knowledgeBase metadata save fail, metadata : {}  ", kmMeta);
+                                    JobUtil.infoLog("knowledgeBase push fail, metadata : {}  ", kmMeta);
                                 }
                             }
                         }

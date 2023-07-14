@@ -71,7 +71,7 @@ public class KnowledgeBaseService {
                 batchData = null;
                 pageNum++;
             }
-            JobUtil.infoLog("knowledge push file info filename: {},file format: {} , size: {}", tmpFile.getName(), knowledgeBase.getFormat(), tmpFile.length());
+            JobUtil.infoLog("knowledgeBase file info filename: {},file format: {} , size: {}", tmpFile.getName(), knowledgeBase.getFormat(), tmpFile.length());
             if (tmpFile.length() > 0) {
                 pushStatus = push(knowledgeBase, tmpFile, url);
             }
@@ -153,7 +153,7 @@ public class KnowledgeBaseService {
         String params = String.valueOf(sinkParam.get("params"));
         JSONObject jsonObject = JSONUtil.parseObj(params);
         KnowledgeBase knowledgeBase = JSONUtil.toBean(jsonObject, KnowledgeBase.class);
-
+        boolean pushStatus = false;
         try {
             String workDir = JobUtil.exeCmd(workDirCmd);
             String script = "ip";
@@ -179,24 +179,17 @@ public class KnowledgeBaseService {
                 }
                 //push knowledge
                 File file = new File(StringUtil.join(KNOWLEDGE_WORK_DIR, File.separator, filename));
+                JobUtil.infoLog("knowledgeBase file info filename: {},file format: {} , size: {}", file.getName(), knowledgeBase.getFormat(), file.length());
 
-                String resultStr = HttpClientUtils.httpPostFile(url, file, BeanUtil.beanToMap(knowledgeBase));
-                JobUtil.infoLog("ip  knowledgeBase push knowledge result: {},\n message {}", knowledgeBase, resultStr);
-                if ("-1".equals(resultStr)) {
-                    JobUtil.errorLog("ip locate knowledgeBase push fail !");
-                    return false;
-                }
-                Map<String, Object> result = JSONUtil.toBean(resultStr, Map.class);
-                if (result.get("status") != null && "200".equals(String.valueOf(result.get("status")))) {
-                    JobUtil.infoLog("ip locate knowledgeBase push success !");
-                    return true;
+                if (file.length() > 0) {
+                    pushStatus = push(knowledgeBase, file, url);
                 }
             }
         } catch (Exception e) {
             JobUtil.errorLog(e);
             throw new BusinessException(e);
         }
-        return false;
+        return pushStatus;
     }
 
     public String getMetadata(String knowledgeId) {
