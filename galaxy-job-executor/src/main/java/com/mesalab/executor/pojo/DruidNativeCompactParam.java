@@ -19,6 +19,8 @@ public class DruidNativeCompactParam {
     private String segmentGranularity;
 //    private int numOfDay;
     private String internalOrNumOfHistory;
+    private int maxRowsPerSegment;
+    private int maxRowsInMemory;
     //internal两种方式
     //1）如：输入"3"，起始时间为2021-07-05，结束时间为2021-07-08，格式为2021-07-05/2021-07-08。
     //2）"2021-06-18/2021-09-18"

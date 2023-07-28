@@ -58,11 +58,11 @@ public class DruidCompactJob {
                 String[] internal = internalOrNumOfHistory.split("/");
                 String startTime = internal[0];
                 String endTime =internal[1];
-                String querySql="{ \"query\" : \"select count(1) from "+dataSource+" where __time >= TIMESTAMP '"+startTime+" 00:00:00'  and __time < TIMESTAMP '"+endTime+" 00:00:00' \", \"resultFormat\" : \"objectLines\" }";
+                String querySql="{ \"query\" : \"select count(1) as dataCount from "+dataSource+" where __time >= TIMESTAMP '"+startTime+" 00:00:00'  and __time < TIMESTAMP '"+endTime+" 00:00:00' \", \"resultFormat\" : \"objectLines\" }";
                 String queryResponseValue = HttpClientUtils.httpPost(queryUrl, querySql);
                 if (StringUtil.isNotBlank(queryResponseValue)){
                     HashMap<String, Integer> value = jsonMapperInstance.fromJson(queryResponseValue, hashmapJsonType);
-                    int countValue=Integer.parseInt(value.get("EXPR$0").toString());
+                    int countValue=Integer.parseInt(value.get("dataCount").toString());
                     if (countValue > 0){
                         //传入json为http的请求体
                         jsonForRequestBodyToHttp(druidNativeCompactParam);
@@ -169,6 +169,30 @@ public class DruidCompactJob {
         }
     }
 
+    public int getMaxRowsPerSegment(DruidNativeCompactParam druidNativeCompactParam){
+        try {
+            if (druidNativeCompactParam!=null){
+                return druidNativeCompactParam.getMaxRowsPerSegment();
+            }
+        }catch (BusinessException be){
+            logger.error(be.getMessage());
+            XxlJobLogger.log("maxRowsPerSegment is zero , maxRowsPerSegment could not be zero");
+        }
+        return 0;
+    }
+
+    public int getMaxRowsInMemory(DruidNativeCompactParam druidNativeCompactParam){
+        try {
+            if (druidNativeCompactParam!=null){
+                return druidNativeCompactParam.getMaxRowsInMemory();
+            }
+        }catch (BusinessException be){
+            logger.error(be.getMessage());
+            XxlJobLogger.log("maxRowsInMemory is zero , maxRowsInMemory could not be zero");
+        }
+        return 0;
+    }
+
     /**
      * 根据传入的参数拼接json，并将json设置为请求体，提交Http请求
      * 1.调度任务发起任务
@@ -191,8 +215,8 @@ public class DruidCompactJob {
                     "    \"segmentGranularity\"" + ":" + "\"" + getSegmentGranularities(druidNativeCompactParam) + "\"" + ",\n" +
                     "    \"tuningConfig\":{\n" +
                     "        \"type\":\"index_parallel\",\n" +
-                    "        \"maxRowsPerSegment\":5000000,\n" +
-                    "        \"maxRowsInMemory\":25000\n" +
+                    "        \"maxRowsPerSegment\"" + ":"  + getMaxRowsPerSegment(druidNativeCompactParam) + ",\n" +
+                    "        \"maxRowsInMemory\"" + ":" +  getMaxRowsInMemory(druidNativeCompactParam) +  "\n" +
                     "    }\n" +
                     "}";
             HttpClientUtils.httpPost(url, json);
