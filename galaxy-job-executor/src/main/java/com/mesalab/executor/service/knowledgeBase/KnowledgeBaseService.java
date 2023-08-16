@@ -5,6 +5,7 @@ import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSON;
@@ -182,6 +183,9 @@ public class KnowledgeBaseService {
                 JobUtil.infoLog("knowledgeBase file info filename: {},file format: {} , size: {}", file.getName(), knowledgeBase.getFormat(), file.length());
 
                 if (file.length() > 0) {
+                    //设置特殊id
+                    String konwledgeId = DigestUtil.md5Hex16(knowledgeBase.getId() + knowledgeBase.getType());
+                    knowledgeBase.setId(konwledgeId);
                     pushStatus = push(knowledgeBase, file, url);
                 }
             }
@@ -200,6 +204,27 @@ public class KnowledgeBaseService {
         } catch (Exception e) {
             JobUtil.errorLog("knowledgeBase query zookeeper error :{}", e);
             return null;
+        }
+    }
+
+    public List<String> getMetadataIds() {
+        try {
+            ZookeeperUtils zk = new ZookeeperUtils();
+            List<String> children = zk.getChildren(StrUtil.removeSuffix(ZK_KNOWLEDGE_PATH, "/"), zookeeperServer);
+            return children;
+        } catch (Exception e) {
+            JobUtil.errorLog("knowledgeBase query zookeeper error :{}", e);
+            return null;
+        }
+    }
+
+    public boolean deleteMetadata(String knowledgeId) {
+        try {
+            ZookeeperUtils zk = new ZookeeperUtils();
+            return zk.deleteNode(ZK_KNOWLEDGE_PATH + knowledgeId, zookeeperServer);
+        } catch (Exception e) {
+            JobUtil.errorLog("knowledgeBase query zookeeper error :{}", e);
+            return false;
         }
     }
 
@@ -245,5 +270,39 @@ public class KnowledgeBaseService {
             }
         }
         return true;
+    }
+
+    public boolean deleteKnowledgeBase(List<Map> deleteKnowledgeBase, Map<String, Object> sinkParam) {
+        try {
+            List<String> metadataIds = getMetadataIds();
+
+            int failCount = 0;
+            for (Map deleteKnowledge : deleteKnowledgeBase) {
+                String knowledgeId = String.valueOf(deleteKnowledge.get("knowledge_id"));
+                if (metadataIds.contains(knowledgeId)) {
+                    String resultStr = HttpClientUtils.httpDelete(String.valueOf(sinkParam.get("url")) + "/" + knowledgeId, null);
+                    JobUtil.infoLog("knowledgeBase id {} delete, result {}", knowledgeId, resultStr);
+                    if (!"-1".equals(resultStr)) {
+                        Map<String, Object> result = JSONUtil.toBean(resultStr, Map.class);
+                        if (result.get("status") != null && "200".equals(String.valueOf(result.get("status")))) {
+                            deleteMetadata(knowledgeId);
+                            JobUtil.infoLog("knowledgeBase delete success");
+                        }else {
+                            failCount ++;
+                        }
+                    } else {
+                        JobUtil.errorLog("knowledgeBase delete fail");
+                        failCount ++;
+                    }
+                }
+            }
+            if(failCount > 0 ){
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            JobUtil.errorLog(e);
+            throw new BusinessException(e);
+        }
     }
 }

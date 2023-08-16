@@ -11,7 +11,7 @@ import lombok.ToString;
 @ToString
 public class KnowledgeBase {
 
-    private Integer id;
+    private String id;
     private String name;
     private String format = "mmdb";
     private String type = "ip_location";

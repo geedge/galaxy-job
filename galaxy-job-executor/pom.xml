@@ -196,7 +196,7 @@
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.230610</imageTag>
+                        <imageTag>v1.3.230815</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

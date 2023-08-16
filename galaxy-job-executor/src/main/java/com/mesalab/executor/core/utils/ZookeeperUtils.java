@@ -131,4 +131,37 @@ public class ZookeeperUtils implements Watcher {
 		}
 	}
 
+	public List<String> getChildren(String path, String zookeeperIp) {
+		try {
+			connectZookeeper(zookeeperIp);
+			Stat exists = zookeeper.exists(path, true);
+			if (exists == null) {
+				return null;
+			}
+			List<String> children = zookeeper.getChildren(path, false);
+			return children;
+		} catch (Exception e) {
+			logger.error("Get node information exception ,{}",e.getMessage());
+			return null;
+		} finally {
+			closeConn();
+		}
+	}
+	public boolean deleteNode(String path, String zookeeperIp) {
+		try {
+			connectZookeeper(zookeeperIp);
+			Stat exists = zookeeper.exists(path, false);
+			if (exists == null) {
+				logger.error("{} node not exist", path);
+				return false;
+			}
+			zookeeper.delete(path, -1); // -1表示忽略版本号检查
+			return true;
+		} catch (Exception e) {
+			logger.error("Delete node information exception ,{}",e.getMessage());
+			return false;
+		} finally {
+			closeConn();
+		}
+	}
 }

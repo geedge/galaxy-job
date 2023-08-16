@@ -9,14 +9,19 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.util.TypeUtils;
+import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
+import com.mesalab.executor.core.utils.ZookeeperUtils;
 import com.mesalab.executor.service.knowledgeBase.KnowledgeBaseService;
 import com.zdjizhi.utils.IPUtil;
 import com.zdjizhi.utils.IpLookupV2;
 import org.apache.tomcat.util.net.IPv6Utils;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -27,10 +32,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.net.Inet4Address;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import static com.mesalab.executor.core.utils.Constant.ZK_KNOWLEDGE_PATH;
+import static org.junit.Assert.assertNotNull;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -148,6 +153,41 @@ public class KnowledgeJobTest {
             Assert.assertTrue(asn);
         } catch (Exception e) {
             JobUtil.errorLog(e);
+        }
+    }
+
+    @NacosValue(value = "${zookeeper.server}", autoRefreshed = true)
+    private String zookeeperServer;
+    @Test
+    public void zkTest() throws Exception{
+            try {
+                ZookeeperUtils zk = new ZookeeperUtils();
+                List<String> children = zk.getChildren(ZK_KNOWLEDGE_PATH, zookeeperServer);
+//                HashMap<String, Object> map = new HashMap<>();
+//                map.put("knowledge_id1", "100002");
+//                map.put("knowledge_id2", 3);
+//                children.remove(map.get("knowledge_id1"));
+//                children.remove("sadfasd");
+//                assertNotNull(children);
+                System.err.println(children);
+            } catch (Exception e) {
+                JobUtil.errorLog("knowledgeBase query zookeeper error :{}", e);
+            }
+    }
+    @Test
+    public void zk1Test() throws Exception{
+        try {
+            ZookeeperUtils zk = new ZookeeperUtils();
+            boolean b = zk.deleteNode("/test/1", zookeeperServer);
+//                HashMap<String, Object> map = new HashMap<>();
+//                map.put("knowledge_id1", "100002");
+//                map.put("knowledge_id2", 3);
+//                children.remove(map.get("knowledge_id1"));
+//                children.remove("sadfasd");
+//                assertNotNull(children);
+            System.err.println(b);
+        } catch (Exception e) {
+            JobUtil.errorLog("knowledgeBase query zookeeper error :{}", e);
         }
     }
 

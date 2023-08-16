@@ -3,6 +3,7 @@ package com.mesalab.executor.jobhandler.knowledgeBase;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.fastjson.util.TypeUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.jobhandler.ValidParamUtil;
 import com.mesalab.executor.service.DataSourceService;
@@ -26,6 +27,7 @@ public class KnowledgeBaseJob {
     KnowledgeBaseService knowledgeBaseService;
 
     private static final String KNOWLEDGE_BASE_META_SQL = "SELECT a.knowledge_id knowledge_id,name,version,source,`status` FROM cn_knowledge_base_sync_version a LEFT JOIN cn_knowledge_base b ON a.knowledge_id=b.knowledge_id WHERE `is_published`=1";
+    private static final String KNOWLEDGE_BASE_META_DELETE_SQL = "SELECT knowledge_id FROM cn_knowledge_base_sync_version WHERE knowledge_id NOT IN (SELECT knowledge_id FROM cn_knowledge_base)";
     private String KNOWLEDGE_BASE_SQL = "SELECT * FROM {0} WHERE knowledge_id={1}";
 
     /**
@@ -60,6 +62,7 @@ public class KnowledgeBaseJob {
                 List<Map> dbKnowledgeMeta = getKnowledgeMeta(source);
                 for (Map dbKm : dbKnowledgeMeta) {
                     try {
+                        //跳过版本未变化数据
                         if (metadataNoChanged(dbKm)) {
                             continue;
                         }
@@ -68,9 +71,6 @@ public class KnowledgeBaseJob {
                                 //1.mmdb格式调度perl脚本，2.其它格式
                                 boolean hasPush = false;
                                 if ("mmdb".equals(sinkParam.get("format"))) {
-                                    if (!String.valueOf(dbKm.get("knowledge_id")).equals(String.valueOf(sinkParam.get("id")))) {
-                                        continue;
-                                    }
                                     hasPush = knowledgeBaseService.mmdbBuildPush(builtParam(sink, dbKm, sinkParam));
                                 } else {
                                     source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source"), String.valueOf(dbKm.get("knowledge_id"))));
@@ -92,12 +92,18 @@ public class KnowledgeBaseJob {
                         JobUtil.errorLog(e);
                     }
                 }
+                List<Map> deleteKnowledgeMeta = getDeleteKnowledgeMeta(source);
+                boolean deleteResult = knowledgeBaseService.deleteKnowledgeBase(deleteKnowledgeMeta, sink);
+                if(!deleteResult){
+                    failedTask++;
+                }
 
             } catch (Exception e) {
                 JobUtil.errorLog(e);
                 return ReturnT.FAIL;
             }
         }
+
         if (failedTask > 0) {
             return ReturnT.FAIL;
         }
@@ -132,7 +138,6 @@ public class KnowledgeBaseJob {
         }
         return false;
     }
-
     /**
      * 匹配配置信息执行
      * <p>
@@ -159,6 +164,12 @@ public class KnowledgeBaseJob {
         source.put("sql", KNOWLEDGE_BASE_META_SQL);
         List<Map> kbMetas = dataSourceService.mysqlSource(source);
         JobUtil.infoLog("get database knowledge metadata {}", JSONUtil.toJsonPrettyStr(kbMetas));
+        return kbMetas;
+    }
+    private List<Map> getDeleteKnowledgeMeta(Map source) throws Exception {
+        source.put("sql", KNOWLEDGE_BASE_META_DELETE_SQL);
+        List<Map> kbMetas = dataSourceService.mysqlSource(source);
+        JobUtil.infoLog("get database knowledge delete metadata {}", JSONUtil.toJsonPrettyStr(kbMetas));
         return kbMetas;
     }
 
