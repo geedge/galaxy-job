@@ -24,6 +24,7 @@ public class HttpParam implements Serializable {
     private String method;
     private String resultKey;//指定结果集返回值
     private Map<String, Object> requestBody;// http post请求参数
+    private Map<String, Object> requestParams;//请求表单
 
     public static List<HttpParam> parserHttpParams(String params) {
         if (StringUtil.isBlank(params)) {

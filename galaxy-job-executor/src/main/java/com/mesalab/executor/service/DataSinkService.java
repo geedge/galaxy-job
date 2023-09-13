@@ -20,6 +20,7 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 
@@ -90,7 +91,7 @@ public class DataSinkService {
      */
     public void mysqlSink(Object transformResult, Map<String, String> sinkParams) throws Exception {
         logger.info("mysql sink param {} ", sinkParams);
-        Map<String, List> transform = (Map<String, List>) JsonMapper.fromJsonString(JsonMapper.toJsonString(transformResult), Map.class);
+        Map<String, List> transform = JSON.parseObject(JSON.toJSONString(transformResult, SerializerFeature.WriteMapNullValue, SerializerFeature.WriteNullStringAsEmpty), Map.class);
         List list = JobUtil.getFirstNotNull(transform);
         if (ObjectUtil.isEmpty(list)) {
             logger.info("mysql sink data is empty ");
@@ -120,7 +121,7 @@ public class DataSinkService {
             conn = dbUtils.getDBConn(jdbcParam);
             String sql = "";
             if ("update".equals(sinkParams.get("option"))) {
-                sql = dbUtils.getUpdateSql(transformResult, tableName);
+                sql = dbUtils.getUpdateSql(transformResult, tableName, parseConditions(sinkParams));
             } else {
                 sql = dbUtils.getInsertSql(transformResult, tableName);
             }
@@ -131,16 +132,9 @@ public class DataSinkService {
             int index = 1;
             for (int i = 1; i <= transformResult.size(); i++) {
                 for (Object val : transformResult.get(i - 1).values()) {
-                    if (val instanceof Long) {
-                        pst.setLong((index++), Long.valueOf(StrUtil.toString(val)));
-                    } else if (val instanceof Integer) {
-                        pst.setInt((index++), Integer.valueOf(StrUtil.toString(val)));
-                    } else if (val instanceof Boolean) {
-                        pst.setBoolean((index++), Boolean.valueOf(StrUtil.toString(val)));
-                    } else {
-                        pst.setString((index++), StrUtil.toString(val));
-                    }
+                    index = setPstVal(pst, index, val);
                 }
+                setPstCondition(transformResult.get(i - 1), sinkParams, pst, index);
                 index = 1;
                 pst.addBatch();
                 //1w提交一次
@@ -170,6 +164,63 @@ public class DataSinkService {
             IoUtil.close(pst);
             IoUtil.close(conn);
         }
+    }
+
+    private int setPstVal(PreparedStatement pst, int index, Object val) throws SQLException {
+        if (val instanceof String) {
+            if (val == null) {
+                pst.setNull(index++, Types.VARCHAR);
+            } else {
+                pst.setString((index++), StrUtil.toString(val));
+            }
+        } else if (val instanceof Integer) {
+            if (val == null) {
+                pst.setNull(index++, Types.INTEGER);
+            } else {
+                pst.setInt((index++), Integer.valueOf(StrUtil.toString(val)));
+            }
+        } else if (val instanceof Long) {
+            if (val == null) {
+                pst.setNull(index++, Types.BIGINT);
+            } else {
+                pst.setLong((index++), Long.valueOf(StrUtil.toString(val)));
+            }
+        } else if (val instanceof Boolean) {
+            if (val == null) {
+                pst.setNull(index++, Types.BOOLEAN);
+            } else {
+                pst.setBoolean((index++), Boolean.valueOf(StrUtil.toString(val)));
+            }
+        } else {
+            pst.setObject((index++), val);
+        }
+        return index;
+    }
+
+    private void setPstCondition(Map transformResult, Map<String, String> sinkParams, PreparedStatement pst, int index) throws SQLException {
+        if ("update".equals(sinkParams.get("option"))) {
+            String[] conditions = parseConditions(sinkParams);
+            for (String condition : conditions) {
+                if (transformResult.containsKey(condition)) {
+                    Object val = transformResult.get(condition);
+                    if (val instanceof Long) {
+                        pst.setLong((index++), Long.valueOf(StrUtil.toString(val)));
+                    } else if (val instanceof Integer) {
+                        pst.setInt((index++), Integer.valueOf(StrUtil.toString(val)));
+                    } else if (val instanceof Boolean) {
+                        pst.setBoolean((index++), Boolean.valueOf(StrUtil.toString(val)));
+                    } else {
+                        pst.setString((index++), StrUtil.toString(val));
+                    }
+                }
+            }
+        }
+    }
+
+    private String[] parseConditions(Map<String, String> sinkParams) {
+        String conditionStr = sinkParams.get("conditions");
+        String[] conditions = StrUtil.isEmpty(conditionStr) ? new String[0] : StrUtil.split(conditionStr, ",");
+        return conditions;
     }
 
 }

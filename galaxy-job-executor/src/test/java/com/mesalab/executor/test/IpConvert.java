@@ -112,12 +112,4 @@ public final class IpConvert {
         ret[4] = (byte) Integer.parseInt(ipv4.substring(position3 + 1));  
         return ret;  
     }  
-  
-    public static void main(String[] args) {  
-        System.out.println(stringToBigInt("10.36.65.22"));  
-        System.out.println(bigIntToString(stringToBigInt("10.36.65.22")));  
-        System.out.println(stringToBigInt("fe80::8984:de33:85aa:5b81"));  
-        System.out.println(bigIntToString(new BigInteger(  
-                "338288524927261089663928186234336861057")));  
-    }  
-}  
+}

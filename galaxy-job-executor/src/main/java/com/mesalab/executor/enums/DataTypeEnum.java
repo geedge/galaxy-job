@@ -16,6 +16,7 @@ public enum DataTypeEnum {
 
     FILE("file"),
     MARIADB("mariadb"),
+    HTTP("http"),
     MYSQL("mysql");
 
     private String name;

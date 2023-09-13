@@ -12,6 +12,7 @@ import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.core.utils.async.HttpKit;
 import com.mesalab.executor.enums.DataTypeEnum;
+import com.mesalab.executor.service.websketch.IocDarkwebTransform;
 import com.xxl.job.core.log.XxlJobLogger;
 import org.apache.commons.collections4.ListUtils;
 import org.springframework.stereotype.Service;
@@ -58,10 +59,21 @@ public class DataTransformService {
             case "websketch-fqdn-accessible":
                 transformResult.put("websketch-fqdn-accessible", isFqdnAccessible(sourceResult, params));
                 break;
+            case "websketch-iocdarkweb":
+                transformResult.put("websketch-iocdarkweb", convertToDarkweb(sourceResult, params));
+                break;
             default:
                 break;
         }
         return transformResult;
+    }
+
+    private List<Map> convertToDarkweb(Object sourceResult, Map<String, String> params) throws Exception {
+        Map<String, Map> source = JSONUtil.toBean(JSON.toJSONString(sourceResult, SerializerFeature.WriteMapNullValue, SerializerFeature.WriteNullStringAsEmpty), Map.class);
+        Map sourceData = source.get(DataTypeEnum.HTTP.getName());
+        List<Map> transformResult = IocDarkwebTransform.builderIocDarkweb(sourceData, params.get("transform_table"));
+        return transformResult;
+
     }
 
     /**

@@ -4,6 +4,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
+import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.service.DataSinkService;
 import com.mesalab.executor.service.DataSourceService;
 import com.mesalab.executor.service.DataTransformService;
@@ -68,16 +69,14 @@ public class DataExtractJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            for (Map<String, Map<String, String>> paramsMap : paramsMaps) {
-                Map<String, Object> sourceResult = dataSourceService.adapt(paramsMap.get("source"));
-                if (ObjectUtil.isNotEmpty(paramsMap.get("transform"))) {
-                    Map<String, Object> transformResult = dataTransformService.adapt(paramsMap.get("transform"), sourceResult);
-                    dataSinkService.adapt(transformResult, paramsMap.get("sink"));
-                } else {
-                    dataSinkService.adapt(sourceResult, paramsMap.get("sink"));
-                }
-            }
 
+            for (Map<String, Map<String, String>> paramsMap : paramsMaps) {
+                Map<String, Object> dataResult = dataSourceService.adapt(paramsMap.get("source"));
+                if (ObjectUtil.isAllNotEmpty(paramsMap.get("transform"))) {
+                    dataResult = dataTransformService.adapt(paramsMap.get("transform"), dataResult);
+                }
+                dataSinkService.adapt(dataResult, paramsMap.get("sink"));
+            }
             return ReturnT.SUCCESS;
         } catch (Exception e) {
             XxlJobLogger.log(e.getMessage());
@@ -168,6 +167,7 @@ public class DataExtractJob {
             XxlJobLogger.log("params is empty!");
             return null;
         }
+        params = JobUtil.parseParamsTemplate(params);
         List<Map> paramList = JSONUtil.toList(params, Map.class);
         for (Map<String, Map<String, String>> param : paramList) {
             if (ObjectUtil.isNull(param)) {

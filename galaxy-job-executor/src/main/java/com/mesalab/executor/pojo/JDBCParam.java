@@ -40,7 +40,7 @@ public class JDBCParam {
         this.ip = jdbcParam.getIp();
         this.sql = jdbcParam.getSql();
         this.database = jdbcParam.getDatabase();
-        this.table = StrUtil.isEmpty(table) ? getTableName(sql) : table;
+        this.table = StrUtil.isEmpty(jdbcParam.getTable()) ? getTableName(sql) : jdbcParam.getTable();
         this.username = jdbcParam.getUsername();
         this.pin = jdbcParam.getPin();
         this.batch = jdbcParam.getBatch();

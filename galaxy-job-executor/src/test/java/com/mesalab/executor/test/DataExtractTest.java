@@ -1,11 +1,13 @@
 package com.mesalab.executor.test;
 
 import cn.hutool.core.collection.ListUtil;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.io.file.FileReader;
 import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.lang.Console;
+import cn.hutool.core.lang.Dict;
 import cn.hutool.core.map.CaseInsensitiveMap;
 import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.text.csv.CsvData;
@@ -14,6 +16,10 @@ import cn.hutool.core.text.csv.CsvRow;
 import cn.hutool.core.text.csv.CsvUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.template.Template;
+import cn.hutool.extra.template.TemplateConfig;
+import cn.hutool.extra.template.TemplateEngine;
+import cn.hutool.extra.template.TemplateUtil;
 import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
@@ -37,11 +43,14 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zdjizhi.utils.DateUtils;
 import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.groovy.util.Maps;
+import org.assertj.core.util.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.ObjectUtils;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -596,4 +605,89 @@ public class DataExtractTest {
         }
 
     }
+
+    @Test
+    public void getParamTemplates() throws Exception {
+        String template = "{now() - 7D}";
+
+
+        // 创建参数值映射
+        // 这里只是演示，您可以根据实际情况将参数值从其他地方获取并放入参数值映射中
+        // 这里假设 start_time 和 end_time 的值分别为 "2023-09-05 10:00:00" 和 "2023-09-05 12:00:00"
+        LinkedHashMap<String, String> paramMap = new LinkedHashMap<>();
+        paramMap.put("now()", DateUtil.now());
+        // 进行变量替换
+        String result = StrUtil.format(template, paramMap);
+
+        // 输出结果
+        System.out.println(result);
+    }
+
+    @Test
+    public void getParamTemplates2() throws Exception {
+        String templateContent = "Start time: {{start_time}}, End time: {end_time} ${end_time}, 3 end_time 2end_time";
+
+        // 创建参数值映射
+        // 这里只是演示，您可以根据实际情况将参数值从其他地方获取并放入参数值映射中
+        // 这里假设 start_time 和 end_time 的值分别为 "2023-09-05 10:00:00" 和 "2023-09-05 12:00:00"
+        String startTime = "2023-09-05 10:00:00";
+        String endTime = "2023-09-05 12:00:00";
+        // 创建参数值映射
+        // 注意：这里的键名要与模板中的变量名保持一致
+        // 如果有多个参数，可以继续添加到参数值映射中
+        // 如果参数值中包含特殊字符，可能需要进行转义处理
+        // 例如：参数值中包含逗号，可以使用 StrUtil.replaceChars(startTime, ",", "\\,") 进行转义处理
+        // 这里的示例中无需转义处理
+//        Map<String, Object> paramMap = new HashMap<>();
+//        paramMap.put("start_time", startTime);
+//        paramMap.put("end_time", endTime);
+//
+//        // 创建模板引擎配置
+//        TemplateConfig config = new TemplateConfig();
+//        config.setResourceMode(TemplateConfig.ResourceMode.STRING);
+//        // 创建模板引擎
+//        TemplateEngine engine = TemplateUtil.createEngine(config);
+//
+//        // 创建模板
+//        Template template = engine.getTemplate(templateContent);
+//
+//        // 渲染模板并进行变量替换
+//        String result = template.render(paramMap);
+//
+//        // 输出结果
+//        System.out.println(result);
+        TemplateEngine engine = TemplateUtil.createEngine(new TemplateConfig());
+
+//假设我们引入的是Beetl引擎，则：
+        Template template = engine.getTemplate("${date(),dateFormat=\"yyyy-MM-dd'T'HH:mm:ss\"}");
+//Dict本质上为Map，此处可用Map
+        String result = template.render(Dict.create().set("name", "Hutool"));
+//输出：Hello Hutool
+        System.err.println(result);
+
+    }
+    @Test
+    public void updateSqlTest(){
+        String[] conditions = {"a","b", "c"};
+        ArrayList<Map<String, String>> transformResult = Lists.newArrayList(Maps.of("a", "a", "b", "b"));
+
+        String sqlKV = "";
+        for (Object key : transformResult.get(0).keySet()) {
+            if (!"id".equals(key)) {
+                sqlKV += key + "= ?,";
+            }
+        }
+        sqlKV = sqlKV.substring(0, sqlKV.length() - 1);
+        String sql = StrUtil.join(" ", "UPDATE", "tableName", "SET", sqlKV, "WHERE ");
+        if(ObjectUtils.isEmpty(conditions)){
+            sql = sql.concat("id=?");
+        } else {
+            String whereSql = StrUtil.join("=? AND ", conditions).concat("=? ");
+            sql = sql.concat(whereSql);
+        }
+        logger.info(" get update sql: " + sql);
+
+        System.err.println(sql);
+    }
+
 }

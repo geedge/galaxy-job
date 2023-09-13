@@ -1,6 +1,9 @@
 package com.mesalab.executor.core.utils;
 
 import cn.hutool.log.Log;
+import com.dtflys.forest.Forest;
+import com.dtflys.forest.http.ForestProxy;
+import com.google.common.collect.Lists;
 import com.mesalab.executor.core.config.HttpConfig;
 import com.mesalab.executor.exception.BusinessException;
 import com.zdjizhi.utils.StringUtil;
@@ -194,26 +197,17 @@ public class HttpClientUtils {
      */
     public static String httpGet(String url, Header... headers) {
         String msg = "-1";
-
         // 获取客户端连接对象
         CloseableHttpClient httpClient = getHttpClient();
         CloseableHttpResponse response = null;
 
         try {
-
             URL ul = new URL(url);
-
             URI uri = new URI(ul.getProtocol(),null,  ul.getHost(),  ul.getPort(), ul.getPath(), ul.getQuery(), null);
             logger.info("http get uri {}",uri);
             // 创建GET请求对象
             HttpGet httpGet = new HttpGet(uri);
-            
-            if (StringUtil.isNotEmpty(headers)) {
-                for (Header h : headers) {
-                	httpGet.addHeader(h);
-                    logger.info("request header : {}",h);
-                }
-            }
+            setHttpHeader(httpGet, headers);
             // 执行请求
             response = httpClient.execute(httpGet);
             int statusCode = response.getStatusLine().getStatusCode();
@@ -227,13 +221,13 @@ public class HttpClientUtils {
             }
 
         } catch (URISyntaxException e) {
-            logger.error("URI 转换错误: {}", e.getMessage());
+            logger.error("URI 转换错误: {}", e);
         } catch (ClientProtocolException e) {
-            logger.error("协议错误: {}", e.getMessage());
+            logger.error("协议错误: {}", e);
         } catch (ParseException e) {
-            logger.error("解析错误: {}", e.getMessage());
+            logger.error("解析错误: {}", e);
         } catch (IOException e) {
-            logger.error("IO错误: {}",e.getMessage());
+            logger.error("IO错误: {}",e);
         }  finally {
             if (null != response) {
                 try {
@@ -248,6 +242,16 @@ public class HttpClientUtils {
 
         return msg;
     }
+
+    private static void setHttpHeader(HttpGet httpGet, Header[] headers) {
+        if (StringUtil.isNotEmpty(headers)) {
+            for (Header h : headers) {
+                httpGet.addHeader(h);
+                logger.info("request header : {}",h);
+            }
+        }
+    }
+
     /**
      * POST 请求
      * @param url
@@ -660,5 +664,17 @@ public class HttpClientUtils {
 
         return statusCode;
     }
-
+    public static String socketProxyGet(String url) {
+        String resultMessage;
+        String proxyHost = UrlUtil.getParamByUrl(url, "proxyHost");
+        Integer proxyPort = Integer.valueOf(UrlUtil.getParamByUrl(url, "proxyPort"));
+        url = UrlUtil.removeParamFromUrl(url, Lists.newArrayList("proxyHost", "proxyPort"));
+        JobUtil.infoLog("socket proxy request url :{}", url);
+        resultMessage = Forest.get(url)
+                .proxy(ForestProxy.socks(proxyHost, proxyPort))
+                .setConnectTimeout(httpConfig.getServerConnectTimeOut())
+                .setReadTimeout(httpConfig.getServerResponseTimeOut())
+                .executeAsString();
+        return resultMessage;
+    }
 }

@@ -128,7 +128,15 @@
             <version>4.4</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.dtflys.forest</groupId>
+            <artifactId>forest-spring-boot-starter</artifactId>
+            <version>1.5.33</version>
+        </dependency>
+
+
     </dependencies>
+
 
     <build>
         <finalName>galaxy-job-executor</finalName>
@@ -196,7 +204,7 @@
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.230815</imageTag>
+                        <imageTag>v1.3.230912</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

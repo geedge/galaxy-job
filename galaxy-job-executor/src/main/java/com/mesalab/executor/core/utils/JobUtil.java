@@ -1,5 +1,6 @@
 package com.mesalab.executor.core.utils;
 
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IORuntimeException;
 import cn.hutool.core.io.IoUtil;
@@ -8,6 +9,7 @@ import cn.hutool.core.text.csv.CsvUtil;
 import cn.hutool.core.text.csv.CsvWriter;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.ReUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
@@ -20,6 +22,10 @@ import java.util.*;
 
 public class JobUtil {
     private static Log logger = Log.get();
+
+    public static final String DAY_TRUNC_REGEX = "\\$\\{now\\(\\)-\\d+DAY\\}";
+    public static final String HOUR_TRUNC_REGEX = "\\$\\{now\\(\\)-\\d+HOUR\\}";
+    public static final String NOW_REGEX = "\\$\\{now\\(\\)\\}";
 
     /**
      * 对执行器中日志字符串做处理防止特殊符号转义报错
@@ -63,7 +69,8 @@ public class JobUtil {
             return null;
         }
     }
-    public static File createCsvFile(List<Map> maps, String filePath,boolean append) {
+
+    public static File createCsvFile(List<Map> maps, String filePath, boolean append) {
         File file = FileUtil.newFile(filePath);
         try (CsvWriter writer = CsvUtil.getWriter(file, CharsetUtil.CHARSET_UTF_8, append)) {
             List result = new ArrayList<String[]>();
@@ -80,6 +87,7 @@ public class JobUtil {
             return null;
         }
     }
+
     /**
      * 获取map中第一个非空数据值
      *
@@ -222,5 +230,32 @@ public class JobUtil {
     public static void errorLog(Throwable throwable) {
         logger.error(throwable);
         XxlJobLogger.log(throwable);
+    }
+
+    public static String parseParamsTemplate(String paramString) {
+        String format = "yyy-MM-dd'T'HH:mm:ss";
+        String result = parseDayParams(paramString, format);
+        result = parseHourParams(result, format);
+        result = parseNowParams(result, format);
+        return result;
+    }
+
+    private static String parseNowParams(String result, String format) {
+        return ReUtil.replaceAll(result, NOW_REGEX, DateUtil.format(DateUtil.date(), format)
+        );
+    }
+
+    private static String parseHourParams(String paramString, String format) {
+        return ReUtil.replaceAll(paramString, HOUR_TRUNC_REGEX, match -> {
+            int hour = ReUtil.getFirstNumber(match.group());
+            return DateUtil.format(DateUtil.offsetHour(DateUtil.date(), -hour), format);
+        });
+    }
+
+    private static String parseDayParams(String paramString, String format) {
+        return ReUtil.replaceAll(paramString, DAY_TRUNC_REGEX, match -> {
+            int days = ReUtil.getFirstNumber(match.group());
+            return DateUtil.format(DateUtil.offsetDay(DateUtil.date(), -days), format);
+        });
     }
 }

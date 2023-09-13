@@ -1,18 +1,11 @@
 package com.mesalab.executor.test;
 
-import cn.hutool.core.text.csv.CsvUtil;
-import cn.hutool.json.JSONUtil;
-import com.google.common.collect.ImmutableMap;
-import com.mesalab.executor.core.utils.JobUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.ReUtil;
 import com.mesalab.executor.pojo.JDBCParam;
-import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.junit.Test;
@@ -20,12 +13,10 @@ import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +63,7 @@ public class SourceJobTest {
         URL ul = new URL("http://192.168.45.102:9098/hos/knowledge_base_hos_bucket/start.txt");
         URI uri = new URI(ul.getProtocol(), null, ul.getHost(), ul.getPort(), ul.getPath(), ul.getQuery(), null);
         HttpPut httpost = new HttpPut(uri);
-        httpost.setHeader("token","5cfd8d289c274d9c93bc3429410b951f");
+        httpost.setHeader("token", "5cfd8d289c274d9c93bc3429410b951f");
 
         CloseableHttpResponse response = null;
         CloseableHttpClient httpClient = getHttpClient();
@@ -83,5 +74,38 @@ public class SourceJobTest {
         // 获取响应信息
         String msg = EntityUtils.toString(entity, "UTF-8");
         System.err.println(statusCode);
+    }
+
+    @Test
+    public void paraseFormatTest() {
+        String dateParam = "${now()-7DAY}";
+
+//        LinkedHashMap<String, String> paramMap = new LinkedHashMap<>();
+//        paramMap.put("now()", DateUtil.format(new Date(),"yyyy-MM-dd'T'HH:mm:ss"));
+//        String format = StrUtil.format(dateParam, paramMap);
+        String regex = "\\$\\{now\\(\\)\\-\\d+DAY\\}";
+        ;
+
+//        String format = ReUtil.replaceAll(dateParam, regex, "$1");
+        boolean match = ReUtil.isMatch(regex, dateParam);
+        System.err.println(match);
+
+
+    }
+
+    @Test
+    public void parseTest() {
+        String input = "The current${now()} date is ${now()-5DAY}.${now()-6DAY} ${now()-7DAY} dd${now()-7DAY}d";
+        String dayRegex = "\\$\\{now\\(\\)-\\d+DAY\\}";
+        String nowRegex = "\\$\\{now\\(\\)\\}";
+        String result = ReUtil.replaceAll(input, dayRegex, match -> {
+            int days = ReUtil.getFirstNumber(match.group());
+            return DateUtil.format(DateUtil.offsetDay(DateUtil.date(), -days), "yyy-MM-dd'T'HH:mm:ss");
+        });
+
+        result = ReUtil.replaceAll(result, nowRegex, DateUtil.format(DateUtil.date(), "yyy-MM-dd'T'HH:mm:ss")
+        );
+
+        System.out.println("Processed string: " + result);
     }
 }

@@ -6,6 +6,7 @@ import cn.hutool.log.Log;
 import com.mesalab.executor.pojo.JDBCParam;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.util.ObjectUtils;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -101,6 +102,29 @@ public class DBUtils {
         }
         sqlKV = sqlKV.substring(0, sqlKV.length() - 1);
         String sql = StrUtil.join(" ", "UPDATE", tableName, "SET", sqlKV, "WHERE id=?");
+        logger.info(" get update sql: " + sql);
+        return sql;
+    }
+
+    /**
+     * update table set a=? where conditions;
+     */
+    public String getUpdateSql(List<Map> transformResult, String tableName, String[]... conditions) {
+        String sqlKV = "";
+        for (Object key : transformResult.get(0).keySet()) {
+            if (!"id".equals(key)) {
+                sqlKV += key + "= ?,";
+            }
+        }
+        sqlKV = sqlKV.substring(0, sqlKV.length() - 1);
+        String sql = StrUtil.join(" ", "UPDATE", tableName, "SET", sqlKV);
+        String whereSql = " WHERE ";
+        if (ObjectUtils.isEmpty(conditions)) {
+            whereSql = whereSql.concat("id=?");
+        } else {
+            whereSql = whereSql.concat(StrUtil.join("=? AND ", conditions).concat("=? "));
+        }
+        sql = sql.concat(whereSql);
         logger.info(" get update sql: " + sql);
         return sql;
     }

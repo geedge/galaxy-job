@@ -15,9 +15,11 @@ import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
+import com.alibaba.fastjson.JSON;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
+import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.HttpParam;
 import com.mesalab.executor.pojo.JDBCParam;
@@ -25,14 +27,13 @@ import com.xxl.job.core.handler.IJobHandler;
 import com.zdjizhi.utils.JsonMapper;
 import io.netty.handler.codec.http.HttpMethod;
 import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -84,26 +85,44 @@ public class DataSourceService {
      * @param sourceParams url,method,requestBody,resultKey,tableName
      * @return
      */
-    private Map http(Map<String, String> sourceParams) throws Exception {
+    private Map http(Map<String, String> sourceParams) {
 
-        String url = String.valueOf(sourceParams.get("url"));
-        String method = String.valueOf(sourceParams.get("method"));
+        try {
+            String url = sourceParams.get("url");
+            String method = sourceParams.get("method");
 
-        String resultMessage = "";
-        if (HttpMethod.POST.name().equalsIgnoreCase(method)) {
-            Map requestBody = JSONUtil.toBean(JsonMapper.toJsonString(sourceParams.get("requestBody")), Map.class);
-            resultMessage = HttpClientUtils.httpPost(url, JsonMapper.toJsonString(requestBody));
-        } else if (HttpMethod.GET.name().equalsIgnoreCase(method)) {
-            resultMessage = HttpClientUtils.httpGet(url);
-        } else {
-            throw new BusinessException(IJobHandler.FAIL.getCode(), "Not support Method:" + method);
+            if (ObjectUtils.isNotEmpty(sourceParams.get("requestParams"))) {
+                String requestParamStr = JSON.toJSONString(sourceParams.get("requestParams"));
+                Map<String, Object> requestParams = JSON.parseObject(requestParamStr, Map.class);
+                url = HttpClientUtils.getUrlWithParams(url, requestParams);
+            }
+
+            String resultMessage = "";
+            if (HttpMethod.POST.name().equalsIgnoreCase(method)) {
+                Map requestBody = JSONUtil.toBean(JsonMapper.toJsonString(sourceParams.get("requestBody")), Map.class);
+                resultMessage = HttpClientUtils.httpPost(url, JsonMapper.toJsonString(requestBody));
+            } else if (HttpMethod.GET.name().equalsIgnoreCase(method)) {
+                String proxy = UrlUtil.getParamByUrl(url, "proxy");
+                if (ObjectUtils.isNotEmpty(proxy)){
+                    resultMessage = HttpClientUtils.socketProxyGet(url);
+                }else {
+                    resultMessage = HttpClientUtils.httpGet(url);
+                }
+            } else {
+                throw new BusinessException(IJobHandler.FAIL.getCode(), "Not support Method:" + method);
+            }
+            if (resultMessage.equals("-1")) {
+                throw new BusinessException(IJobHandler.FAIL.getCode(), "Http Client connection Error!");
+            }
+            if (StringUtils.isEmpty(resultMessage)) {
+                return new HashMap();
+            }
+            Map map = (Map) JsonMapper.fromJsonString(resultMessage, Map.class);
+
+            return map;
+        } catch (BusinessException e) {
+            throw new BusinessException("dataExtract http error " + e.getMessage());
         }
-        if (resultMessage.equals("-1")) {
-            throw new BusinessException(IJobHandler.FAIL.getCode(), "Http Client connection Error!");
-        }
-        Map map = (Map) JsonMapper.fromJsonString(resultMessage, Map.class);
-
-        return map;
     }
 
     private Map spider(Map<String, String> sourceParams) throws Exception {
@@ -142,17 +161,16 @@ public class DataSourceService {
         logger.info("mysql data source starting, param is {}", sourceParams);
         JDBCParam jdbcParam = new JDBCParam(sourceParams);
         List<Map> collect = new ArrayList<>();
-        try (Connection conn = DBUtils.getDBConn(jdbcParam)){
+        try (Connection conn = DBUtils.getDBConn(jdbcParam)) {
             List<Entity> entityList = SqlExecutor.query(conn, jdbcParam.getSql(), new EntityListHandler());
             JobUtil.infoLog("query result size {}", entityList.size());
             collect = entityList.stream().map(x -> BeanUtil.beanToMap(x)).collect(Collectors.toList());
             entityList.clear();
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw e;
         }
         return collect;
     }
-
 
 
     /**
