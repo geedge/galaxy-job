@@ -72,7 +72,7 @@ public class DataExtractJob {
 
             for (Map<String, Map<String, String>> paramsMap : paramsMaps) {
                 Map<String, Object> dataResult = dataSourceService.adapt(paramsMap.get("source"));
-                if (ObjectUtil.isAllNotEmpty(paramsMap.get("transform"))) {
+                if (ObjectUtil.isNotEmpty(paramsMap.get("transform"))) {
                     dataResult = dataTransformService.adapt(paramsMap.get("transform"), dataResult);
                 }
                 dataSinkService.adapt(dataResult, paramsMap.get("sink"));

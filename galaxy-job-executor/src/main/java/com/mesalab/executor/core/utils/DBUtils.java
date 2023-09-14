@@ -128,4 +128,33 @@ public class DBUtils {
         logger.info(" get update sql: " + sql);
         return sql;
     }
+
+    /**
+     * 构建 INSERT INTO ... ON DUPLICATE KEY UPDATE
+     * @param transformResult
+     * @param tableName
+     * @return
+     */
+    public static String getInsertOrUpdateSql(List<Map> transformResult, String tableName) {
+        StringBuilder columns = new StringBuilder();
+        StringBuilder values = new StringBuilder();
+        StringBuilder updateStatements = new StringBuilder();
+        Map<String,Object> data = transformResult.get(0);
+        for (Map.Entry<String, Object> entry : data.entrySet()) {
+            String column = entry.getKey();
+            if (!"id".equalsIgnoreCase(column)) {
+                columns.append(column).append(",");
+                values.append("?,");
+                updateStatements.append(column).append("=VALUES(").append(column).append("),");
+            }
+        }
+        columns.setLength(columns.length() - 1);
+        values.setLength(values.length() - 1);
+        updateStatements.setLength(updateStatements.length() - 1);
+        String sql = "INSERT INTO " + tableName + " (" + columns + ") VALUES(" + values + ") ON DUPLICATE KEY UPDATE " + updateStatements;
+        logger.info(" get insert or update sql: " + sql);
+        return sql;
+
+    }
+
 }

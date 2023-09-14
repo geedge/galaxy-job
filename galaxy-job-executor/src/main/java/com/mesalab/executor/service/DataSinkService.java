@@ -122,6 +122,8 @@ public class DataSinkService {
             String sql = "";
             if ("update".equals(sinkParams.get("option"))) {
                 sql = dbUtils.getUpdateSql(transformResult, tableName, parseConditions(sinkParams));
+            } else if ("insertOrUpdate".equals(sinkParams.get("option"))) {
+                sql = dbUtils.getInsertOrUpdateSql(transformResult, tableName);
             } else {
                 sql = dbUtils.getInsertSql(transformResult, tableName);
             }
