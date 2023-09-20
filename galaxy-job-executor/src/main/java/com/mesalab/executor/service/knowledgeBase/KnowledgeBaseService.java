@@ -166,7 +166,7 @@ public class KnowledgeBaseService {
                 script = "asn";
                 ipLocation = false;
             }
-            String cmd = "docker run --rm -v " + workDir + "/mmdb:/mmdb --name perl-mmdb perl:v3.1 sh -c 'cd /mmdb && perl " + script + ".pl " + addrType + " " + knowledgeBase.getId() + "'";
+            String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:/mmdb --name perl-mmdb perl:v3.1 sh -c 'cd /mmdb && perl " + script + ".pl " + addrType + " " + knowledgeBase.getId() + "'";
             JobUtil.infoLog("ip locate run docker perl cmd {}", cmd);
 
             int executeResult = JobUtil.executeCommand(cmd);
