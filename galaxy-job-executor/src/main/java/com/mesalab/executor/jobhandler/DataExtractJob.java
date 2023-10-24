@@ -4,6 +4,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
+import com.geedgenetworks.utils.StringUtil;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.service.DataSinkService;
 import com.mesalab.executor.service.DataSourceService;
@@ -13,7 +14,6 @@ import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
 import com.xxl.job.core.util.ShardingUtil;
-import com.zdjizhi.utils.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

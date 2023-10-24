@@ -5,6 +5,7 @@ import cn.hutool.log.Log;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.exception.NacosException;
+import com.geedgenetworks.utils.JsonMapper;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -20,7 +21,6 @@ import com.mesalab.executor.service.StorageQuotaService;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
-import com.zdjizhi.utils.JsonMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

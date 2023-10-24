@@ -1,8 +1,8 @@
 package com.mesalab.executor.core.utils;
 
 import cn.hutool.log.Log;
-import com.zdjizhi.utils.JsonMapper;
-import com.zdjizhi.utils.StringUtil;
+import com.geedgenetworks.utils.JsonMapper;
+import com.geedgenetworks.utils.StringUtil;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.util.concurrent.ListenableFuture;

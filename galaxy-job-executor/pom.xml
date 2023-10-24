@@ -62,9 +62,9 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.zdjizhi</groupId>
-            <artifactId>galaxy</artifactId>
-            <version>${galaxy.version}</version>
+                <groupId>com.geedgenetworks</groupId>
+                <artifactId>galaxy</artifactId>
+                <version>1.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -204,7 +204,7 @@
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>v1.3.230912</imageTag>
+                        <imageTag>v1.3.230920</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

@@ -1,8 +1,11 @@
 package com.mesalab.executor.test;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
+import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.db.DbUtil;
 import cn.hutool.db.Entity;
 import cn.hutool.db.handler.EntityListHandler;
@@ -10,13 +13,14 @@ import cn.hutool.db.sql.SqlExecutor;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSONPath;
+import com.geedgenetworks.utils.IpLookupV2;
 import com.google.common.collect.ImmutableMap;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.pojo.IpLocateLibraryParam;
 import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.KnowledgeBase;
-import com.zdjizhi.utils.IpLookupV2;
+import org.apache.commons.lang3.time.StopWatch;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,6 +30,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.io.File;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RunWith(SpringRunner.class)
@@ -35,26 +40,51 @@ public class CommandJobTest {
     @Test
     public void getIPMMDBFile() {
         IpLookupV2 ipLookup = new IpLookupV2.Builder(false)
-//                .loadDataFileV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v4_built_in.mmdb")
-//                .loadDataFileV6("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
-//                .loadDataFilePrivateV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
-//                .loadDataFile("C:\\test\\1.mmdb")
-                .loadDataFileV4("C:\\home\\tsg\\galaxy\\galaxy-job\\plugins\\mmdb\\1.mmdb")
-                .loadAsnDataFile("C:\\home\\tsg\\galaxy\\galaxy-job\\plugins\\mmdb\\asn-1.mmdb")
+                .loadDataFileV4("C:\\test\\knowledge\\ip4.mmdb")
+//                .loadDataFile("C:\\test\\knowledge\\ip6.mmdb")
 //                .loadDataFilePrivateV6("")
                 .build();
 
-//        String latLngLookup = ipLookup.latLngLookup("0.0.0.0");
-////        System.err.println(latLngLookup);
-////        System.err.println(ipLookup.countryLookup("0000:0000:0000:0000:0000:0000:0000:0000"));
-//        System.err.println(ipLookup.countryLookup("0.0.0.0"));
-//        System.err.println(ipLookup.cityLookup("192.168.1.1"));
-        System.err.println(ipLookup.asnLookupDetail("1.0.0.0"));
-        System.err.println(ipLookup.asnLookupDetail("8.6.146.255"));
+        System.err.println(ipLookup.infoLookup("2a7:1c44:39f3:1b::"));
+        System.err.println(ipLookup.infoLookup("2001:240:2440::"));
+        System.err.println(ipLookup.infoLookup("fe80::b432:5ff:fef9:a3cb"));
+        System.err.println(ipLookup.infoLookup("fe80::182d:8dff:fe73:fe80"));
+        System.err.println("#");
+        System.err.println(ipLookup.infoLookup("8.6.112.0"));
+        System.err.println(ipLookup.infoLookup("0.0.0.1"));
+        System.err.println(ipLookup.infoLookup("223.255.243.241"));
+        System.err.println(ipLookup.infoLookup("223.255.244.241"));
+        System.err.println(ipLookup.infoLookup("223.255.246.241"));
+        System.err.println(ipLookup.infoLookup("59.154.195.156"));
+        System.err.println("---------------------------");
 
         Assert.assertNotEquals("ip is not found", ObjectUtil.isEmpty("latLngLookup"));
 
+    }
 
+    @Test
+    public void getIplocationsTest() {
+        IpLookupV2 ipLookup = new IpLookupV2.Builder(false)
+                .loadDataFile("C:\\test\\knowledge\\asn.mmdb")
+                .build();
+        String path = "C:\\test\\knowledge\\cn_ip_location_built_in_202309221601.txt";
+        String path2 = "C:\\test\\knowledge\\cn_ip_location_built_in_202309221601.txt";
+        File file = FileUtil.file(path);
+        File file2 = FileUtil.file(path2);
+        List<String> ipSample = FileUtil.readLines(file, CharsetUtil.CHARSET_UTF_8);
+        List<String> ipSample2 = FileUtil.readLines(file2, CharsetUtil.CHARSET_UTF_8);
+        ipSample.addAll(ipSample2);
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        int count = 0;
+        for (String ip : ipSample) {
+            String trim = StrUtil.trim(ip);
+            Object o = ipLookup.infoLookupToJSON(trim);
+            System.err.println(o);
+            count++;
+        }
+        stopWatch.stop();
+        System.err.println("解析：" + count+"时间："+stopWatch.getTime(TimeUnit.MILLISECONDS));
     }
 
     @Test

@@ -18,9 +18,6 @@ import com.alibaba.fastjson.parser.ParserConfig;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson.util.FieldInfo;
 import com.alibaba.fastjson.util.IOUtils;
-import com.mesalab.executor.core.connector.JdbcDialect;
-import com.mesalab.executor.core.connector.MysqlDialect;
-import lombok.NonNull;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;

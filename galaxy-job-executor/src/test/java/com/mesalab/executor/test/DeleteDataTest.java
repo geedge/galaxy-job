@@ -1,12 +1,12 @@
 package com.mesalab.executor.test;
 
+import com.geedgenetworks.utils.DateUtils;
+import com.geedgenetworks.utils.JsonMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.mesalab.executor.GalaxyExecutorApplication;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.KafkaUtils;
-import com.zdjizhi.utils.DateUtils;
-import com.zdjizhi.utils.JsonMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;

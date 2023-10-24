@@ -2,6 +2,7 @@ package com.mesalab.executor.test;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ReUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import com.mesalab.executor.pojo.JDBCParam;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -107,5 +108,11 @@ public class SourceJobTest {
         );
 
         System.out.println("Processed string: " + result);
+    }
+
+    public static void main(String[] args) {
+
+        String konwledgeId = DigestUtil.md5Hex16(1 + "cn_ipv6_location_built_in");
+        System.err.println(konwledgeId);
     }
 }

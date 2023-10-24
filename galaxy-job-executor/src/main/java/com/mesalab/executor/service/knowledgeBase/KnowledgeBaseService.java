@@ -1,16 +1,16 @@
 package com.mesalab.executor.service.knowledgeBase;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.util.CharsetUtil;
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.nacos.api.config.annotation.NacosValue;
+import com.geedgenetworks.utils.StringUtil;
 import com.mesalab.executor.core.utils.DBUtils;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
@@ -19,11 +19,10 @@ import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.KnowledgeBase;
 import com.mesalab.executor.pojo.MMDBStatus;
-import com.zdjizhi.utils.IpLookupV2;
-import com.zdjizhi.utils.StringUtil;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -69,7 +68,6 @@ public class KnowledgeBaseService {
                     break;
                 }
                 batchData.clear();
-                batchData = null;
                 pageNum++;
             }
             JobUtil.infoLog("knowledgeBase file info filename: {},file format: {} , size: {}", tmpFile.getName(), knowledgeBase.getFormat(), tmpFile.length());
@@ -79,9 +77,9 @@ public class KnowledgeBaseService {
         } catch (Exception e) {
             JobUtil.errorLog(e);
             throw new BusinessException(e);
-        } /*finally {
+        } finally {
             FileUtil.del(tmpDir);
-        }*/
+        }
         return pushStatus;
 
     }
@@ -149,51 +147,56 @@ public class KnowledgeBaseService {
      * 区分asn，ip 包含v4 v6
      */
     public boolean mmdbBuildPush(Map<String, Object> sinkParam) throws BusinessException {
-        final String workDirCmd = "docker inspect --format '{{range.Mounts}}  {{.Source}} {{end}}' galaxy-job-executor |xargs -n 1|grep plugins";
+
         String url = String.valueOf(sinkParam.get("url"));
         String params = String.valueOf(sinkParam.get("params"));
         JSONObject jsonObject = JSONUtil.parseObj(params);
         KnowledgeBase knowledgeBase = JSONUtil.toBean(jsonObject, KnowledgeBase.class);
         boolean pushStatus = false;
         try {
-            String workDir = JobUtil.exeCmd(workDirCmd);
             String script = "ip";
-            JobUtil.infoLog("get docker work dir {}", workDir);
-            Integer addrType = knowledgeBase.getType().contains("v6") ? 6 : 4;
             Boolean ipLocation = true;
 
             if (knowledgeBase.getType().contains("asn")) {
                 script = "asn";
                 ipLocation = false;
             }
-            String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:/mmdb --name perl-mmdb perl:v3.1 sh -c 'cd /mmdb && perl " + script + ".pl " + addrType + " " + knowledgeBase.getId() + "'";
-            JobUtil.infoLog("ip locate run docker perl cmd {}", cmd);
-
-            int executeResult = JobUtil.executeCommand(cmd);
-            JobUtil.infoLog("ip locate knowledgeBase perl execute result {}", executeResult == 0 ? "success" : "fail");
-            String filename = StringUtil.join(script, addrType, ".", knowledgeBase.getFormat());
+            int executeResult = buildMMDB(knowledgeBase, script);
+            String filename = StringUtil.join(script, ".", knowledgeBase.getFormat());
 
             if (executeResult == 0) {
-                if (ipLocation && !checkIpMMDBSample(KNOWLEDGE_WORK_DIR, filename, script)) {
+                if (ipLocation && !checkSample(KNOWLEDGE_WORK_DIR, filename, script)) {
                     JobUtil.infoLog("ip locate knowledgeBase perl execute or sample validate fail !");
                     return false;
                 }
                 //push knowledge
                 File file = new File(StringUtil.join(KNOWLEDGE_WORK_DIR, File.separator, filename));
                 JobUtil.infoLog("knowledgeBase file info filename: {},file format: {} , size: {}", file.getName(), knowledgeBase.getFormat(), file.length());
-
                 if (file.length() > 0) {
-                    //设置特殊id
-                    String konwledgeId = DigestUtil.md5Hex16(knowledgeBase.getId() + knowledgeBase.getType());
-                    knowledgeBase.setId(konwledgeId);
                     pushStatus = push(knowledgeBase, file, url);
                 }
+
             }
         } catch (Exception e) {
             JobUtil.errorLog(e);
             throw new BusinessException(e);
         }
         return pushStatus;
+    }
+
+    private int buildMMDB(KnowledgeBase knowledgeBase, String script) throws IOException, InterruptedException {
+        final String workDirCmd = "docker inspect --format '{{range.Mounts}}  {{.Source}} {{end}}' galaxy-job-executor |xargs -n 1|grep plugins";
+        final String imagesNameCmd = "docker images --format '{{.Repository}}:{{.Tag}}' | grep '^perl:' | sort -r | head -n 1";
+
+        String workDir = JobUtil.exeCmd(workDirCmd);
+        String imagesName = JobUtil.exeCmd(imagesNameCmd);
+
+        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:/mmdb --name perl-mmdb "+ imagesName +" sh -c 'cd /mmdb && perl " + script + ".pl " + knowledgeBase.getId() + "'";
+        JobUtil.infoLog("ip locate run perl cmd {}", cmd);
+
+        int executeResult = JobUtil.executeCommand(cmd);
+        JobUtil.infoLog("ip locate knowledgeBase perl execute result {}", executeResult == 0 ? "success" : "fail");
+        return executeResult;
     }
 
     public String getMetadata(String knowledgeId) {
@@ -240,34 +243,23 @@ public class KnowledgeBaseService {
      * @param
      * @return
      */
-    public static boolean checkIpMMDBSample(String path, String filename, String script) throws Exception {
+    public static boolean checkSample(String path, String filename, String script) throws Exception {
 
-        String builtStatusFile = "built-status.json";
+        final String builtinStatusFile = "builtin-status.json";
 
-        MMDBStatus builtMMDBStatus = JobUtil.readJsonFile(path + builtStatusFile, MMDBStatus.class);
-        JobUtil.infoLog("built ip locate library result: status {}, message {}", builtMMDBStatus.getStatus(), builtMMDBStatus.getMessage());
+        MMDBStatus builtMMDBStatus = JobUtil.readJsonFile(path + builtinStatusFile, MMDBStatus.class);
+        JobUtil.infoLog("builtin ip locate library result: status {}, message {}", builtMMDBStatus.getStatus(), builtMMDBStatus.getMessage());
         if (200 != builtMMDBStatus.getStatus()) {
-            JobUtil.errorLog("built status fail {}", builtMMDBStatus.getStatus());
+            JobUtil.errorLog("builtin status fail {}", builtMMDBStatus.getStatus());
             return false;
         }
         //测试抽样数据能查到结果说明打包成功
-        IpLookupV2.Builder builder = new IpLookupV2.Builder(false);
-        List<String> ipSample = builtMMDBStatus.getIpv4Sample();
-        ipSample.addAll(builtMMDBStatus.getIpv6Sample());
-        for (String sampleIp : ipSample) {
-            if ("ip".equals(script)) {
-                IpLookupV2 ipLookup = builder.loadDataFile(path + File.separator + filename).build();
-                if (ObjectUtil.isEmpty(ipLookup.latLngLookup(sampleIp))) {
-                    JobUtil.infoLog("built ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
-                    return false;
-                }
-            } else if ("asn".equals(script)) {
-                IpLookupV2 ipLookup = builder.loadAsnDataFile(path + File.separator + filename).build();
-                if (ObjectUtil.isEmpty(ipLookup.asnLookup(sampleIp))) {
-                    JobUtil.infoLog("built asn library sample validate fail, sampleIp {}, asn {}", sampleIp, ipLookup.asnLookup(sampleIp));
-                    return false;
-                }
-            }
+        List<String> ipSample = builtMMDBStatus.getIpSample();
+        String samplePath = path + File.separator + filename;
+        if ("ip".equals(script)) {
+           return JobUtil.ipKnowledgeNotEmpty(samplePath,"",ipSample);
+        }else if ("asn".equals(script)) {
+           return JobUtil.asnKnowledgeNotEmpty(samplePath,"",ipSample);
         }
         return true;
     }

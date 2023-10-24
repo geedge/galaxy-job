@@ -1,9 +1,9 @@
 package com.mesalab.executor.core.config;
 
 import com.alibaba.nacos.api.config.annotation.NacosValue;
+import com.geedgenetworks.utils.StringUtil;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
-import com.zdjizhi.utils.StringUtil;
 import lombok.Data;
 import org.springframework.context.annotation.Configuration;
 

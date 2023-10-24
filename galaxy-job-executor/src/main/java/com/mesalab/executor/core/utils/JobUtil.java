@@ -14,6 +14,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
+import com.geedgenetworks.utils.IpLookupV2;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 
@@ -257,5 +258,32 @@ public class JobUtil {
             int days = ReUtil.getFirstNumber(match.group());
             return DateUtil.format(DateUtil.offsetDay(DateUtil.date(), -days), format);
         });
+    }
+    public static boolean ipKnowledgeNotEmpty(String builtinPath, String userDefinedPath, List<String> ipSample) {
+        IpLookupV2 ipLookup = new IpLookupV2.Builder(false)
+                .loadDataFile(builtinPath)
+                .loadDataFilePrivate(userDefinedPath)
+                .build();
+        for (String sampleIp : ipSample) {
+            if (ObjectUtil.isEmpty(ipLookup.latLngLookup(sampleIp))) {
+                JobUtil.infoLog("ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean asnKnowledgeNotEmpty(String builtinPath, String userDefinedPath, List<String> ipSample) {
+        IpLookupV2 ipLookup = new IpLookupV2.Builder(false)
+                .loadAsnDataFile(builtinPath)
+                .loadAsnDataFilePrivate(userDefinedPath)
+                .build();
+        for (String sampleIp : ipSample) {
+            if (ObjectUtil.isEmpty(ipLookup.asnLookup(sampleIp))) {
+                JobUtil.infoLog("asn library sample validate fail, sample ip {}, asn {}", sampleIp, ipLookup.asnLookup(sampleIp));
+                return false;
+            }
+        }
+        return true;
     }
 }

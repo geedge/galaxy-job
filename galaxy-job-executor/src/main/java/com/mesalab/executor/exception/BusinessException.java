@@ -2,7 +2,10 @@ package com.mesalab.executor.exception;
 
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.enums.BaseResultEnum;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 /**
  * 业务异常

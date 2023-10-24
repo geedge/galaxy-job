@@ -2,8 +2,8 @@ package com.mesalab.executor.pojo;
 
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
+import com.geedgenetworks.utils.StringUtil;
 import com.xxl.job.core.log.XxlJobLogger;
-import com.zdjizhi.utils.StringUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

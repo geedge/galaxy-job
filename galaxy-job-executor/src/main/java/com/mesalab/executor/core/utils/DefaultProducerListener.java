@@ -1,10 +1,10 @@
 package com.mesalab.executor.core.utils;
+
 import com.mesalab.executor.exception.BusinessException;
+import com.xxl.job.core.log.XxlJobLogger;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.springframework.kafka.support.ProducerListenerAdapter;
 import org.springframework.stereotype.Component;
-
-import com.xxl.job.core.log.XxlJobLogger;
 
 /**
  * 默认生产者监听器

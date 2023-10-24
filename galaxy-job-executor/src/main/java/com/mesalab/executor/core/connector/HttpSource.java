@@ -11,16 +11,21 @@ import org.apache.commons.lang3.ObjectUtils;
 import java.util.Map;
 import java.util.stream.Stream;
 
-public class HTTPSource implements Source {
+/**
+ * @author: zhq
+ * @date: 2023/9/21
+ */
+public class HttpSource implements Source {
     private HttpParam httpParam;
 
-    public HTTPSource(HttpParam httpParam) {
+    public HttpSource(HttpParam httpParam) {
         this.httpParam = httpParam;
     }
 
-    public HTTPSource(Map<String, String> sourceParams) {
+    public HttpSource(Map<String, String> sourceParams) {
         this.httpParam = BeanUtil.toBean(sourceParams, HttpParam.class);
     }
+
 
     @Override
     public Stream<String> fetchData() {
@@ -33,7 +38,6 @@ public class HTTPSource implements Source {
         String result = "";
         if ("get".equalsIgnoreCase(httpParam.getMethod())) {
             result = HttpClientUtils.httpPost(url, JSON.toJSONString(httpParam.getRequestBody()));
-
         } else if ("post".equalsIgnoreCase(httpParam.getMethod())) {
             result = HttpClientUtils.httpGet(url);
         } else {
@@ -46,31 +50,4 @@ public class HTTPSource implements Source {
         return Stream.of(result);
     }
 
-    // socks代理服务器的地址与端口
-/*    @Deprecated
-    public static void socketProxy(Map<String, Object> requestParams) {
-        if (ObjectUtils.isNotEmpty(requestParams.get("proxy"))) {
-            try {
-                Properties prop = System.getProperties();
-                prop.put("proxySet", true);
-                prop.setProperty("socksProxyHost", String.valueOf(requestParams.get("proxyHost")));
-                prop.setProperty("socksProxyPort", String.valueOf(requestParams.get("proxyPort")));
-            } catch (Exception e) {
-                throw new BusinessException("socket proxy set error " + e.getMessage());
-            }
-            requestParams.remove("proxyHost");
-            requestParams.remove("proxyPort");
-        }
-    }
-    @Deprecated
-    public static void removeSocketProxy() {
-        try {
-            Properties prop = System.getProperties();
-            prop.remove("proxySet");
-            prop.remove("socksProxyHost");
-            prop.remove("socksProxyPort");
-        } catch (Exception e) {
-            throw new BusinessException("Error removing socket proxy: " + e.getMessage());
-        }
-    }*/
 }

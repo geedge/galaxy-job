@@ -1,14 +1,10 @@
 package com.mesalab.executor.test;
 
 import com.fasterxml.jackson.databind.JavaType;
-import com.mesalab.executor.GalaxyExecutorApplication;
-import com.mesalab.executor.core.config.StorgeConfig;
+import com.geedgenetworks.utils.JsonMapper;
+import com.geedgenetworks.utils.StringUtil;
 import com.mesalab.executor.core.utils.HttpClientUtils;
-import com.mesalab.executor.core.utils.SpringContextUtil;
-import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.pojo.DruidToHttpParam;
-import com.zdjizhi.utils.JsonMapper;
-import com.zdjizhi.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;

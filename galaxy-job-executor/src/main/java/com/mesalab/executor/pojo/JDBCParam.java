@@ -10,6 +10,7 @@ import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 
+import java.io.Serializable;
 import java.io.StringReader;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,7 @@ import java.util.Map;
 @Data
 @Builder
 @NoArgsConstructor
-public class JDBCParam {
+public class JDBCParam implements Serializable {
 
     private String type;
     private String ip;

@@ -2,13 +2,12 @@ package com.mesalab.executor.test;
 
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
+import com.geedgenetworks.utils.JsonMapper;
+import com.geedgenetworks.utils.StringUtil;
 import com.mesalab.executor.GalaxyExecutorApplication;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.KafkaUtils;
 import com.mesalab.executor.exception.BusinessException;
-import com.zdjizhi.utils.JsonMapper;
-import com.zdjizhi.utils.StringUtil;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;

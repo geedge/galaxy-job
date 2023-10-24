@@ -2,40 +2,29 @@ package com.mesalab.executor.test;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.file.FileWriter;
-import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.text.csv.*;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.fastjson.util.TypeUtils;
 import com.alibaba.nacos.api.config.annotation.NacosValue;
+import com.geedgenetworks.utils.IpLookupV2;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.net.InetAddresses;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.core.utils.ZookeeperUtils;
 import com.mesalab.executor.service.knowledgeBase.KnowledgeBaseService;
-import com.zdjizhi.utils.IPUtil;
-import com.zdjizhi.utils.IpLookupV2;
-import org.apache.tomcat.util.net.IPv6Utils;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import static com.mesalab.executor.core.utils.Constant.ZK_KNOWLEDGE_PATH;
-import static org.junit.Assert.assertNotNull;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -149,7 +138,7 @@ public class KnowledgeJobTest {
     @Test
     public void asnTest(){
         try {
-            boolean asn = KnowledgeBaseService.checkIpMMDBSample("C:\\test\\knowledge\\", "asn6.mmdb", "asn");
+            boolean asn = KnowledgeBaseService.checkSample("C:\\test\\knowledge\\", "asn6.mmdb", "asn");
             Assert.assertTrue(asn);
         } catch (Exception e) {
             JobUtil.errorLog(e);

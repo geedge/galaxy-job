@@ -1,13 +1,12 @@
 package com.mesalab.executor.test;
 
 import com.mesalab.executor.GalaxyExecutorApplication;
+import com.mesalab.executor.core.utils.HttpClientUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
-
-import com.mesalab.executor.core.utils.HttpClientUtils;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = { GalaxyExecutorApplication.class })
 @Slf4j

@@ -17,11 +17,10 @@ public class EncryptConfigUtil {
         //加密所需的salt
         textEncryptor.setPassword("galaxy");
         //要加密的数据（数据库的用户名或密码）
-        String user = textEncryptor.encrypt("admin");
-        String pin = textEncryptor.decrypt("galaxy2019");
-        System.err.println("user: "+user);
-        System.err.println("pin: "+pin);
-        System.err.println("user: "+textEncryptor.decrypt("iW8ekP1SZC6v/7cfJKAqXXrjApJox+cH"));
-        System.err.println("pin: "+textEncryptor.decrypt("iw8ekP1S7C6V/7cJKAaXXriApJox+cH"));
+//        String user = textEncryptor.encrypt("admin");
+//        String pin = textEncryptor.decrypt("galaxy2019");
+//        System.err.println("user: "+user);
+//        System.err.println("pin: "+pin);
+        System.err.println("pin: "+textEncryptor.decrypt("nPNttVO8Tp/G16BFdg/+18dpU04BRnzY"));
     }
 }

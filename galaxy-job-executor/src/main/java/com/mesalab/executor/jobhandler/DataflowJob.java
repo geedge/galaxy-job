@@ -4,13 +4,15 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
-import cn.hutool.core.util.TypeUtil;
 import cn.hutool.core.util.ZipUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.log.Log;
 import com.alibaba.fastjson.util.TypeUtils;
+import com.geedgenetworks.utils.DateUtils;
+import com.geedgenetworks.utils.JsonMapper;
+import com.geedgenetworks.utils.SnowflakeId;
+import com.geedgenetworks.utils.StringUtil;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
 import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
@@ -20,10 +22,6 @@ import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
-import com.zdjizhi.utils.DateUtils;
-import com.zdjizhi.utils.JsonMapper;
-import com.zdjizhi.utils.SnowflakeId;
-import com.zdjizhi.utils.StringUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
@@ -34,10 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.mesalab.executor.core.utils.Constant.DEFAULT_VSYS_ID_VALUE;
-import static com.mesalab.executor.core.utils.Constant.VSYS_ID;
 
 @Component
 public class DataflowJob {

@@ -1,14 +1,14 @@
 package com.mesalab.executor.test;
 
+import com.geedgenetworks.utils.DateUtils;
+import com.geedgenetworks.utils.JsonMapper;
+import com.geedgenetworks.utils.StringUtil;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.mesalab.executor.GalaxyExecutorApplication;
 import com.mesalab.executor.core.utils.KafkaUtils;
 import com.mesalab.executor.jobhandler.LogStorageQuotaJob;
 import com.mesalab.executor.service.StorageQuotaService;
-import com.zdjizhi.utils.DateUtils;
-import com.zdjizhi.utils.JsonMapper;
-import com.zdjizhi.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -72,7 +72,7 @@ public class StorageQuotaTest {
 //		String collect = Splitter.on(",").splitToList(a).stream().map(x -> x.substring(x.indexOf("|") + 1)).filter(x-> StringUtil.isNotEmpty(x)).collect(Collectors.joining(","));
 		List collect = Splitter.on(",").splitToList(filesHosServer).stream().map(x->{
 			List<String> dc = Splitter.on("|").splitToList(x);
-			if (dc.size()==2&&StringUtil.isNotBlank(dc.get(1))){
+			if (dc.size()==2&& StringUtil.isNotBlank(dc.get(1))){
 				return ImmutableMap.of(dc.get(0),dc.get(1));
 			}
 			return null;

@@ -3,7 +3,6 @@ package com.mesalab.executor.jobhandler.knowledgeBase;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.fastjson.util.TypeUtils;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.jobhandler.ValidParamUtil;
 import com.mesalab.executor.service.DataSourceService;
@@ -17,6 +16,8 @@ import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.xxl.job.core.biz.model.ReturnT.FAIL_CODE;
 
 @Component
 public class KnowledgeBaseJob {
@@ -100,14 +101,14 @@ public class KnowledgeBaseJob {
 
             } catch (Exception e) {
                 JobUtil.errorLog(e);
-                return ReturnT.FAIL;
+                return new ReturnT<String>(FAIL_CODE, "fail");
             }
         }
 
         if (failedTask > 0) {
             return ReturnT.FAIL;
         }
-        return ReturnT.SUCCESS;
+          return new ReturnT<String>("success");
     }
 
     private Map builtParam(Map sink, Map dbKm, Map sinkParam) {
