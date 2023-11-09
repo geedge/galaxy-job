@@ -6,12 +6,10 @@ import cn.hutool.core.text.csv.*;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.geedgenetworks.utils.IpLookupV2;
 import com.google.common.collect.ImmutableMap;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
-import com.mesalab.executor.core.utils.ZookeeperUtils;
 import com.mesalab.executor.service.knowledgeBase.KnowledgeBaseService;
 import org.junit.Assert;
 import org.junit.Test;
@@ -24,8 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.mesalab.executor.core.utils.Constant.ZK_KNOWLEDGE_PATH;
-
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class KnowledgeJobTest {
@@ -37,8 +33,8 @@ public class KnowledgeJobTest {
 //                .loadDataFileV6("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
 //                .loadDataFilePrivateV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
 //                .loadDataFile("C:\\test\\1.mmdb")
-                .loadDataFileV4("C:\\test\\ip4.mmdb")
-                .loadAsnDataFile("C:\\test\\knowledge\\ansv6.mmdb")
+//                .loadDataFileV4("C:\\test\\ip4.mmdb")
+                .loadAsnDataFile("C:\\test\\knowledge\\asn_builtin.mmdb")
 //                .loadDataFilePrivateV6("")
                 .build();
 
@@ -46,6 +42,7 @@ public class KnowledgeJobTest {
 //        System.err.println(latLngLookup);
 //        System.err.println(ipLookup.latLngLookup("192.168.1.1"));
         System.err.println(ipLookup.asnLookupInfo("2c0f:fc89:ec::"));
+        System.err.println(ipLookup.asnLookupInfo("49.142.208.0"));
 //        System.err.println(ipLookup.countryLookup("0.0.0.0"));
 //        System.err.println(ipLookup.cityLookup("192.168.1.1"));
 //        System.err.println(ipLookup.asnLookupDetail("1.0.0.0"));
@@ -142,41 +139,6 @@ public class KnowledgeJobTest {
             Assert.assertTrue(asn);
         } catch (Exception e) {
             JobUtil.errorLog(e);
-        }
-    }
-
-    @NacosValue(value = "${zookeeper.server}", autoRefreshed = true)
-    private String zookeeperServer;
-    @Test
-    public void zkTest() throws Exception{
-            try {
-                ZookeeperUtils zk = new ZookeeperUtils();
-                List<String> children = zk.getChildren(ZK_KNOWLEDGE_PATH, zookeeperServer);
-//                HashMap<String, Object> map = new HashMap<>();
-//                map.put("knowledge_id1", "100002");
-//                map.put("knowledge_id2", 3);
-//                children.remove(map.get("knowledge_id1"));
-//                children.remove("sadfasd");
-//                assertNotNull(children);
-                System.err.println(children);
-            } catch (Exception e) {
-                JobUtil.errorLog("knowledgeBase query zookeeper error :{}", e);
-            }
-    }
-    @Test
-    public void zk1Test() throws Exception{
-        try {
-            ZookeeperUtils zk = new ZookeeperUtils();
-            boolean b = zk.deleteNode("/test/1", zookeeperServer);
-//                HashMap<String, Object> map = new HashMap<>();
-//                map.put("knowledge_id1", "100002");
-//                map.put("knowledge_id2", 3);
-//                children.remove(map.get("knowledge_id1"));
-//                children.remove("sadfasd");
-//                assertNotNull(children);
-            System.err.println(b);
-        } catch (Exception e) {
-            JobUtil.errorLog("knowledgeBase query zookeeper error :{}", e);
         }
     }
 

@@ -143,19 +143,12 @@ public class JobUtil {
         return m;
     }
 
-    public static int executeCommand(String command) throws IOException, InterruptedException {
+    public static int executeCommand(String command) throws Exception {
         int exitValue = -1;
 
         BufferedReader bufferedReader = null;
         try {
-            logger.info("execute command: " + command);
-            // command process
-//            ProcessBuilder processBuilder = new ProcessBuilder();
-//            processBuilder.command(command);
-//            processBuilder.redirectErrorStream(true);
-//
-//            Process process = processBuilder.start();
-//            Process process = Runtime.getRuntime().exec(command);
+            JobUtil.infoLog("command: " + command);
             Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", command});
             BufferedInputStream bufferedInputStream = new BufferedInputStream(process.getInputStream());
             bufferedReader = new BufferedReader(new InputStreamReader(bufferedInputStream));
@@ -223,11 +216,6 @@ public class JobUtil {
         XxlJobLogger.log(msg, arguments);
     }
 
-    //    public static void errorLog(Throwable throwable) {
-//        String msg = throwable.getMessage() == null ? throwable.getCause().getMessage() : throwable.getMessage();
-//        logger.error(msg);
-//        XxlJobLogger.log(msg);
-//    }
     public static void errorLog(Throwable throwable) {
         logger.error(throwable);
         XxlJobLogger.log(throwable);
@@ -266,7 +254,7 @@ public class JobUtil {
                 .build();
         for (String sampleIp : ipSample) {
             if (ObjectUtil.isEmpty(ipLookup.latLngLookup(sampleIp))) {
-                JobUtil.infoLog("ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
+                JobUtil.errorLog("ip locate library sample validate fail, sampleIp {}, latLng {}", sampleIp, ipLookup.latLngLookup(sampleIp));
                 return false;
             }
         }

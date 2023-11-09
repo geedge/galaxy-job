@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-public class CommandJobTest {
+public class IpLocateLibraryJobTest {
 
     @Test
     public void getIPMMDBFile() {

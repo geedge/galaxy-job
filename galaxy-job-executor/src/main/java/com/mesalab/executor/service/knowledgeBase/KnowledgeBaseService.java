@@ -22,7 +22,6 @@ import com.mesalab.executor.pojo.MMDBStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -184,7 +183,7 @@ public class KnowledgeBaseService {
         return pushStatus;
     }
 
-    private int buildMMDB(KnowledgeBase knowledgeBase, String script) throws IOException, InterruptedException {
+    private int buildMMDB(KnowledgeBase knowledgeBase, String script) throws Exception {
         final String workDirCmd = "docker inspect --format '{{range.Mounts}}  {{.Source}} {{end}}' galaxy-job-executor |xargs -n 1|grep plugins";
         final String imagesNameCmd = "docker images --format '{{.Repository}}:{{.Tag}}' | grep '^perl:' | sort -r | head -n 1";
 
