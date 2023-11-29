@@ -10,7 +10,7 @@ import com.geedgenetworks.utils.IpLookupV2;
 import com.google.common.collect.ImmutableMap;
 import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.JobUtil;
-import com.mesalab.executor.service.knowledgeBase.KnowledgeBaseService;
+import com.mesalab.executor.pojo.MMDBStatus;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,16 +34,18 @@ public class KnowledgeJobTest {
 //                .loadDataFilePrivateV4("C:\\code\\galaxy-qgw-service\\dat\\ip_v6_built_in.mmdb")
 //                .loadDataFile("C:\\test\\1.mmdb")
 //                .loadDataFileV4("C:\\test\\ip4.mmdb")
-                .loadAsnDataFile("C:\\test\\knowledge\\asn_builtin.mmdb")
+//                .loadAsnDataFile("C:\\test\\knowledge\\asn_builtin.mmdb")
+                .loadDataFile("C:\\test\\knowledge\\old4.mmdb")
 //                .loadDataFilePrivateV6("")
                 .build();
 
 //        String latLngLookup = ipLookup.latLngLookup("0.0.0.0");
 //        System.err.println(latLngLookup);
 //        System.err.println(ipLookup.latLngLookup("192.168.1.1"));
-        System.err.println(ipLookup.asnLookupInfo("2c0f:fc89:ec::"));
-        System.err.println(ipLookup.asnLookupInfo("49.142.208.0"));
-//        System.err.println(ipLookup.countryLookup("0.0.0.0"));
+//        System.err.println(ipLookup.asnLookupInfo("2c0f:fc89:ec::"));
+//        System.err.println(ipLookup.asnLookupInfo("49.142.208.0"));
+        System.err.println(ipLookup.infoLookup("0.1.0.0"));
+        System.err.println(ipLookup.infoLookup("0.0.0.0"));
 //        System.err.println(ipLookup.cityLookup("192.168.1.1"));
 //        System.err.println(ipLookup.asnLookupDetail("1.0.0.0"));
 //        System.err.println(ipLookup.asnLookupDetail("8.6.146.255"));
@@ -135,8 +137,16 @@ public class KnowledgeJobTest {
     @Test
     public void asnTest(){
         try {
-            boolean asn = KnowledgeBaseService.checkSample("C:\\test\\knowledge\\", "asn6.mmdb", "asn");
-            Assert.assertTrue(asn);
+            String script = "ip";
+            String path = "C:\\test\\knowledge\\";
+            final String builtinStatusFile = script+"_builtin_status.json";
+
+            MMDBStatus builtMMDBStatus = JobUtil.readJsonFile(path + builtinStatusFile, MMDBStatus.class);
+            JobUtil.infoLog("builtin ip locate library result: status {}, message {}", builtMMDBStatus.getStatus(), builtMMDBStatus.getMessage());
+            //测试抽样数据能查到结果说明打包成功
+            List<String> ipSample = builtMMDBStatus.getIpSample();
+            String samplePath = path + File.separator + "ip_builtin2.mmdb";
+            JobUtil.ipKnowledgeNotEmpty(samplePath,"",ipSample);
         } catch (Exception e) {
             JobUtil.errorLog(e);
         }

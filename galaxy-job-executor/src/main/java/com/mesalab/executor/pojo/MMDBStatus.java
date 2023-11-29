@@ -10,6 +10,7 @@ public class MMDBStatus {
 
     private Integer status;
     private String message;
+    private Integer total;
     private Long updateTime;
     private List<String> ipSample = new ArrayList<>();
 

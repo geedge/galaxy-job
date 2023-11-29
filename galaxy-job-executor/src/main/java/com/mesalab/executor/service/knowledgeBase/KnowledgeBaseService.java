@@ -161,7 +161,7 @@ public class KnowledgeBaseService {
                 ipLocation = false;
             }
             int executeResult = buildMMDB(knowledgeBase, script);
-            String filename = StringUtil.join(script, ".", knowledgeBase.getFormat());
+            String filename = StringUtil.join(script, "_builtin.", knowledgeBase.getFormat());
 
             if (executeResult == 0) {
                 if (ipLocation && !checkSample(KNOWLEDGE_WORK_DIR, filename, script)) {
@@ -184,7 +184,7 @@ public class KnowledgeBaseService {
     }
 
     private int buildMMDB(KnowledgeBase knowledgeBase, String script) throws Exception {
-        final String workDirCmd = "docker inspect --format '{{range.Mounts}}  {{.Source}} {{end}}' galaxy-job-executor |xargs -n 1|grep plugins";
+        final String workDirCmd = "docker inspect --format '{{range.Mounts}}  {{.Source}} {{end}}' galaxy-job-executor |xargs -n 1|grep schedule-service";
         final String imagesNameCmd = "docker images --format '{{.Repository}}:{{.Tag}}' | grep '^perl:' | sort -r | head -n 1";
 
         String workDir = JobUtil.exeCmd(workDirCmd);
@@ -244,16 +244,20 @@ public class KnowledgeBaseService {
      */
     public static boolean checkSample(String path, String filename, String script) throws Exception {
 
-        final String builtinStatusFile = "builtin-status.json";
+        final String builtinStatusFile = script+"_builtin_status.json";
 
-        MMDBStatus builtMMDBStatus = JobUtil.readJsonFile(path + builtinStatusFile, MMDBStatus.class);
-        JobUtil.infoLog("builtin ip locate library result: status {}, message {}", builtMMDBStatus.getStatus(), builtMMDBStatus.getMessage());
-        if (200 != builtMMDBStatus.getStatus()) {
-            JobUtil.errorLog("builtin status fail {}", builtMMDBStatus.getStatus());
+        MMDBStatus mmdbStatus = JobUtil.readJsonFile(path + builtinStatusFile, MMDBStatus.class);
+        JobUtil.infoLog("builtin ip locate library result: status {}, message {}", mmdbStatus.getStatus(), mmdbStatus.getMessage());
+        if (200 != mmdbStatus.getStatus()) {
+            JobUtil.errorLog("builtin status fail {}", mmdbStatus.getStatus());
+            return false;
+        }
+        if (mmdbStatus.getTotal() == 0 ) {
+            JobUtil.errorLog("perl query failed result: total {}.", mmdbStatus.getTotal());
             return false;
         }
         //测试抽样数据能查到结果说明打包成功
-        List<String> ipSample = builtMMDBStatus.getIpSample();
+        List<String> ipSample = mmdbStatus.getIpSample();
         String samplePath = path + File.separator + filename;
         if ("ip".equals(script)) {
            return JobUtil.ipKnowledgeNotEmpty(samplePath,"",ipSample);

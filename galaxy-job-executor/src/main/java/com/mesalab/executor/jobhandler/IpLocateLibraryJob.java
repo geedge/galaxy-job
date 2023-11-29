@@ -147,7 +147,10 @@ public class IpLocateLibraryJob {
             JobUtil.errorLog("perl query failed result: status {}, message {}.", mmdbStatus.getStatus(), mmdbStatus.getMessage());
             return false;
         }
-
+        if (mmdbStatus.getTotal() == 0 ) {
+            JobUtil.errorLog("perl query failed result: total {}.", mmdbStatus.getTotal());
+            return false;
+        }
         String builtinPath = "";
         String userDefinedPath = "";
         String filePath = newFile.getAbsolutePath();

@@ -164,7 +164,7 @@ public class DataflowJob {
                 defVsysId = TypeUtils.castToInt(requestBody.get("vsysId"));
             }
 
-            String insertTemplate = "INSERT INTO {0} (common_log_id,common_recv_time,assessment_date,lot_number,file_name,assessment_file,assessment_type,features,`size`,file_checksum_sha,vsys_id) " +
+            String insertTemplate = "INSERT INTO {0} (log_id,recv_time,assessment_date,lot_number,file_name,assessment_file,assessment_type,features,`size`,file_checksum_sha,vsys_id) " +
                     "VALUES({1,number,#},{2,number,#},{3,number,#},''{4}'',''{5}'',''{6}'',''{7}'',''{8}'',{9,number,#},''{10}'',{11,number,#});";
             long logId = SnowflakeId.generateId(1, 1);
             long now = System.currentTimeMillis() / 1000;

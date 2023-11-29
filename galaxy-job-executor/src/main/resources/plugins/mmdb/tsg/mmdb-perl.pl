@@ -17,12 +17,12 @@ my $token="{{ cm_server_token }}";
 #自定义：0. 内置：1
 my @args = @ARGV;
 my $isBuiltin= @args?$args[0]:1;
-my $url="http://$serverHost:8080/v1/global/geolocation/dict/detail?is_builtin=$isBuiltin&vsys_id=0";
+my $url="http://$serverHost:8080/v1/global/geolocation/dict/detail?is_builtin=$isBuiltin&vsys_vim id=0";
 my $fileName=$isBuiltin==0?'ip_user_defined':'ip_builtin';
-my $outfileV6="$fileName.mmdb";
+my $outfile="$fileName.mmdb";
 my $mmdbLog="$fileName.log";
 my $mmdbStatus=$fileName.'_status.json';
-print "The perl script is running, output to $outfileV6 \n";
+print "The perl script is running, output to $outfile \n";
 
 my %types = (
         AREA_CODE => 'utf8_string',
@@ -111,9 +111,9 @@ if(@$arraydata < $pageSize){
 }
 
 if($total>0){
-    open my $fhV6, '>:raw', $outfileV6;
+    open my $fhV6, '>:raw', $outfile;
     $treeV6->write_tree($fhV6);
-    close($outfileV6);
+    close($outfile);
 }
 
 my %statusHash = ('status'=>$requestCode, 'updateTime'=>time(), 'total'=>$total, 'message'=>$requestMsg,'ipSample'=> \@ipSample);
@@ -121,7 +121,7 @@ my $statusJson = encode_json \%statusHash;
 open my $statusFile, '>', $mmdbStatus;
 print $statusFile $statusJson;
 
-my $gmtDateLog = strftime "%Y-%m-%d %H:%M:%S", gmtime;
+my $gmtDateLog = strftime "%Y-%m-%d %H:%M:%S", gmtimvim m   e;
 print MMDBLOG "$gmtDateLog MMDB IP Write Over. \n\n";
 close(MMDBLOG);
 print "The perl script is finished!\n";
@@ -135,11 +135,11 @@ sub changeSplit {
 }
 
 sub isNotBlank {
-  my $tmp = $_[0];
-
-  if($tmp) {
-     return "$tmp"
-  }else{
-     return " "
-  }
+   my $tmp = $_[0];
+   if($tmp){
+     return $tmp;
+   } else{
+     return " ";
+   }
 }
+
