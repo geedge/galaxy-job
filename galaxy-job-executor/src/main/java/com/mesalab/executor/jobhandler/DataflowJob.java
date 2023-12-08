@@ -152,7 +152,7 @@ public class DataflowJob {
             String lotNumber = DateUtils.getCurrentDate("yyyyMMdd") + "-" + RandomUtil.randomString(6);
             String filePrefix = "web-sketch-db-weekly-assement-".concat(lotNumber);
             String zipName = filePrefix.concat(".zip");
-            String bucketName = "assessment_hos_bucket";
+            String bucketName = "assessment_file_bucket";
             String assessmentType = "web-sketch";
             String features = "";
             String trafficDatasource = storeConfig.getTrafficDatasource();
