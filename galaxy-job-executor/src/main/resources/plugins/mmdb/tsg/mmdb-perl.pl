@@ -17,7 +17,7 @@ my $token="{{ cm_server_token }}";
 #自定义：0. 内置：1
 my @args = @ARGV;
 my $isBuiltin= @args?$args[0]:1;
-my $url="http://$serverHost:8080/v1/global/geolocation/dict/detail?is_builtin=$isBuiltin&vsys_vim id=0";
+my $url="http://$serverHost:8080/v1/policy/library/geoip?is_builtin=$isBuiltin&vsys_id=0";
 my $fileName=$isBuiltin==0?'ip_user_defined':'ip_builtin';
 my $outfile="$fileName.mmdb";
 my $mmdbLog="$fileName.log";
@@ -73,7 +73,7 @@ my $dbTotal=$obj->{"data"}->{"total"};
 open(MMDBLOG, "+>>$mmdbLog");
 my $gmtDatestring = strftime "%Y-%m-%d %H:%M:%S", gmtime;
 
-my $list=$obj->{"data"}->{"list"};
+my $list=$obj->{"data"}->{"geoip_list"};
 my $JSON =JSON->new->allow_nonref;
 my $data = $JSON->encode($list);
 my $arraydata=decode_json($data);
