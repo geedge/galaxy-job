@@ -13,11 +13,11 @@ import java.io.Serializable;
 @ToString
 public class KnowledgeBase implements Serializable {
 
-    private String id;
+    private String kb_id;
     private String name;
     private String format = "mmdb";
-    private String type = "ip_location";
+    private String category;
     private String sha256;
-    private Integer isValid;
+    private Integer is_valid = 1;
     private Integer builtin;
 }

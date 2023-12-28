@@ -9,6 +9,7 @@ import com.mesalab.executor.service.DataSourceService;
 import com.mesalab.executor.service.knowledgeBase.KnowledgeBaseService;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.annotation.XxlJob;
+import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -113,11 +114,11 @@ public class KnowledgeBaseJob {
 
     private Map builtParam(Map sink, Map dbKm, Map sinkParam) {
         HashMap<String, Object> newParam = new HashMap<>();
-        newParam.put("id", dbKm.get("knowledge_id"));
+        newParam.put("kb_id", dbKm.get("knowledge_id"));
         newParam.put("name", dbKm.get("name"));
         newParam.put("format", sinkParam.get("format"));
-        newParam.put("type", sinkParam.get("type"));
-        newParam.put("isValid", dbKm.get("status"));
+        newParam.put("category", ObjectUtils.defaultIfNull(sinkParam.get("category"),""));
+        newParam.put("is_valid", dbKm.get("status"));
         sink.put("params", newParam);
         return sink;
     }

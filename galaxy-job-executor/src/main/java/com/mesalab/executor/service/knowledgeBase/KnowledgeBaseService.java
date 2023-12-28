@@ -156,7 +156,7 @@ public class KnowledgeBaseService {
             String script = "ip";
             Boolean ipLocation = true;
 
-            if (knowledgeBase.getType().contains("asn")) {
+            if (knowledgeBase.getName().contains("asn")) {
                 script = "asn";
                 ipLocation = false;
             }
@@ -190,7 +190,7 @@ public class KnowledgeBaseService {
         String workDir = JobUtil.exeCmd(workDirCmd);
         String imagesName = JobUtil.exeCmd(imagesNameCmd);
 
-        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:/mmdb --name perl-mmdb "+ imagesName +" sh -c 'cd /mmdb && perl " + script + ".pl " + knowledgeBase.getId() + "'";
+        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:/mmdb --name perl-mmdb "+ imagesName +" sh -c 'cd /mmdb && perl " + script + ".pl " + knowledgeBase.getKb_id() + "'";
         JobUtil.infoLog("ip locate run perl cmd {}", cmd);
 
         int executeResult = JobUtil.executeCommand(cmd);

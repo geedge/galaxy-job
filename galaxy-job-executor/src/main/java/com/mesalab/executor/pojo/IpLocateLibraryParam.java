@@ -18,7 +18,7 @@ public class IpLocateLibraryParam implements Serializable {
     private String command;
     private String path;
     private String knowledgeBaseServer;
-    private List<TsgKnowledgeBase> knowledgeBaseList;
+    private List<KnowledgeBase> knowledgeBaseList;
 
 
 
