@@ -19,6 +19,8 @@ import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.KnowledgeBase;
 import com.mesalab.executor.pojo.MMDBStatus;
+import org.apache.http.Header;
+import org.apache.http.message.BasicHeader;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -125,15 +127,13 @@ public class KnowledgeBaseService {
     public boolean push(KnowledgeBase knowledgeBase, File tmpFile, String url) throws BusinessException {
         try {
             String resultStr = HttpClientUtils.httpPostFile(url, tmpFile, BeanUtil.beanToMap(knowledgeBase));
-            JobUtil.infoLog("knowledgeBase name {} pushed, result {}", knowledgeBase.getName(), resultStr);
+            JobUtil.infoLog("knowledgeBase info {}, response {}", knowledgeBase.toString(), resultStr);
             if (!"-1".equals(resultStr)) {
                 Map<String, Object> result = JSONUtil.toBean(resultStr, Map.class);
                 if (result.get("status") != null && "200".equals(String.valueOf(result.get("status")))) {
                     JobUtil.infoLog("knowledgeBase push success");
                     return true;
                 }
-            } else {
-                JobUtil.errorLog("knowledgeBase push fail");
             }
         } catch (Exception e) {
             JobUtil.errorLog(e);
@@ -272,10 +272,11 @@ public class KnowledgeBaseService {
             List<String> metadataIds = getMetadataIds();
 
             int failCount = 0;
+            Header header = new BasicHeader("Content-Type", "application/x-www-form-urlencoded");
             for (Map deleteKnowledge : deleteKnowledgeBase) {
                 String knowledgeId = String.valueOf(deleteKnowledge.get("knowledge_id"));
                 if (metadataIds.contains(knowledgeId)) {
-                    String resultStr = HttpClientUtils.httpDelete(String.valueOf(sinkParam.get("url")) + "/" + knowledgeId, null);
+                    String resultStr = HttpClientUtils.httpDelete(String.valueOf(sinkParam.get("url")) + "/" + knowledgeId, header);
                     JobUtil.infoLog("knowledgeBase id {} delete, result {}", knowledgeId, resultStr);
                     if (!"-1".equals(resultStr)) {
                         Map<String, Object> result = JSONUtil.toBean(resultStr, Map.class);
