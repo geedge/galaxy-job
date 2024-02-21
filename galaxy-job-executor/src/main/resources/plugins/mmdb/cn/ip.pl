@@ -13,7 +13,7 @@ binmode(STDIN,":encoding(gbk)");
 ###################数据库连接信息###################
 my $host = "192.168.44.53";    # 主机地址
 my $database = "cn_api";       # 数据库
-my $userid = "root";
+my $username = "root";
 my $password = "111111";
 
 my @args = @ARGV;
@@ -58,7 +58,7 @@ my $treeV6 = MaxMind::DB::Writer::Tree->new(
        map_key_type_callback => sub { $types{ $_[0] } },
 );
 
-my $dbh = DBI->connect($dsn, $userid, $password ) or die $DBI::errstr;
+my $dbh = DBI->connect($dsn, $username, $password ) or die $DBI::errstr;
 print "HOST: $host, DB: $database connect: ". ($dbh->ping() ? "success" : "fail")."
 ";
 $dbh->do("SET NAMES utf8");

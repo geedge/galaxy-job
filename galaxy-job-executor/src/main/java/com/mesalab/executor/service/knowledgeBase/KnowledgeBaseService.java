@@ -190,7 +190,7 @@ public class KnowledgeBaseService {
         String workDir = JobUtil.exeCmd(workDirCmd);
         String imagesName = JobUtil.exeCmd(imagesNameCmd);
 
-        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:/mmdb --name perl-mmdb "+ imagesName +" sh -c 'cd /mmdb && perl " + script + ".pl " + knowledgeBase.getKb_id() + "'";
+        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:"+ KNOWLEDGE_WORK_DIR +" --name perl-mmdb "+ imagesName +" sh -c 'cd "+ KNOWLEDGE_WORK_DIR +" && perl " + script + ".pl " + knowledgeBase.getKb_id() + "'";
         JobUtil.infoLog("ip locate run perl cmd {}", cmd);
 
         int executeResult = JobUtil.executeCommand(cmd);
@@ -246,7 +246,7 @@ public class KnowledgeBaseService {
 
         final String builtinStatusFile = script+"_builtin_status.json";
 
-        MMDBStatus mmdbStatus = JobUtil.readJsonFile(path + builtinStatusFile, MMDBStatus.class);
+        MMDBStatus mmdbStatus = JobUtil.readJsonFile(path + File.separator + builtinStatusFile, MMDBStatus.class);
         JobUtil.infoLog("builtin ip locate library result: status {}, message {}", mmdbStatus.getStatus(), mmdbStatus.getMessage());
         if (200 != mmdbStatus.getStatus()) {
             JobUtil.errorLog("builtin status fail {}", mmdbStatus.getStatus());
