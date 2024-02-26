@@ -7,8 +7,8 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.geedgenetworks.utils.StringUtil;
 import com.google.common.base.Preconditions;
-import com.mesalab.executor.core.utils.HttpClientUtils;
-import com.mesalab.executor.core.utils.UrlUtil;
+import com.mesalab.executor.jobhandler.DruidCompactUtil;
+import com.mesalab.executor.pojo.DruidShouldCompactResult;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.log.XxlJobLogger;
@@ -18,8 +18,7 @@ import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.io.IOException;
-import java.text.ParseException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -46,77 +45,102 @@ public class DruidCompactJobTest {
      */
     @Test
     public void  compactTest() throws Exception {
-        String params = "[\n" +
+        /*String params = "[\n" +
                 "    {\n" +
                 "      \"type\": \"compact\",\n" +
                 "      \"dataSource\": \"object_statistics_test\",\n" +
-                "      \"interval\": \"2023-12-17/2023-12-18\",\n" +
                 "      \"tuningConfig\" : {\n" +
                 "        \"type\" : \"index_parallel\"\n" +
                 "      }\n" +
                 "    },\n" +
                 "    {\n" +
                 "      \"type\": \"compact\",\n" +
-                "      \"dataSource\": \"top_server_ips\",\n" +
-                "      \"interval\": 2,\n" +
+                "      \"dataSource\": \"object_statistics\",\n" +
+                "      \"tuningConfig\" : {\n" +
+                "        \"type\" : \"index_parallel\"\n" +
+                "      }\n" +
+                "    }\n" +
+                "]";*/
+        String params = "[\n" +
+                "    {\n" +
+                "      \"type\": \"compact\",\n" +
+                "      \"dataSource\": \"object_statistics_test\",\n" +
+                "      \"interval\": \"2024-02-22/2024-02-23\",\n" +
+                "      \"tuningConfig\" : {\n" +
+                "        \"type\" : \"index_parallel\"\n" +
+                "      }\n" +
+                "    },\n" +
+                "    {\n" +
+                "      \"type\": \"compact\",\n" +
+                "      \"dataSource\": \"object_statistics\",\n" +
+                "      \"interval\": \"2024-02-22/2024-02-23\",\n" +
                 "      \"tuningConfig\" : {\n" +
                 "        \"type\" : \"index_parallel\"\n" +
                 "      }\n" +
                 "    }\n" +
                 "]";
+        System.out.println(params);
 
         druidCompactSegmentJobHandler(params);
         System.out.println(111);
-        Thread.sleep(1000 * 60 * 5);
+        Thread.sleep(1000 * 60 * 10);
     }
 
     public ReturnT<String> druidCompactSegmentJobHandler(String params)  {
-        //final String server = compactConfig.getAnalyticServer();
-        final String server = "192.168.44.12:8089";
+        // final String server = compactConfig.getAnalyticServer();
+        final String server = "192.168.41.29:8089";
 
         try {
+            DruidCompactUtil druidCompactUtil = DruidCompactUtil.getInstance(server);
+
             if (StringUtil.isEmpty(params) || !JSON.isValidArray(params)){
                 XxlJobLogger.log("params格式为json array");
                 return IJobHandler.FAIL;
             }
+
             JSONArray paramArray = parseParams(params);
             List<JSONObject> submittedTaskParams = new ArrayList<>();
+            JSONObject paramTemplate;
+            JSONObject param;
+            DruidShouldCompactResult shouldCompactResult;
 
             for (int i = 0; i < paramArray.size(); i++) {
-                JSONObject param = paramArray.getJSONObject(i);
-                String paramJson = param.toJSONString();
+                paramTemplate = paramArray.getJSONObject(i);
+                param = paramTemplate.clone();
                 String dataSource = param.getString("dataSource");
+                final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
                 String[] times = param.getString("interval").split("/");
-                String startTime = times[0];
-                String endTime = times[1];
+                final String startTime = times[0];
+                final String endTime = times[1];
+                String startDate = startTime;
+                String endDate = endTime;
 
                 // 查询周期内是否有数据，有数据则执行compact操作
-                String queryUrl = UrlUtil.getUrl(server, "/druid/v2/sql/");
-                String querySql="{ \"query\" : \"select count(1) as dataCount from "+ dataSource +" where __time >= '"+ startTime+"'  and __time < '"+ endTime+"' \", \"resultFormat\" : \"objectLines\" }";
-                String queryResponseValue = HttpClientUtils.httpPost(queryUrl, querySql);
+                shouldCompactResult = druidCompactUtil.shouldCompact(dataSource, startDate, endDate, queryGranularity);
+                XxlJobLogger.log(String.format("%s[%s, %s]", dataSource, startDate, endDate) + " compact:" + shouldCompactResult);
 
-                if (StringUtil.isNotBlank(queryResponseValue)){
-                    if(JSON.parseObject(queryResponseValue).getLongValue("dataCount") == 0L){
-                        continue;
-                    }
-
+                if (shouldCompactResult.shouldCompact){
                     //compact任务
-                    XxlJobLogger.log("compact task param:" + paramJson);
-                    String taskUrl = UrlUtil.getUrl(server, "/druid/indexer/v1/task");
-                    String result = HttpClientUtils.httpPost(taskUrl, paramJson);
-                    XxlJobLogger.log("compact task response:" + result);
+                    druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                }
 
-                    // 提交成功的任务，等任务结束，删除废弃的数据
-                    if(JSON.isValidObject(result)){
-                        String taskId = JSON.parseObject(result).getString("task");
-                        param.put("id", taskId);
-                        submittedTaskParams.add(param);
+                // 检查补录前两天compact任务
+                for (int j = 1; j <= 2; j++) {
+                    startDate = LocalDate.parse(startTime).minusDays(j).toString();
+                    endDate = LocalDate.parse(startDate).plusDays(1).toString();
+
+                    shouldCompactResult = druidCompactUtil.shouldCompact(dataSource, startDate, endDate, queryGranularity);
+                    if (shouldCompactResult.shouldCompact){
+                        XxlJobLogger.log(String.format("%s[%s, %s]", dataSource, startDate, endDate) + " compact:" + shouldCompactResult);
+                        param = paramTemplate.clone();
+                        param.put("interval", startDate + "/" + endDate);
+                        druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                     }
                 }
             }
 
             if(submittedTaskParams.size() > 0){
-                deleteMetaData(submittedTaskParams);
+                druidCompactUtil.deleteMetaDataAsync(submittedTaskParams);
             }
         } catch (Exception e) {
             logger.error("druidCompactSegmentJobHandler error", e);
@@ -155,57 +179,5 @@ public class DruidCompactJobTest {
         }
 
         return paramArray;
-    }
-
-    /**
-     * 压缩任务通过http请求提交后，获取任务状态码，根据任务状态删除历史元数据
-     */
-    public void deleteMetaData(List<JSONObject> submittedTaskParams){
-        //final String server = compactConfig.getAnalyticServer();
-        final String server = "192.168.44.12:8089";
-        //查询任务状态限时2小时
-        long startTime = System.currentTimeMillis();
-        final long endTime = startTime + 1000 * 60 * 120;
-        new Thread(() -> {
-            while (submittedTaskParams.size() > 0 && System.currentTimeMillis() < endTime){
-                try {
-                    Iterator<JSONObject> iterator = submittedTaskParams.iterator();
-                    while (iterator.hasNext()){
-                        JSONObject param = iterator.next();
-                        String taskId = param.getString("id");
-                        String dataSource = param.getString("dataSource");
-                        String interval = param.getString("interval");
-                        String statusUrl = UrlUtil.getUrl(server, "/druid/indexer/v1/task") + String.format("/%s/status", taskId);
-                        String response = HttpClientUtils.httpGet(statusUrl);
-                        JSONObject result = JSON.parseObject(response);
-                        String statusCode = result.getJSONObject("status").getString("statusCode");
-                        logger.info(String.format("task(%s) statu:%s", taskId, response));
-                        if("SUCCESS".equals(statusCode)){
-                            iterator.remove();
-                            String url = UrlUtil.getUrl(server, "/druid/indexer/v1/task");
-                            String deleteJson = "{\"type\": \"kill\"," +
-                                    "\"dataSource\"" + ":" + "\"" + dataSource + "\"," +
-                                    "\"interval\"" + ":" + "\"" + interval + "\"}";
-                            logger.info("deleteMetaData:" + deleteJson);
-                            HttpClientUtils.httpPost(url, deleteJson);
-                        }else if("FAILED".equals(statusCode)){
-                            iterator.remove();
-                            logger.warn(String.format("task(%s) is failed:%s", taskId, response));
-                        }
-                    }
-
-                    if(submittedTaskParams.size() > 0){
-                        Thread.sleep(1000 * 60);
-                    }
-                } catch (Exception e) {
-                    logger.error("deleteMetaData", e);
-                    try {
-                        Thread.sleep(1000 * 60);
-                    }catch (Exception ex) {
-                    }
-                }
-            }
-            logger.info("DruidCompactDeleteMetaDataThread finished, wait delete size:" + submittedTaskParams.size());
-        }, "DruidCompactDeleteMetaData").start();
     }
 }
