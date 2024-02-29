@@ -89,7 +89,7 @@ public class StorageQuotaService {
      * 获取Druid当前存储大小 若获取 fail直接补0,Druid本身无法提供服务无需再query上次值
      */
     private Long getDruidUsed(String point) {
-        String currSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_available=1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+        String currSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 and is_overshadowed = 0\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
         String currResult = HttpClientUtils.httpPost(UrlUtil.getUrl(point).concat(DRUID_PATH), currSql);
         List<Map<String, Object>> list = (List) JsonMapper.fromJsonString(currResult, List.class);
         if(list!=null&&list.size()==0){

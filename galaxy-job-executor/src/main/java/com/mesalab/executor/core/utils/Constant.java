@@ -26,7 +26,7 @@ public class Constant {
     public static final String SPIDER = "spider";
     public static final String HTTP = "http";
     public static final String HOS = "hos";
-    public static final String WORK_PATH = "/home/tsg/galaxy/galaxy-job/data/";
+    public static final String WORK_PATH = "/opt/galaxy-job-executor/data/";
     public static final String ZK_KNOWLEDGE_PATH = "/knowledgeBase/metadata/ids/";
     public static String KNOWLEDGE_WORK_DIR = "/opt/schedule-service/mmdb";
     public static final Integer DB_BATCH = 200000;

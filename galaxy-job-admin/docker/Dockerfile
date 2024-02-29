@@ -2,7 +2,7 @@ ARG JDK_IMAGE
 FROM ${JDK_IMAGE}
 MAINTAINER Galaxy
 VOLUME /tmp
-WORKDIR /home/tsg/galaxy/galaxy-job/galaxy-job-admin
+WORKDIR /opt/galaxy-job-admin
 COPY config config
 ARG JAR_FILE
 COPY ${JAR_FILE} galaxy-job-admin.jar
