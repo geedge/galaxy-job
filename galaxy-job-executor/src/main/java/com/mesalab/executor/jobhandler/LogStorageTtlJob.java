@@ -483,7 +483,7 @@ public class LogStorageTtlJob {
         Configuration conf = Configuration.defaultConfiguration();
         Configuration conf2 = conf.addOptions(Option.DEFAULT_PATH_LEAF_TO_NULL);
 
-        String sql = "select query,(toUnixTimestamp(now())-toUnixTimestamp(query_start_time)) as duration_time from system.distributed_ddl_queue where status =0 limit 1 format JSON";
+        String sql = "select query from system.distributed_ddl_queue where status =0 limit 1 format JSON";
         String httpResult = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), sql);
         if ("-1".equals(httpResult)) {
             throw new BusinessException("http request error url = " + url);
