@@ -11,8 +11,8 @@ binmode(STDIN,":encoding(gbk)");
 
 
 ###################连接信息###################
-my $serverHost="{{ cm_mariadb_host }}";
-my $token="{{ cm_server_token }}";
+my $serverHost="{{ cm_api }}";
+my $token="{{ cm_api_token }}";
 
 #自定义：0. 内置：1
 my @args = @ARGV;
@@ -121,7 +121,7 @@ my $statusJson = encode_json \%statusHash;
 open my $statusFile, '>', $mmdbStatus;
 print $statusFile $statusJson;
 
-my $gmtDateLog = strftime "%Y-%m-%d %H:%M:%S", gmtimvim m   e;
+my $gmtDateLog = strftime "%Y-%m-%d %H:%M:%S", gmtime;
 print MMDBLOG "$gmtDateLog MMDB IP Write Over. \n\n";
 close(MMDBLOG);
 print "The perl script is finished!\n";
