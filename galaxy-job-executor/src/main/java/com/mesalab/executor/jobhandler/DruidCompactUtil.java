@@ -97,7 +97,7 @@ public class DruidCompactUtil {
         }
 
         // 有小文件
-        if(fileCount > 1 && totalRowCount / (fileCount - 1) < 1000000000){
+        if(fileCount > 1 && totalRowCount / (fileCount - 1) < 3000000){
             return DruidShouldCompactResult.should("has small segments file", totalRowCount, totalByteSize, fileCount);
         }else{
             return DruidShouldCompactResult.notShould("already merged", totalRowCount, totalByteSize, fileCount);
