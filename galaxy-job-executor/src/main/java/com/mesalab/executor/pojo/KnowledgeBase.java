@@ -1,15 +1,13 @@
 package com.mesalab.executor.pojo;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.io.Serializable;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @ToString
 public class KnowledgeBase implements Serializable {
 
@@ -20,4 +18,5 @@ public class KnowledgeBase implements Serializable {
     private String sha256;
     private Integer is_valid = 1;
     private Integer builtin;
+    private Integer is_encryption = 0;
 }

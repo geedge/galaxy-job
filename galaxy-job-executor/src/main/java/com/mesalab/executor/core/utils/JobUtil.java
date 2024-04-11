@@ -11,6 +11,7 @@ import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.ReUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.CryptoException;
 import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
@@ -18,7 +19,15 @@ import com.geedgenetworks.utils.IpLookupV2;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class JobUtil {
@@ -27,6 +36,8 @@ public class JobUtil {
     public static final String DAY_TRUNC_REGEX = "\\$\\{now\\(\\)-\\d+DAY\\}";
     public static final String HOUR_TRUNC_REGEX = "\\$\\{now\\(\\)-\\d+HOUR\\}";
     public static final String NOW_REGEX = "\\$\\{now\\(\\)\\}";
+    private static final String ALGORITHM = "AES";
+    private static final String TRANSFORMATION = "AES";
 
     /**
      * 对执行器中日志字符串做处理防止特殊符号转义报错
@@ -273,5 +284,42 @@ public class JobUtil {
             }
         }
         return true;
+    }
+
+    public static void doCrypto(int cipherMode, String key, File inputFile, File outputFile) {
+
+        try (FileInputStream inputStream = new FileInputStream(inputFile);
+             BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
+             FileOutputStream outputStream = new FileOutputStream(outputFile);
+             BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream)) {
+            Key secretKey = new SecretKeySpec(key.getBytes(), ALGORITHM);
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(cipherMode, secretKey);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = bufferedInputStream.read(buffer)) != -1) {
+                byte[] outputBytes = cipher.update(buffer, 0, bytesRead);
+                if (outputBytes != null) {
+                    bufferedOutputStream.write(outputBytes);
+                }
+            }
+            byte[] finalBytes = cipher.doFinal();
+            if (finalBytes != null) {
+                bufferedOutputStream.write(finalBytes);
+            }
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException
+                | InvalidKeyException | BadPaddingException
+                | IllegalBlockSizeException | IOException ex) {
+            throw new CryptoException("Error encrypting/decrypting file", ex);
+        }
+    }
+    public static void encrypt(String key, File inputFile, File outputFile)
+            throws CryptoException {
+        JobUtil.doCrypto(Cipher.ENCRYPT_MODE, key, inputFile, outputFile);
+    }
+
+    public static void decrypt(String key, File inputFile, File outputFile)
+            throws CryptoException {
+        JobUtil.doCrypto(Cipher.DECRYPT_MODE, key, inputFile, outputFile);
     }
 }

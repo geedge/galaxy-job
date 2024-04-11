@@ -39,6 +39,8 @@ public class KnowledgeBaseService {
     @NacosValue(value = "${zookeeper.server}", autoRefreshed = true)
     private String zookeeperServer;
 
+    @NacosValue(value = "${storge.files.token}",autoRefreshed = true)
+    private String filesToken;
 
     public boolean commonPushFile(Map sourceParams, Map<String, Object> sinkParam) throws Exception {
         String url = String.valueOf(sinkParam.get("url"));
@@ -126,6 +128,12 @@ public class KnowledgeBaseService {
      */
     public boolean push(KnowledgeBase knowledgeBase, File tmpFile, String url) throws BusinessException {
         try {
+            if(knowledgeBase.getIs_encryption()== 1){
+                File tmpEncryptFile = new File(StringUtil.join(tmpFile.getParentFile(), File.separator, knowledgeBase.getName(), "_enc.", knowledgeBase.getFormat()));
+                JobUtil.encrypt(filesToken,tmpFile,tmpEncryptFile);
+                tmpFile = tmpEncryptFile;
+                JobUtil.infoLog("knowledgeBase encrypt" ,knowledgeBase.getName());
+            }
             String resultStr = HttpClientUtils.httpPostFile(url, tmpFile, BeanUtil.beanToMap(knowledgeBase));
             JobUtil.infoLog("knowledgeBase info {}, response {}", knowledgeBase.toString(), resultStr);
             if (!"-1".equals(resultStr)) {
@@ -160,7 +168,7 @@ public class KnowledgeBaseService {
                 script = "asn";
                 ipLocation = false;
             }
-            int executeResult = buildMMDB(knowledgeBase, script);
+            int executeResult = buildMMDB(script);
             String filename = StringUtil.join(script, "_builtin.", knowledgeBase.getFormat());
 
             if (executeResult == 0) {
@@ -183,14 +191,14 @@ public class KnowledgeBaseService {
         return pushStatus;
     }
 
-    private int buildMMDB(KnowledgeBase knowledgeBase, String script) throws Exception {
+    private int buildMMDB(String script) throws Exception {
         final String workDirCmd = "docker inspect --format '{{range.Mounts}}  {{.Source}} {{end}}' galaxy-job-executor |xargs -n 1|grep schedule-service";
         final String imagesNameCmd = "docker images --format '{{.Repository}}:{{.Tag}}' | grep '^perl:' | sort -r | head -n 1";
 
         String workDir = JobUtil.exeCmd(workDirCmd);
         String imagesName = JobUtil.exeCmd(imagesNameCmd);
 
-        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:"+ KNOWLEDGE_WORK_DIR +" --name perl-mmdb "+ imagesName +" sh -c 'cd "+ KNOWLEDGE_WORK_DIR +" && perl " + script + ".pl " + knowledgeBase.getKb_id() + "'";
+        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:"+ KNOWLEDGE_WORK_DIR +" --name perl-mmdb "+ imagesName +" sh -c 'cd "+ KNOWLEDGE_WORK_DIR +" && perl " + script + ".pl'";
         JobUtil.infoLog("ip locate run perl cmd {}", cmd);
 
         int executeResult = JobUtil.executeCommand(cmd);

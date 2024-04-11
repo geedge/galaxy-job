@@ -16,9 +16,7 @@ my $database = "cn_api";       # 数据库
 my $username = "root";
 my $password = "111111";
 
-my @args = @ARGV;
-my $where= @args && $args[0] ? " WHERE knowledge_id=".$args[0]:"";
-my $sql = "SELECT start_ip,end_ip,latwgs,lngwgs,isp,continent,country,province,city FROM cn_ip_location_built_in $where";
+my $sql = "SELECT start_ip,end_ip,latwgs,lngwgs,isp,continent,country,province,city FROM cn_ip_location_built_in";
 my $dsn = "DBI:mysql:database=$database:$host";
 ###################数据库连接信息###################
 

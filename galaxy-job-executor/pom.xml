@@ -209,7 +209,7 @@
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>2.2.0.1</imageTag>
+                        <imageTag>2.2.0.3</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

@@ -3,6 +3,7 @@ package com.mesalab.executor.service;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import com.alibaba.fastjson.JSON;
@@ -222,8 +223,10 @@ public class DataTransformService {
         //处理   ioc=iov_value
         List<Map> transformResult = new ArrayList<>();
         for (Map map : json) {
-            List<Map> data = (List<Map>) map.get("data");
-            for (Map datum : data) {
+            for (Object key : map.keySet()) {
+                List<Map> maps = JSONUtil.toList((JSONArray) map.get(key), Map.class);
+                for (Map datum : maps) {
+
                 Object ioc_type = datum.get("ioc_type");
                 if (iocTypeFilter.contains(ioc_type)) {
                     Map extMap = JobUtil.extractMap(datum, FIELDS);
@@ -273,6 +276,7 @@ public class DataTransformService {
                     extMap.put("update_time", now / 1000);
                     transformResult.add(extMap);
                 }
+            }
             }
         }
         logger.info("websketch transform data {}, spend time {} ms", transformResult.size(), System.currentTimeMillis() - now);

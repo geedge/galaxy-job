@@ -30,7 +30,7 @@ public class KnowledgeBaseJob {
 
     private static final String KNOWLEDGE_BASE_META_SQL = "SELECT a.knowledge_id knowledge_id,name,version,source,`status` FROM cn_knowledge_base_sync_version a LEFT JOIN cn_knowledge_base b ON a.knowledge_id=b.knowledge_id WHERE `is_published`=1";
     private static final String KNOWLEDGE_BASE_META_DELETE_SQL = "SELECT knowledge_id FROM cn_knowledge_base_sync_version WHERE knowledge_id NOT IN (SELECT knowledge_id FROM cn_knowledge_base)";
-    private String KNOWLEDGE_BASE_SQL = "SELECT * FROM {0} WHERE knowledge_id={1}";
+    private String KNOWLEDGE_BASE_SQL = "SELECT * FROM {0}";
 
     /**
      * [{
@@ -75,7 +75,7 @@ public class KnowledgeBaseJob {
                                 if ("mmdb".equals(sinkParam.get("format"))) {
                                     hasPush = knowledgeBaseService.mmdbBuildPush(builtParam(sink, dbKm, sinkParam));
                                 } else {
-                                    source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source"), String.valueOf(dbKm.get("knowledge_id"))));
+                                    source.put("sql", MessageFormat.format(KNOWLEDGE_BASE_SQL, dbKm.get("source")));
                                     //推送到知识库接口
                                     hasPush = knowledgeBaseService.commonPushFile(source, builtParam(sink, dbKm, sinkParam));
                                 }
@@ -119,6 +119,7 @@ public class KnowledgeBaseJob {
         newParam.put("format", sinkParam.get("format"));
         newParam.put("category", ObjectUtils.defaultIfNull(sinkParam.get("category"),""));
         newParam.put("is_valid", dbKm.get("status"));
+        newParam.put("is_encryption", sinkParam.get("is_encryption"));
         sink.put("params", newParam);
         return sink;
     }
