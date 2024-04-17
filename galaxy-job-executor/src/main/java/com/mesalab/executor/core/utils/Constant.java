@@ -31,5 +31,7 @@ public class Constant {
     public static String KNOWLEDGE_WORK_DIR = "/opt/schedule-service/mmdb";
     public static final Integer DB_BATCH = 200000;
 
+    public static String ENCRYPT_KEY = "86cf0e2ffba3f541a6c6761313e5cc7e";
+
 
 }

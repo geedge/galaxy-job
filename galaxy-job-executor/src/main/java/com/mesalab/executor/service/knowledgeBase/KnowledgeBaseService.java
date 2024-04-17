@@ -11,10 +11,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.nacos.api.config.annotation.NacosValue;
 import com.geedgenetworks.utils.StringUtil;
-import com.mesalab.executor.core.utils.DBUtils;
-import com.mesalab.executor.core.utils.HttpClientUtils;
-import com.mesalab.executor.core.utils.JobUtil;
-import com.mesalab.executor.core.utils.ZookeeperUtils;
+import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.KnowledgeBase;
@@ -38,9 +35,6 @@ public class KnowledgeBaseService {
 
     @NacosValue(value = "${zookeeper.server}", autoRefreshed = true)
     private String zookeeperServer;
-
-    @NacosValue(value = "${storge.files.token}",autoRefreshed = true)
-    private String filesToken;
 
     public boolean commonPushFile(Map sourceParams, Map<String, Object> sinkParam) throws Exception {
         String url = String.valueOf(sinkParam.get("url"));
@@ -129,8 +123,9 @@ public class KnowledgeBaseService {
     public boolean push(KnowledgeBase knowledgeBase, File tmpFile, String url) throws BusinessException {
         try {
             if(knowledgeBase.getIs_encryption()== 1){
-                File tmpEncryptFile = new File(StringUtil.join(tmpFile.getParentFile(), File.separator, knowledgeBase.getName(), "_enc.", knowledgeBase.getFormat()));
-                JobUtil.encrypt(filesToken,tmpFile,tmpEncryptFile);
+                knowledgeBase.setFormat("aes");
+                File tmpEncryptFile = new File(StringUtil.join(tmpFile.getParentFile(), File.separator, knowledgeBase.getName(), knowledgeBase.getFormat()));
+                JobUtil.encrypt(Constant.ENCRYPT_KEY,tmpFile,tmpEncryptFile);
                 tmpFile = tmpEncryptFile;
                 JobUtil.infoLog("knowledgeBase encrypt" ,knowledgeBase.getName());
             }
