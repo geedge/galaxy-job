@@ -46,6 +46,12 @@ public class DruidMergeHistoryDataJob {
                 return IJobHandler.FAIL;
             }
 
+            int availableSlots = druidCompactUtil.queryAvailableSlots();
+            XxlJobLogger.log("availableSlots:" + availableSlots);
+            if(availableSlots <= 0){
+                return ReturnT.SUCCESS;
+            }
+
             JSONArray paramArray = parseParams(params);
             List<JSONObject> submittedTaskParams = new ArrayList<>();
             JSONObject paramTemplate;
@@ -56,6 +62,7 @@ public class DruidMergeHistoryDataJob {
                 paramTemplate = paramArray.getJSONObject(i);
                 param = paramTemplate.clone();
                 String dataSource = param.getString("dataSource");
+                int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
                 String[] times = param.getString("interval").split("/");
                 final String startTime = times[0];
@@ -69,8 +76,41 @@ public class DruidMergeHistoryDataJob {
 
                 if (shouldCompactResult.shouldCompact){
                     //compact任务
-                    druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                    if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
+                        if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
+                            availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
+                            param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
+                            druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                        }else{
+                            XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                        }
+                    }else if(shouldCompactResult.maxNumConcurrentSubTasks * 6 >= maxNumConcurrentSubTasks){
+                        if(availableSlots >= maxNumConcurrentSubTasks){
+                            availableSlots -= maxNumConcurrentSubTasks;
+                            druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                        }else{
+                            XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                        }
+                    }else{
+                        XxlJobLogger.log("maxNumConcurrentSubTasks is too small:" + maxNumConcurrentSubTasks);
+                    }
                 }
+            }
+
+            XxlJobLogger.log(StringUtils.repeat('#', 100));
+            XxlJobLogger.log("availableSlots:" + availableSlots);
+
+            for (int i = 0; i < paramArray.size(); i++) {
+                paramTemplate = paramArray.getJSONObject(i);
+                param = paramTemplate.clone();
+                String dataSource = param.getString("dataSource");
+                int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
+                final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
+                String[] times = param.getString("interval").split("/");
+                final String startTime = times[0];
+                final String endTime = times[1];
+                String startDate = startTime;
+                String endDate = endTime;
 
                 // 检查补录前两天compact任务
                 for (int j = 1; j <= 2; j++) {
@@ -82,11 +122,30 @@ public class DruidMergeHistoryDataJob {
                         XxlJobLogger.log(String.format("%s[%s, %s]", dataSource, startDate, endDate) + " compact:" + shouldCompactResult);
                         param = paramTemplate.clone();
                         param.put("interval", startDate + "/" + endDate);
-                        druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+
+                        if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
+                            if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
+                                availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
+                                param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
+                                druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                            }else{
+                                XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                            }
+                        }else if(shouldCompactResult.maxNumConcurrentSubTasks * 6 >= maxNumConcurrentSubTasks){
+                            if(availableSlots >= maxNumConcurrentSubTasks){
+                                availableSlots -= maxNumConcurrentSubTasks;
+                                druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                            }else{
+                                XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                            }
+                        }else{
+                            XxlJobLogger.log("maxNumConcurrentSubTasks is too small:" + maxNumConcurrentSubTasks);
+                        }
                     }
                 }
             }
 
+            XxlJobLogger.log("availableSlots:" + availableSlots);
             if(submittedTaskParams.size() > 0){
                 druidCompactUtil.deleteMetaDataAsync(submittedTaskParams);
             }
@@ -102,8 +161,6 @@ public class DruidMergeHistoryDataJob {
     public JSONArray parseParams(String params) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC")); // 默认结束时间是UTC时间
-        LocalDateTime defaultEndDateTime = now.plusDays(-30); // 结束时间往前推30天
-        LocalDateTime defaultStartDateTime = defaultEndDateTime.plusDays(-1);
 
         JSONArray paramArray = JSON.parseArray(params);
         for (int i = 0; i < paramArray.size(); i++) {
@@ -114,6 +171,13 @@ public class DruidMergeHistoryDataJob {
             // 冷数据必须显式配置
             Preconditions.checkArgument(StringUtils.isNotBlank(DruidCompactUtil.extractQueryGranularityFromParam(param)), "queryGranularity is required:%s", paramStr);
             String interval = param.getString("interval");
+
+            int offsetDays = param.getIntValue("offsetDays", 30);
+            param.remove("offsetDays");
+            Preconditions.checkArgument(offsetDays >= 1, "offsetDays must must > 0:%s", offsetDays);
+            LocalDateTime defaultEndDateTime = now.minusDays(offsetDays); // 结束时间往前推30天
+            LocalDateTime defaultStartDateTime = defaultEndDateTime.plusDays(-1);
+
             /**
              * interval:
              *   null:默认周期

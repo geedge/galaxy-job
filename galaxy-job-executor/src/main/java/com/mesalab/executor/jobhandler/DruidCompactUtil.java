@@ -85,22 +85,33 @@ public class DruidCompactUtil {
             totalByteSize += rst.getLongValue("size");
         }
 
+        int maxNumConcurrentSubTasks = (int) Math.round(totalRowCount/((totalByteSize/totalRowCount < 40 ? 50000D:40000D) * 60 * 60));
+        if(maxNumConcurrentSubTasks < 1){
+            maxNumConcurrentSubTasks = 1;
+        }
+
         // 首次compact
         if(firstCompact){
-            return DruidShouldCompactResult.should("never merge before", totalRowCount, totalByteSize, fileCount);
+            if(queryGranularity != null){
+                return DruidShouldCompactResult.should("never merge before", totalRowCount, totalByteSize, fileCount, maxNumConcurrentSubTasks);
+            }else if(fileCount > 1 && totalRowCount / (fileCount - 1) < 3000000){
+                return DruidShouldCompactResult.should("never merge before and has small segments file", totalRowCount, totalByteSize, fileCount, maxNumConcurrentSubTasks);
+            }else{
+                return DruidShouldCompactResult.notShould("queryGranularity is null and has not small segments file", totalRowCount, totalByteSize, fileCount, maxNumConcurrentSubTasks);
+            }
         }
 
         // compact配置变化
         if(queryGranularityChange){
             return DruidShouldCompactResult.should(String.format("from last compaction granularitySpec is different:[%s, %s]", queryGranularity, queryGranularityChangeConf),
-                    totalRowCount, totalByteSize, fileCount);
+                    totalRowCount, totalByteSize, fileCount, maxNumConcurrentSubTasks);
         }
 
         // 有小文件
         if(fileCount > 1 && totalRowCount / (fileCount - 1) < 3000000){
-            return DruidShouldCompactResult.should("has small segments file", totalRowCount, totalByteSize, fileCount);
+            return DruidShouldCompactResult.should("has small segments file", totalRowCount, totalByteSize, fileCount, maxNumConcurrentSubTasks);
         }else{
-            return DruidShouldCompactResult.notShould("already merged", totalRowCount, totalByteSize, fileCount);
+            return DruidShouldCompactResult.notShould("already merged", totalRowCount, totalByteSize, fileCount, maxNumConcurrentSubTasks);
         }
     }
 
@@ -151,6 +162,7 @@ public class DruidCompactUtil {
                         logger.info(String.format("task(%s) statu:%s", taskId, response));
                         if("SUCCESS".equals(statusCode)){
                             iterator.remove();
+                            Thread.sleep(1000 * 10);
                             String url = UrlUtil.getUrl(server, "/druid/indexer/v1/task");
                             String deleteJson = "{\"type\": \"kill\"," +
                                     "\"dataSource\"" + ":" + "\"" + dataSource + "\"," +
@@ -178,6 +190,25 @@ public class DruidCompactUtil {
         }, "DruidCompactDeleteMetaData").start();
     }
 
+    public int queryAvailableSlots(){
+        String url = UrlUtil.getUrl(server, "/druid/indexer/v1/workers");
+        String response = HttpClientUtils.httpGet(url);
+        JSONArray rsts = JSON.parseArray(response);
+
+        int totalSlots = rsts.size() * 50;
+        int usedSlots = 0;
+        for (int i = 0; i < rsts.size(); i++) {
+            Integer currCapacityUsed = rsts.getJSONObject(i).getInteger("currCapacityUsed");
+            if (currCapacityUsed != null) {
+                usedSlots += currCapacityUsed;
+            } else {
+                usedSlots += rsts.getJSONObject(i).getJSONArray("runningTasks").size();
+            }
+        }
+
+        return totalSlots > usedSlots? totalSlots - usedSlots: 0;
+    }
+
     public static String extractQueryGranularityFromParam(JSONObject param){
         JSONObject granularitySpec = param.getJSONObject("granularitySpec");
         if(granularitySpec != null){
@@ -201,7 +232,11 @@ public class DruidCompactUtil {
 
     private static boolean queryGranularityRuleChange(String segmentQueryGranularity, String queryGranularity){
         if(StringUtils.isBlank(segmentQueryGranularity)){
-            return true;
+            if(StringUtils.isBlank(queryGranularity)){
+                return false;
+            }else{
+                return true;
+            }
         }
 
         if(StringUtils.isBlank(queryGranularity)){
@@ -223,7 +258,7 @@ public class DruidCompactUtil {
         Granularity granularity;
 
         if(str.trim().startsWith("{")){
-            granularity = mapper.readValue(str, PeriodGranularity.class);
+            granularity = mapper.readValue(str, Granularity.class);
         }else{
             granularity = Granularity.fromString(str);
         }
