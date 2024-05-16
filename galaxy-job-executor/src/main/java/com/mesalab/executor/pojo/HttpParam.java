@@ -1,8 +1,8 @@
 package com.mesalab.executor.pojo;
 
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.geedgenetworks.utils.StringUtil;
 import com.xxl.job.core.log.XxlJobLogger;
 import io.netty.handler.codec.http.HttpMethod;
 import lombok.AllArgsConstructor;
@@ -27,7 +27,7 @@ public class HttpParam implements Serializable {
     private Map<String, Object> requestParams;//请求表单
 
     public static List<HttpParam> parserHttpParams(String params) {
-        if (StringUtil.isBlank(params)) {
+        if (StrUtil.isBlank(params)) {
             XxlJobLogger.log("params is empty!");
             return null;
         }
@@ -37,15 +37,15 @@ public class HttpParam implements Serializable {
                 XxlJobLogger.log("params is not format json ! ");
                 return null;
             }
-            if (StringUtil.isBlank(httpParam.getUrl())) {
+            if (StrUtil.isBlank(httpParam.getUrl())) {
                 XxlJobLogger.log("url is empty ! ");
                 return null;
             }
-            if (StringUtil.isEmpty(httpParam.getStore())) {
+            if (StrUtil.isEmpty(httpParam.getStore())) {
                 XxlJobLogger.log("store is empty ! ");
                 return null;
             }
-            if (StringUtil.isBlank(httpParam.getMethod())) {
+            if (StrUtil.isBlank(httpParam.getMethod())) {
                 XxlJobLogger.log("this request method is default get");
                 httpParam.setMethod(HttpMethod.GET.name());
             }
@@ -54,7 +54,7 @@ public class HttpParam implements Serializable {
     }
 
     public static HttpParam parserHttpParam(String params) {
-        if (StringUtil.isBlank(params)) {
+        if (StrUtil.isBlank(params)) {
             XxlJobLogger.log("params is empty!");
             return null;
         }
@@ -63,15 +63,15 @@ public class HttpParam implements Serializable {
             XxlJobLogger.log("params is not format json ! ");
             return null;
         }
-        if (StringUtil.isBlank(httpParam.getUrl())) {
+        if (StrUtil.isBlank(httpParam.getUrl())) {
             XxlJobLogger.log("url is empty ! ");
             return null;
         }
-        if (StringUtil.isEmpty(httpParam.getStore())) {
+        if (StrUtil.isEmpty(httpParam.getStore())) {
             XxlJobLogger.log("store is empty ! ");
             return null;
         }
-        if (StringUtil.isBlank(httpParam.getMethod())) {
+        if (StrUtil.isBlank(httpParam.getMethod())) {
             XxlJobLogger.log("this request method is default get");
             httpParam.setMethod(HttpMethod.GET.name());
         }

@@ -26,6 +26,7 @@ public class EncryptConfigUtil {
 //        String pin = textEncryptor.decrypt("galaxy2019");
 //        System.err.println("user: "+user);
 //        System.err.println("pin: "+pin);
+        System.err.println("pin: "+textEncryptor.decrypt("z3gVlaa7Q4IMDqtUgvhwoJzKAkH1Uznc"));
         System.err.println("pin: "+textEncryptor.decrypt("LDEb2OekU7iZWiFw6pUYBSozVKP27r1y"));
     }
 
@@ -33,14 +34,26 @@ public class EncryptConfigUtil {
     StorgeConfig storgeConfig;
 
     @Test
-    public  void encryptFileTest() {
-        JobUtil.encrypt(storgeConfig.getFilesToken(), FileUtil.file("C:\\test\\h2.zip"),FileUtil.file("C:\\test\\test.csv.enc"));
+    public  void encryptFileTest() throws Exception {
+        JobUtil.encrypt("86cf0e2ffba3f541a6c6761313e5cc7e", FileUtil.file("C:\\test\\test1.csv"),FileUtil.file("C:\\test\\test.csv.enc"));
     }
     @Test
-    public  void decryptFileTest() {
-        JobUtil.decrypt(storgeConfig.getFilesToken(), FileUtil.file("C:\\test\\9_latest"),FileUtil.file("C:\\test\\test2.csv"));
+    public  void decryptFileTest() throws Exception {
+        JobUtil.decrypt("86cf0e2ffba3f541a6c6761313e5cc7e", FileUtil.file("C:\\test\\9_latest"),FileUtil.file("C:\\test\\test3.csv"));
     }
 
-
+//    public static byte[] readBytesFromFile(String filePath) throws Exception {
+//        FileInputStream fis = new FileInputStream(filePath);
+//
+//        byte[] data = fis.readAllBytes();
+//        fis.close();
+//        return data;
+//    }
+//
+//    public static void writeBytesToFile(byte[] data, String filePath) throws Exception {
+//        FileOutputStream fos = new FileOutputStream(filePath);
+//        fos.write(data);
+//        fos.close();
+//    }
 
 }

@@ -1,7 +1,7 @@
 package com.mesalab.executor.core.config;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.nacos.api.config.annotation.NacosValue;
-import com.geedgenetworks.utils.StringUtil;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import lombok.Data;
@@ -87,14 +87,14 @@ public class StorgeConfig {
 		return getDCMap(analyticServer);
 	}
 	private String getServer(String dcStr) {
-		return Splitter.on(",").trimResults().splitToList(dcStr).stream().map(x -> x.substring(x.indexOf("|") + 1)).filter(x -> StringUtil.isNotEmpty(x)).collect(Collectors.joining(","));
+		return Splitter.on(",").trimResults().splitToList(dcStr).stream().map(x -> x.substring(x.indexOf("|") + 1)).filter(x -> StrUtil.isNotEmpty(x)).collect(Collectors.joining(","));
 	}
 
 	private Map<String, String> getDCMap(String dcStr) {
 		Map<String, String> map = new HashMap();
 		Splitter.on(",").trimResults().splitToList(dcStr).stream().forEach(x -> {
 			List<String> dc = Splitter.on("|").trimResults().splitToList(x);
-			if (dc.size() == 2 && StringUtil.isNotBlank(dc.get(1))) {
+			if (dc.size() == 2 && StrUtil.isNotBlank(dc.get(1))) {
 				map.put(dc.get(0), dc.get(1));
 			}
 		});
@@ -102,10 +102,10 @@ public class StorgeConfig {
 	}
 
 	public String getNotInSql(String field, String exclusion){
-		if(StringUtil.isEmpty(exclusion)){
+		if(StrUtil.isEmpty(exclusion)){
 			return "";
 		}
-		return Splitter.on(",").trimResults().splitToList(exclusion).stream().filter(x ->StringUtil.isNotEmpty(x)).collect(Collectors.joining("','"," and "+ field +" not in ('","')"));
+		return Splitter.on(",").trimResults().splitToList(exclusion).stream().filter(x ->StrUtil.isNotEmpty(x)).collect(Collectors.joining("','"," and "+ field +" not in ('","')"));
 	}
 
 	public Map<String, Object> getCkSource() {

@@ -1,9 +1,10 @@
 package com.mesalab.executor.core.utils;
 
+import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import com.dtflys.forest.Forest;
 import com.dtflys.forest.http.ForestProxy;
-import com.geedgenetworks.utils.StringUtil;
 import com.google.common.collect.Lists;
 import com.mesalab.executor.core.config.HttpConfig;
 import com.mesalab.executor.exception.BusinessException;
@@ -55,7 +56,7 @@ import java.util.Map;
 public class HttpClientUtils {
 
     private static Log logger = Log.get();
-
+    private static PoolingHttpClientConnectionManager connManager = null;
     private static HttpConfig httpConfig = (HttpConfig) SpringContextUtil.getBean("httpConfig");
     /**
      * 在调用SSL之前需要重写验证方法，取消检测SSL
@@ -65,31 +66,37 @@ public class HttpClientUtils {
      */
     private static PoolingHttpClientConnectionManager getSslClientManager() {
         try {
-            // 在调用SSL之前需要重写验证方法，取消检测SSL
-            X509TrustManager trustManager = new X509TrustManager() {
-                @Override
-                public X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-                @Override
-                public void checkClientTrusted(X509Certificate[] xcs, String str) {
-                }
-                @Override
-                public void checkServerTrusted(X509Certificate[] xcs, String str) {
-                }
-            };
-            SSLContext ctx = SSLContext.getInstance(SSLConnectionSocketFactory.TLS);
-            ctx.init(null, new TrustManager[]{trustManager}, null);
-            SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(ctx, NoopHostnameVerifier.INSTANCE);
-            Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
-                    .register("http", PlainConnectionSocketFactory.INSTANCE)
-                    .register("https", socketFactory).build();
-            // 创建ConnectionManager，添加Connection配置信息
-            PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
-            // 设置最大连接数
-            connManager.setMaxTotal(httpConfig.getMaxConnectionNum());
-            // 设置每个连接的路由数
-            connManager.setDefaultMaxPerRoute(httpConfig.getMaxPerRoute());
+            if (connManager == null) {
+                // 在调用SSL之前需要重写验证方法，取消检测SSL
+                X509TrustManager trustManager = new X509TrustManager() {
+                    @Override
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+
+                    @Override
+                    public void checkClientTrusted(X509Certificate[] xcs, String str) {
+                    }
+
+                    @Override
+                    public void checkServerTrusted(X509Certificate[] xcs, String str) {
+                    }
+                };
+                SSLContext ctx = SSLContext.getInstance(SSLConnectionSocketFactory.TLS);
+                ctx.init(null, new TrustManager[]{trustManager}, null);
+                SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(ctx, NoopHostnameVerifier.INSTANCE);
+                Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                        .register("http", PlainConnectionSocketFactory.INSTANCE)
+                        .register("https", socketFactory).build();
+                // 创建ConnectionManager，添加Connection配置信息
+                connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+                // 设置最大连接数
+                connManager.setMaxTotal(httpConfig.getMaxConnectionNum());
+                // 设置每个连接的路由数
+                connManager.setDefaultMaxPerRoute(httpConfig.getMaxPerRoute());
+
+            }
+
             return connManager;
         } catch (KeyManagementException e) {
             logger.error(e.getMessage());
@@ -244,7 +251,7 @@ public class HttpClientUtils {
     }
 
     private static void setHttpHeader(HttpGet httpGet, Header[] headers) {
-        if (StringUtil.isNotEmpty(headers)) {
+        if (ObjectUtil.isNotEmpty(headers)) {
             for (Header h : headers) {
                 httpGet.addHeader(h);
                 logger.info("request header : {}",h);
@@ -275,14 +282,14 @@ public class HttpClientUtils {
             
             HttpPost httpPost = new HttpPost(uri);
             httpPost.setHeader("Content-Type", "application/json");
-            if (StringUtil.isNotEmpty(headers)) {
+            if (ObjectUtil.isNotEmpty(headers)) {
                 for (Header h : headers) {
                     httpPost.addHeader(h);
                     logger.info("request header : {}",h);
                 }
             }
 
-            if(StringUtil.isNotBlank(requestBody)) {
+            if(StrUtil.isNotBlank(requestBody)) {
                 if(requestBody!=null){
                     byte[] bytes = requestBody.getBytes(StandardCharsets.UTF_8);
                     httpPost.setEntity(new ByteArrayEntity(bytes));
@@ -341,14 +348,14 @@ public class HttpClientUtils {
             
             HttpPut httpPut = new HttpPut(uri);
             httpPut.setHeader("Content-Type", "application/json");
-            if (StringUtil.isNotEmpty(headers)) {
+            if (ObjectUtil.isNotEmpty(headers)) {
                 for (Header h : headers) {
                 	httpPut.addHeader(h);
                     logger.info("request header : {}",h);
                 }
             }
 
-            if(StringUtil.isNotBlank(requestBody)) {
+            if(StrUtil.isNotBlank(requestBody)) {
             	httpPut.setEntity(new ByteArrayEntity(requestBody.getBytes("utf-8")));
             }
             
@@ -403,7 +410,7 @@ public class HttpClientUtils {
 
             HttpPut httpPut = new HttpPut(uri);
             httpPut.setHeader("Content-Type", "application/zip");
-            if (StringUtil.isNotEmpty(headers)) {
+            if (ObjectUtil.isNotEmpty(headers)) {
                 for (Header h : headers) {
                     httpPut.addHeader(h);
                     logger.info("request header : {}",h);
@@ -455,7 +462,7 @@ public class HttpClientUtils {
             logger.info("http post uri:{} ", url);
 
             HttpPost httpost = new HttpPost(uri);
-            if (StringUtil.isNotEmpty(headers)) {
+            if (ObjectUtil.isNotEmpty(headers)) {
                 for (Header h : headers) {
                     httpost.addHeader(h);
                     logger.info("request header : {}",h);
@@ -525,7 +532,7 @@ public class HttpClientUtils {
             logger.info("http delete uri:{}", uri);
             
             HttpDelete httpdelete = new HttpDelete(uri);
-            if (StringUtil.isNotEmpty(headers)) {
+            if (ObjectUtil.isNotEmpty(headers)) {
                 for (Header h : headers) {
                 	httpdelete.addHeader(h);
                     logger.info("request header : {}",h);

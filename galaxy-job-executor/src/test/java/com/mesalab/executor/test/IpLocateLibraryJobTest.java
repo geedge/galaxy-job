@@ -3,6 +3,10 @@ package com.mesalab.executor.test;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
+import cn.hutool.core.text.csv.CsvData;
+import cn.hutool.core.text.csv.CsvReader;
+import cn.hutool.core.text.csv.CsvRow;
+import cn.hutool.core.text.csv.CsvUtil;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -39,24 +43,29 @@ public class IpLocateLibraryJobTest {
 
     @Test
     public void getIPMMDBFile() {
+
+        CsvReader reader = CsvUtil.getReader();
+        String ansCsvFile = "C:\\test\\1.csv";
+        CsvData data = reader.read(FileUtil.file(ansCsvFile));
+        List<CsvRow> rows = data.getRows();
+        //遍历行
+        List<String> newList = new ArrayList();
+        for (CsvRow csvRow : rows) {
+            String raw = csvRow.getRawList().get(0);
+            if (!newList.contains(raw)) {
+                newList.add(raw);
+            }
+        }
         IpLookupV2 ipLookup = new IpLookupV2.Builder(false)
-                .loadDataFileV4("C:\\test\\knowledge\\ip4.mmdb")
+                .loadDataFilePrivate("C:\\test\\ip_user_defined.mmdb")
 //                .loadDataFile("C:\\test\\knowledge\\ip6.mmdb")
 //                .loadDataFilePrivateV6("")
                 .build();
-
-        System.err.println(ipLookup.infoLookup("2a7:1c44:39f3:1b::"));
-        System.err.println(ipLookup.infoLookup("2001:240:2440::"));
-        System.err.println(ipLookup.infoLookup("fe80::b432:5ff:fef9:a3cb"));
-        System.err.println(ipLookup.infoLookup("fe80::182d:8dff:fe73:fe80"));
-        System.err.println("#");
-        System.err.println(ipLookup.infoLookup("8.6.112.0"));
-        System.err.println(ipLookup.infoLookup("0.0.0.1"));
-        System.err.println(ipLookup.infoLookup("223.255.243.241"));
-        System.err.println(ipLookup.infoLookup("223.255.244.241"));
-        System.err.println(ipLookup.infoLookup("223.255.246.241"));
-        System.err.println(ipLookup.infoLookup("59.154.195.156"));
-        System.err.println("---------------------------");
+        System.err.println(ipLookup.infoLookup("127.0.0.1"));
+        System.err.println(ipLookup.infoLookup("8.8.8.8"));
+//        for (String s : newList) {
+//            System.err.println(ipLookup.infoLookup(s));
+//        }
 
         Assert.assertNotEquals("ip is not found", ObjectUtil.isEmpty("latLngLookup"));
 

@@ -15,6 +15,7 @@ import cn.hutool.crypto.CryptoException;
 import cn.hutool.json.JSONNull;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
+import com.geedgenetworks.crypt.AESUtil;
 import com.geedgenetworks.utils.IpLookupV2;
 import com.mesalab.executor.exception.BusinessException;
 import com.xxl.job.core.log.XxlJobLogger;
@@ -313,13 +314,20 @@ public class JobUtil {
             throw new CryptoException("Error encrypting/decrypting file", ex);
         }
     }
-    public static void encrypt(String key, File inputFile, File outputFile)
-            throws CryptoException {
-        JobUtil.doCrypto(Cipher.ENCRYPT_MODE, key, inputFile, outputFile);
+
+    public static File encrypt(String key, File inputFile, File outputFile) throws Exception {
+        byte[] bytes = FileUtil.readBytes(inputFile);
+        byte[] encrypt = AESUtil.encrypt(bytes, key);
+        File file = FileUtil.writeBytes(encrypt, outputFile);
+        return file;
     }
 
-    public static void decrypt(String key, File inputFile, File outputFile)
-            throws CryptoException {
-        JobUtil.doCrypto(Cipher.DECRYPT_MODE, key, inputFile, outputFile);
+    public static File decrypt(String key, File inputFile, File outputFile) throws Exception {
+        byte[] bytes = FileUtil.readBytes(inputFile);
+        byte[] decrypt = AESUtil.decrypt(bytes, key);
+        File file = FileUtil.writeBytes(decrypt, outputFile);
+        return file;
+
     }
+
 }
