@@ -10,14 +10,12 @@ import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.druid.granularity.*;
 import com.mesalab.executor.pojo.DruidShouldCompactResult;
+import com.mesalab.executor.pojo.DruidWaitedSubmitTaskParam;
 import com.xxl.job.core.log.XxlJobLogger;
 import org.apache.commons.lang3.StringUtils;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class DruidCompactUtil {
@@ -130,26 +128,37 @@ public class DruidCompactUtil {
         }
     }
 
-    public void deleteMetaDataAsync(List<JSONObject> submittedTaskParams){
+    public void deleteMetaDataAsync(List<JSONObject> submittedTaskParams, List<DruidWaitedSubmitTaskParam> waitedSubmitTaskParams){
         //默认查询任务状态限时6小时
-        deleteMetaDataAsync(submittedTaskParams, Duration.ofHours(6));
+        deleteMetaDataAsync(submittedTaskParams, Duration.ofHours(6), waitedSubmitTaskParams);
     }
 
     /**
      * 压缩任务通过http请求提交后，获取任务状态码，根据任务状态删除历史元数据
      */
-    public void deleteMetaDataAsync(List<JSONObject> submittedTaskParams, Duration maxWaitDuration){
+    public void deleteMetaDataAsync(List<JSONObject> submittedTaskParams, Duration maxWaitDuration, List<DruidWaitedSubmitTaskParam> waitedSubmitTaskParams){
         final long endTime = System.currentTimeMillis() + maxWaitDuration.toMillis();
+        final long maxWaitSubmitTime = System.currentTimeMillis() + maxWaitDuration.toMillis() * 2 / 3;
         XxlJobLogger.log("wait delete submitted tasks:" + String.join("\n", submittedTaskParams.stream().map(x -> x.toString()).collect(Collectors.toList())));
+        if(waitedSubmitTaskParams.size() > 0){
+            XxlJobLogger.log(StringUtils.repeat('-', 100));
+            XxlJobLogger.log("wait submit tasks:" + String.join("\n", waitedSubmitTaskParams.stream().map(x -> x.param.toString()).collect(Collectors.toList())));
+        }
         if(submittedTaskParams.isEmpty()){
             return;
         }
 
         new Thread(() -> {
-            logger.info("DruidCompactDeleteMetaDataThread start, wait delete size:" + submittedTaskParams.size());
+            try {
+                Thread.sleep(1000 * 40);
+            }catch (Exception ex) {
+            }
+            logger.info("DruidCompactDeleteMetaDataThread start, wait delete size:" + submittedTaskParams.size() + ", wait submit size:" + waitedSubmitTaskParams.size());
+            DruidCompactUtil druidCompactUtil = DruidCompactUtil.getInstance(server);
             while (submittedTaskParams.size() > 0 && System.currentTimeMillis() < endTime){
                 try {
                     Iterator<JSONObject> iterator = submittedTaskParams.iterator();
+                    int finishEdCnt = 0;
                     while (iterator.hasNext()){
                         JSONObject param = iterator.next();
                         String taskId = param.getString("id");
@@ -162,6 +171,7 @@ public class DruidCompactUtil {
                         logger.info(String.format("task(%s) statu:%s", taskId, response));
                         if("SUCCESS".equals(statusCode)){
                             iterator.remove();
+                            finishEdCnt ++;
                             Thread.sleep(1000 * 10);
                             String url = UrlUtil.getUrl(server, "/druid/indexer/v1/task");
                             String deleteJson = "{\"type\": \"kill\"," +
@@ -171,8 +181,30 @@ public class DruidCompactUtil {
                             HttpClientUtils.httpPost(url, deleteJson);
                         }else if("FAILED".equals(statusCode)){
                             iterator.remove();
+                            finishEdCnt ++;
                             logger.warn(String.format("task(%s) is failed:%s", taskId, response));
                         }
+                    }
+
+                    if(submittedTaskParams.isEmpty() && waitedSubmitTaskParams.size() > 0){
+                        Thread.sleep(1000 * 90);
+                    }
+
+                    if(finishEdCnt > 0 && waitedSubmitTaskParams.size() > 0 && System.currentTimeMillis() < maxWaitSubmitTime){
+                        int availableSlots = druidCompactUtil.queryAvailableSlots();
+                        Iterator<DruidWaitedSubmitTaskParam> waitedParamIterator = waitedSubmitTaskParams.iterator();
+                        while (waitedParamIterator.hasNext()) {
+                            DruidWaitedSubmitTaskParam waitedParam = waitedParamIterator.next();
+                            if(availableSlots >= waitedParam.maxNumConcurrentSubTasks){
+                                availableSlots -= waitedParam.maxNumConcurrentSubTasks;
+                                logger.info("submitCompactTask:" + waitedParam.param);
+                                waitedParamIterator.remove();
+                                druidCompactUtil.submitCompactTask(waitedParam.param, submittedTaskParams);
+                            }else{
+                                break;
+                            }
+                        }
+                        logger.info("availableSlots:" + availableSlots);
                     }
 
                     if(submittedTaskParams.size() > 0){

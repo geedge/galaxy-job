@@ -8,6 +8,7 @@ import com.geedgenetworks.utils.StringUtil;
 import com.google.common.base.Preconditions;
 import com.mesalab.executor.jobhandler.DruidCompactUtil;
 import com.mesalab.executor.pojo.DruidShouldCompactResult;
+import com.mesalab.executor.pojo.DruidWaitedSubmitTaskParam;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.log.XxlJobLogger;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @RunWith(SpringRunner.class)
@@ -60,27 +62,27 @@ public class DruidMergeHistoryDataJobTest {
                 "    {\n" +
                 "      \"type\": \"compact\",\n" +
                 "      \"dataSource\": \"object_statistics_test\",\n" +
-                "      \"interval\": \"2024-05-11/2024-05-12\",\n" +
+                "      \"interval\": \"2024-05-16/2024-05-17\",\n" +
                 "      \"tuningConfig\" : {\n" +
                 "        \"type\" : \"index_parallel\",\n" +
                 "        \"maxNumConcurrentSubTasks\" : 2\n" +
                 "      },\n" +
                 "      \"granularitySpec\" : {\n" +
                 "        \"segmentGranularity\": \"DAY\",\n" +
-                "        \"queryGranularity\": \"MINUTE\"\n" +
+                "        \"queryGranularity\": \"HOUR\"\n" +
                 "      },\n" +
                 "    },\n" +
                 "    {\n" +
                 "      \"type\": \"compact\",\n" +
                 "      \"dataSource\": \"object_statistics\",\n" +
-                "      \"interval\": \"2024-05-11/2024-05-12\",\n" +
+                "      \"interval\": \"2024-05-16/2024-05-17\",\n" +
                 "      \"tuningConfig\" : {\n" +
                 "        \"type\" : \"index_parallel\",\n" +
                 "        \"maxNumConcurrentSubTasks\" : 2\n" +
                 "      },\n" +
                 "      \"granularitySpec\" : {\n" +
                 "        \"segmentGranularity\": \"DAY\",\n" +
-                "        \"queryGranularity\": \"FIVE_MINUTE\"\n" +
+                "        \"queryGranularity\": \"HOUR\"\n" +
                 "      },\n" +
                 "    }\n" +
                 "]";
@@ -111,6 +113,7 @@ public class DruidMergeHistoryDataJobTest {
 
             JSONArray paramArray = parseParams(params);
             List<JSONObject> submittedTaskParams = new ArrayList<>();
+            List<DruidWaitedSubmitTaskParam> waitedSubmitTaskParams = new ArrayList<>();
             JSONObject paramTemplate;
             JSONObject param;
             DruidShouldCompactResult shouldCompactResult;
@@ -134,12 +137,13 @@ public class DruidMergeHistoryDataJobTest {
                 if (shouldCompactResult.shouldCompact){
                     //compact任务
                     if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
+                        param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                         if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
                             availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
-                            param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                             druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                         }else{
                             XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                            waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(0, shouldCompactResult.maxNumConcurrentSubTasks, param));
                         }
                     }else if(shouldCompactResult.maxNumConcurrentSubTasks * 6 >= maxNumConcurrentSubTasks){
                         if(availableSlots >= maxNumConcurrentSubTasks){
@@ -147,6 +151,7 @@ public class DruidMergeHistoryDataJobTest {
                             druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                         }else{
                             XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                            waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(0, maxNumConcurrentSubTasks, param));
                         }
                     }else{
                         XxlJobLogger.log("maxNumConcurrentSubTasks is too small:" + maxNumConcurrentSubTasks);
@@ -181,12 +186,13 @@ public class DruidMergeHistoryDataJobTest {
                         param.put("interval", startDate + "/" + endDate);
 
                         if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
+                            param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                             if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
                                 availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
-                                param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                                 druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                             }else{
                                 XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                                waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(j, shouldCompactResult.maxNumConcurrentSubTasks, param));
                             }
                         }else if(shouldCompactResult.maxNumConcurrentSubTasks * 6 >= maxNumConcurrentSubTasks){
                             if(availableSlots >= maxNumConcurrentSubTasks){
@@ -194,6 +200,7 @@ public class DruidMergeHistoryDataJobTest {
                                 druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                             }else{
                                 XxlJobLogger.log("availableSlots is too small:" + availableSlots);
+                                waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(j, maxNumConcurrentSubTasks, param));
                             }
                         }else{
                             XxlJobLogger.log("maxNumConcurrentSubTasks is too small:" + maxNumConcurrentSubTasks);
@@ -204,7 +211,10 @@ public class DruidMergeHistoryDataJobTest {
 
             XxlJobLogger.log("availableSlots:" + availableSlots);
             if(submittedTaskParams.size() > 0){
-                druidCompactUtil.deleteMetaDataAsync(submittedTaskParams);
+                if(waitedSubmitTaskParams.size() > 0){
+                    Collections.sort(waitedSubmitTaskParams);
+                }
+                druidCompactUtil.deleteMetaDataAsync(submittedTaskParams, waitedSubmitTaskParams);
             }
         } catch (Exception e) {
             logger.error("druidMergeHistoryDataJobHandler error", e);
