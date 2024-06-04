@@ -34,6 +34,7 @@ public class LogStorageTtlJob {
     private Log logger = Log.get();
 
     private static final String trafficPort = "8123";
+    private static final int materializeTtlAfterModify = 0;
 
     @Autowired
     StorageQuotaService storageQuotaService;
@@ -103,9 +104,9 @@ public class LogStorageTtlJob {
                 for (Map.Entry<String, String> entry : modifyTtlTables.entrySet()) {
 
                     try {
-                        StringBuilder sqery = new StringBuilder("alter table  " + deletionConfig.getTrafficDatasource() + "." + entry.getKey() + " on cluster ck_cluster MODIFY TTL " + entry.getValue());
-                        alterTablesForCK(ckurlBuilder.toString(), sqery.toString());
-                        XxlJobLogger.log("table ddl sql : " + sqery.toString());
+                        StringBuilder query = new StringBuilder("alter table  " + deletionConfig.getTrafficDatasource() + "." + entry.getKey() + " on cluster ck_cluster MODIFY TTL " + entry.getValue());
+                        alterTablesForCK(ckurlBuilder.toString(), query.toString());
+                        XxlJobLogger.log("table ddl sql : " + query.toString());
                     } catch (RuntimeException be) {
 
                         XxlJobLogger.log("modify table " + entry.getKey() + "ddl sql error: " + be.toString());
@@ -463,7 +464,7 @@ public class LogStorageTtlJob {
 
     private Boolean alterTablesForCK(String url, String sql) {
 
-        return excutesqlToCK(url, sql);
+        return excutesqlToCK(url, sql+" SETTINGS materialize_ttl_after_modify = "+materializeTtlAfterModify);
     }
 
     /***
@@ -483,7 +484,7 @@ public class LogStorageTtlJob {
         Configuration conf = Configuration.defaultConfiguration();
         Configuration conf2 = conf.addOptions(Option.DEFAULT_PATH_LEAF_TO_NULL);
 
-        String sql = "select query from system.distributed_ddl_queue where status =0 limit 1 format JSON";
+        String sql = "select query from system.distributed_ddl_queue_cluster where status =0 limit 1 format JSON";
         String httpResult = HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), sql);
         if ("-1".equals(httpResult)) {
             throw new BusinessException("http request error url = " + url);
