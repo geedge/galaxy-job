@@ -36,5 +36,22 @@ public class ValidParamUtil {
         }
         return paramList;
     }
-
+    public static List<Map> parserParamsSink(String params) {
+        if (StrUtil.isBlank(params)) {
+            XxlJobLogger.log("params is empty!");
+            return null;
+        }
+        List<Map> paramList = JSONUtil.toList(params, Map.class);
+        for (Map<String, Map<String, String>> param : paramList) {
+            if (ObjectUtil.isNull(param)) {
+                XxlJobLogger.log("params is not format json ! ");
+                return null;
+            }
+            if (ObjectUtil.isNull(param.get("sink"))) {
+                XxlJobLogger.log("params sink is null ! ");
+                return null;
+            }
+        }
+        return paramList;
+    }
 }

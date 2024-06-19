@@ -193,7 +193,6 @@ public class LogStorageTtlJob {
         deleteParamMap.put("database", deletionConfig.getTrafficDatasource());
         deleteParamMap.put("password", deletionConfig.getTrafficUserKey());
         deleteParamMap.put("user", deletionConfig.getTrafficUsername());
-   //     deleteParamMap.put("password", "galaxy2019");
         return deleteParamMap;
     }
 
@@ -207,7 +206,6 @@ public class LogStorageTtlJob {
             Map<String, String> dropTtltables = new HashMap<>();
             Configuration conf = Configuration.defaultConfiguration();
             Configuration conf2 = conf.addOptions(Option.DEFAULT_PATH_LEAF_TO_NULL);
-            //  Map<String, Integer> tableobj = new HashMap<>();
 
             for (String tablename : tablesForCKs) {
                 try {

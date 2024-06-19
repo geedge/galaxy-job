@@ -110,22 +110,20 @@ public class DataSinkService {
             return;
         }
         Connection conn = null;
-        DBUtils dbUtils = null;
         PreparedStatement pst = null;
         try {
 
             JDBCParam jdbcParam = new JDBCParam(sinkParams);
             String tableName = jdbcParam.getTable();
-            dbUtils = new DBUtils();
             //创建数据库连接库对象
-            conn = dbUtils.getDBConn(jdbcParam);
+            conn = DBUtils.getDBConn(jdbcParam);
             String sql = "";
             if ("update".equals(sinkParams.get("option"))) {
-                sql = dbUtils.getUpdateSql(transformResult, tableName, parseConditions(sinkParams));
+                sql = DBUtils.getUpdateSql(transformResult, tableName, parseConditions(sinkParams));
             } else if ("insertOrUpdate".equals(sinkParams.get("option"))) {
-                sql = dbUtils.getInsertOrUpdateSql(transformResult, tableName);
+                sql = DBUtils.getInsertOrUpdateSql(transformResult, tableName);
             } else {
-                sql = dbUtils.getInsertSql(transformResult, tableName);
+                sql = DBUtils.getInsertSql(transformResult, tableName);
             }
             long start = System.currentTimeMillis();
             conn.setAutoCommit(false);

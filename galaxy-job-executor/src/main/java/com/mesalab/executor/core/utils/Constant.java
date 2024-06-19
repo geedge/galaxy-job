@@ -6,11 +6,12 @@ public class Constant {
     public static final String FILES = "Files";
     public static final String REPORT_AND_METRICS = "Report and Metrics";
     public static final String TRAFFIC_LOGS = "Traffic Logs";
+    public static final String METRICS = "Metrics";
 
     // zookeeper /path+node
     public static final String ZK_TRAFFIC_LOGS = "Traffic-Logs";
     public static final String ZK_REPORT_AND_METRICS = "Report-and-Metrics";
-
+    public static final String ZOOKEEPER_STORAGE_PATH = "/storage/worker/";
 
     public static final String TOKEN = "Token";
     public static final String TEXT_XML = "text/xml";
