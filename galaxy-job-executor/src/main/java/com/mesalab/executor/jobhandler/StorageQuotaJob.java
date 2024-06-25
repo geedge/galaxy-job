@@ -3,6 +3,7 @@ package com.mesalab.executor.jobhandler;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.mesalab.executor.core.utils.JobUtil;
+import com.mesalab.executor.core.utils.TypeUtils;
 import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.service.StorageQuotaInfoService;
 import com.xxl.job.core.biz.model.ReturnT;
@@ -21,7 +22,7 @@ import java.util.Map;
  */
 
 @Component
-public class StorageQuotaInfoJob {
+public class StorageQuotaJob {
 
     @Resource
     private StorageQuotaInfoService storageQuotaInfoService;
@@ -36,9 +37,10 @@ public class StorageQuotaInfoJob {
             for (Map paramsMap : paramsMaps) {
                 Map<String, Object> source = BeanUtil.beanToMap(paramsMap.get("source"));
                 String[] items = StrUtil.split(source.get("items").toString(), ",");
+                Boolean containBytes = TypeUtils.castToBoolean(source.get("containBytes"));
                 JDBCParam jdbcParam = BeanUtil.toBean(paramsMap.get("sink"), JDBCParam.class);
 
-                failCount += storageQuotaInfoService.getAndSaveStorageQuotaInfo(items, jdbcParam);
+                failCount += storageQuotaInfoService.getAndSaveStorageQuotaInfo(items, jdbcParam, containBytes);
 
             }
         } catch (Exception e) {
