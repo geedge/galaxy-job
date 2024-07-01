@@ -2,6 +2,7 @@ package com.mesalab.executor.jobhandler;
 
 import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.thread.ThreadUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import com.geedgenetworks.utils.DateUtils;
 import com.geedgenetworks.utils.JsonMapper;
@@ -15,20 +16,19 @@ import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.LifecycleConfiguration;
 import com.mesalab.executor.pojo.ListAllMyBucketsResult;
-import com.mesalab.executor.service.StorageQuotaService;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,90 +39,31 @@ public class LogStorageQuotaJob {
     private Log logger = Log.get();
 
     private static final String analyticUrl = "/druid/v2/sql";
-    private static final String trafficPort = "8123";
     private static final String ck_cluster = "ck_cluster";
     private static final String max_days = "maxDays";
 
-    @Autowired
-    StorageQuotaService storageQuotaService;
+    @Value("${zookeeper.server}")
+    private String zookeeperServer;
 
-    private StorgeConfig deletionConfig =  (StorgeConfig)SpringContextUtil.getBean("storgeConfig");
+    private StorgeConfig deletionConfig = (StorgeConfig) SpringContextUtil.getBean("storgeConfig");
     //*********************************************设置存储策略**********************************************************
-
+    private final Header[] hosHeaders = {new BasicHeader(Constant.TOKEN, deletionConfig.getFilesToken()),
+            new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML)};
 
     /**
      * 设置流量日志存储策略储
      * clickhouse 数据库
      *
-     * @param params {"maxdays":30}
+     * @param params {"maxDays":30}
      */
-    @XxlJob("deleteTrafficDataJobHandler2")
-    public ReturnT<String> deleteTrafficData(String params) {
+    @XxlJob("deleteTrafficDataJobHandler")
+    public ReturnT<String> deleteTrafficDataByCluster(String params) {
         try {
             Map<String, Object> paramsMap = validParams(params);
             if (ObjectUtils.isEmpty(paramsMap)) {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            Map<String, Object> deleteParamMap = deletionConfig.getCkSource();
-
-            //根据服务器地址，表，分区去删除数据
-            String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", deletionConfig.getTrafficDatasource(), ".");
-            String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
-            UrlBuilder urlBuilder = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8);
-            List<String> addressForCKs = getAddressForCK(urlBuilder.toString());
-            int failCount = 0;
-            // 指定服务器
-            for (String endpoint : addressForCKs) {
-                try {
-                    // 指定表
-                    String url = UrlUtil.getUrl(endpoint);
-                    List<String> tablesForCKs = getTablesForCK(url,deletionConfig.getNotInSql("name",deletionConfig.getTafficExclusion()));
-                    for (String table : tablesForCKs) {
-                        try {
-                            //指定分区
-                            List<String> partitions = getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemParts() + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
-                            for (String partition : partitions) {
-                                try {
-                                    deleteParamMap.put("query", Joiner.on("").join(prefixDeleteSql, table, " DROP PARTITION ", partition));
-                                    HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
-                                } catch (BusinessException e) {
-                                    failCount++;
-                                    logger.error("clickhouse ttl error endpoint = {}, table = {}, partition = {}, fail message = {}", endpoint, table, partition, JobUtil.getErrorMsg(e));
-                                    XxlJobLogger.log("clickhouse ttl error partitionFailCount={}, endpoint = {}, table = {}, partition = {}, fail message = {}", failCount, endpoint, table, partition, JobUtil.getErrorMsg(e));
-                                }
-                            }
-                            logger.info("clickhouse ttl clickhouse endpoint = {}, table = {}, partition < {}, size = {}, fail count = {}", endpoint, table, deleteMaxDate, partitions.size(), failCount);
-                        } catch (BusinessException e) {
-                            failCount++;
-                            logger.error("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
-                            XxlJobLogger.log("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
-                        }
-                    }
-                    XxlJobLogger.log("clickhouse ttl endpoint = {}, failCount = {}, tables = {}", endpoint, failCount, tablesForCKs);
-                } catch (BusinessException e) {
-                    failCount++;
-                    logger.error("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                }
-            }
-            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
-            if (failCount > 0) {
-                throw new BusinessException("reset storage clickhouse ttl error ,failCount " + failCount);
-            }
-
-        } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        }
-        return ReturnT.SUCCESS;
-    }
-
-    @XxlJob("deleteTrafficDataJobHandler")
-    public ReturnT<String> deleteTrafficDataByCluster(String params) {
-        try {
-            Map<String, Object> paramsMap = validParams(params);
             if (ObjectUtils.isEmpty(paramsMap)) {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
@@ -149,7 +90,7 @@ public class LogStorageQuotaJob {
                     XxlJobLogger.log("reset storage days table {}, drop partition size {} ", table, partitionList.size());
 
                     partitionList.forEach(partition -> {
-                        String deleteSql = Joiner.on("").join(prefixDeleteSql, table, suffixDeleteSql, "'",partition,"'");
+                        String deleteSql = Joiner.on("").join(prefixDeleteSql, table, suffixDeleteSql, "'", partition, "'");
                         deleteParamMap.put("query", deleteSql);
                         logger.info("reset storage days clickhouse sql:{}", deleteSql);
 
@@ -167,8 +108,8 @@ public class LogStorageQuotaJob {
             if (failCount > 0) {
                 throw new BusinessException("reset storage clickhouse ttl error, failCount " + failCount);
             }
-            logger.info("reset clickhouse {} days success",maxdays);
-            XxlJobLogger.log("reset clickhouse {} days success",maxdays);
+            logger.info("reset clickhouse {} days success", maxdays);
+            XxlJobLogger.log("reset clickhouse {} days success", maxdays);
         } catch (BusinessException be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
@@ -308,122 +249,75 @@ public class LogStorageQuotaJob {
                 logger.error("params parser error , params is {}", params);
                 return IJobHandler.FAIL;
             }
-            List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesHosServer());
-            List<String> whiteList = StringUtil.isEmpty(deletionConfig.getFilesExclusion()) ? null : Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesExclusion());
-            Header header1 = new BasicHeader(Constant.TOKEN, deletionConfig.getFilesToken());
-            Header header2 = new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML);
-            Header[] headers = {header1, header2};
+            String maxDays = String.valueOf(paramsMap.get(max_days));
+            List<String> hosHostList = parseList(deletionConfig.getFilesHosServer());
             int failCount = 0;
-            for (String endpoint : endpointList) {
-                try {
-                    String filesServer = UrlUtil.getUrl(endpoint);
-                    String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header1);
-                    if (httpGetRes != null && !"-1".equals(httpGetRes)) {
-                        ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
-                        logger.info("reset storage files ttl endpoint = {}, bucketList = {} ", endpoint, list);
-                        if (ObjectUtils.allNotNull(list, list.getBuckets(), list.getBuckets().getBucket())) {
-                            ListAllMyBucketsResult.Buckets buckets = list.getBuckets();
-                            List<ListAllMyBucketsResult.Buckets.Bucket> bucketList = buckets.getBucket();
-
-                            LifecycleConfiguration lc = new LifecycleConfiguration();
-                            lc.getRule().setExpiration(new LifecycleConfiguration.Expiration(String.valueOf(paramsMap.get(max_days))));
-
-                            for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
-                                try {
-                                    if (ObjectUtils.isNotEmpty(whiteList) && whiteList.contains(bucket.getName())) {
-                                        LifecycleConfiguration whiteLc = new LifecycleConfiguration();
-                                        whiteLc.getRule().setExpiration(new LifecycleConfiguration.Expiration("24855"));//hos保存最大年限
-                                        HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(whiteLc), headers);
-                                        continue;
-                                    }
-                                    HttpClientUtils.httpPut(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?lifecycle"), XmlUtil.converToXml(lc), headers);
-                                } catch (BusinessException e) {
-                                    failCount++;
-                                    logger.error("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
-                                    XxlJobLogger.log("failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucket, JobUtil.getErrorMsg(e));
-                                }
-                            }
-                        }
-                    } else {
-                        failCount++;
-                        logger.error("reset storage files ttl failCount = {}, endpoint = {} , fail message = I/O exception", failCount, endpoint);
-                        XxlJobLogger.log("endpoint = {} , fail message = I/O exception", endpoint);
-                    }
-                } catch (BusinessException e) {
-                    logger.error("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    failCount++;
-                }
+            for (String hosHost : hosHostList) {
+                failCount += deleteHosData(hosHost, maxDays);
             }
-            modifyLastStorage(Constant.FILES, Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
+
             if (failCount > 0) {
-                throw new BusinessException(" number of total endpoints " + endpointList.size() + ", number of failed count " + failCount);
+                JobUtil.errorLog(" number of total endpoints " + hosHostList.size() + ", number of failed count " + failCount);
+                return ReturnT.FAIL;
             }
-
         } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
+            JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
     }
 
-    //*********************************************清库**********************************************************
-
-    /**
-     * 清除所有流量数据,click hosue库
-     *
-     * @param params{"maxdays":365}
-     */
-    @XxlJob("deleteAllTrafficDataJobHandler2")
-    public ReturnT<String> deleteAllTrafficData2(String params) {
-
+    public int deleteHosData(String endpoint, String maxDays) {
+        int failCount = 0;
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
-            List<String> addressForCKs = getAddressForCK(UrlUtil.getUrl(deletionConfig.getTrafficServer()));
-            Map<String, Object> deleteParamMap = deletionConfig.getCkSource();
-            //清库命令参数
-            String deleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", deletionConfig.getTrafficDatasource(), ".");
-            int failCount = 0;
-            for (String endpoint : addressForCKs) {
+            String hosServer = UrlUtil.getUrl(endpoint);
+            // 获取桶列表
+            List<String> bucketList = getBucketList(endpoint, hosServer);
+            LifecycleConfiguration lifecycleConfig = new LifecycleConfiguration();
+
+            lifecycleConfig.getRule().setExpiration(new LifecycleConfiguration.Expiration(maxDays));
+            JobUtil.infoLog("reset storage files ttl endpoint = {}, bucketList = {} ", endpoint, bucketList);
+            for (String bucketName : bucketList) {
                 try {
-                    String url = UrlUtil.getUrl(endpoint);
-                    List<String> tablesForCKs = getTablesForCK(url, deletionConfig.getNotInSql("name", deletionConfig.getTafficExclusion()));
-                    for (String table : tablesForCKs) {
-                        try {
-                            deleteParamMap.put("query", deleteSql.concat(table));
-                            logger.info("delete clickhouse endpoint = {}, sql:{}", endpoint, deleteSql.concat(table));
-                            HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
-                        } catch (BusinessException e) {
-                            logger.error("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
-                            XxlJobLogger.log("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
-                            failCount++;
-                        }
-                    }
-                    XxlJobLogger.log("delete storage clickhouse error endpoint = {}, fail count = {}, tables = {}", endpoint, failCount, tablesForCKs);
+                    HttpClientUtils.httpPut(StringUtils.join(hosServer, "/hos/", bucketName, "?lifecycle"), XmlUtil.converToXml(lifecycleConfig), hosHeaders);
                 } catch (BusinessException e) {
-                    logger.error("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("delete storage clickhouse error endpoint = {},  fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                     failCount++;
+                    JobUtil.errorLog("reset storage files ttl failCount = {}, endpoint = {}, bucket = {}, fail message = {}", failCount, endpoint, bucketName, JobUtil.getErrorMsg(e));
                 }
             }
-            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, 0);
-            if (failCount > 0) {
-                throw new BusinessException("delete storage clickhouse error ,failCount " + failCount);
-            }
+            modifyLastStorage(Constant.FILES, Integer.valueOf(maxDays));
+        } catch (BusinessException e) {
+            JobUtil.errorLog("reset storage files ttl endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
+            failCount++;
+        }
+        return failCount;
+    }
 
-        } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
+    private List<String> getBucketList(String endpoint, String hosServer) {
+        List<String> whiteList = parseList(deletionConfig.getFilesExclusion());
+        String httpGetRes = HttpClientUtils.httpGet(hosServer + "/hos/", hosHeaders);
+        if (httpGetRes == null || "-1".equals(httpGetRes)) {
+            throw new BusinessException(StrUtil.format("reset storage files ttl endpoint = {} , fail message = I/O exception", endpoint));
         }
 
-        return ReturnT.SUCCESS;
+        List<String> bucketList = Lists.newArrayList();
+        ListAllMyBucketsResult bucketsResult = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
+
+        if (ObjectUtils.allNotNull(bucketsResult, bucketsResult.getBuckets(), bucketsResult.getBuckets().getBucket())) {
+            for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketsResult.getBuckets().getBucket()) {
+                if (ObjectUtils.isNotEmpty(whiteList) && whiteList.contains(bucket.getName())) {
+                    continue;
+                }
+                bucketList.add(bucket.getName());
+            }
+        }
+        return bucketList;
     }
+
+    private List<String> parseList(String csv) {
+        return StringUtil.isEmpty(csv) ? null : Splitter.on(",").trimResults().omitEmptyStrings().splitToList(csv);
+    }
+    //*********************************************清库**********************************************************
 
     /**
      * 清除所有流量数据,click hosue库
@@ -451,12 +345,12 @@ public class LogStorageQuotaJob {
 
                 for (String table : tablesForCKs) {
                     try {
-                       String deleteSqlCluster = String.join(" ",deleteSql, table, " ON CLUSTER ", ck_cluster);
+                        String deleteSqlCluster = String.join(" ", deleteSql, table, " ON CLUSTER ", ck_cluster);
                         deleteParamMap.put("query", deleteSqlCluster);
 
                         logger.info("delete clickhouse table = {}, sql:{}", table, deleteSqlCluster);
                         HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
-                        XxlJobLogger.log("delete clickhouse table = {}" ,table);
+                        XxlJobLogger.log("delete clickhouse table = {}", table);
 
                     } catch (BusinessException e) {
                         logger.error("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", url, table, JobUtil.getErrorMsg(e));
@@ -468,7 +362,7 @@ public class LogStorageQuotaJob {
                 XxlJobLogger.log("delete storage clickhouse endpoint = {}, fail count = {}, tables = {}", url, failCount, tablesForCKs);
 
             } catch (BusinessException e) {
-                logger.error("delete storage clickhouse error ,  fail message = {}",  JobUtil.getErrorMsg(e));
+                logger.error("delete storage clickhouse error ,  fail message = {}", JobUtil.getErrorMsg(e));
                 XxlJobLogger.log("delete storage clickhouse error ,  fail message = {}", JobUtil.getErrorMsg(e));
                 failCount++;
             }
@@ -643,41 +537,6 @@ public class LogStorageQuotaJob {
 
 
     /**
-     * 直接查询数据库获取参数
-     *
-     * @param params {"topic":"SYS-STORAGE-LOG","ckDayGrowth":"false"}
-     *               ckDayGrowth:表示是否为一天的执行一次的时间粒度
-     */
-    @XxlJob("getStorageQuotaJobHandler")
-    public ReturnT<String> getStorageQuota(String params) {
-
-        try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
-            Map resultMap = storageQuotaService.getDiskJson("true".equals(paramsMap.get("ckDayGrowth")));
-
-            //发送到kafka
-            new KafkaUtils().sendMessage(String.valueOf(paramsMap.get("topic")), (List<Object>) resultMap.get("data"));
-            XxlJobLogger.log("kafka topic is {}", paramsMap.get("topic"));
-            //查询存在问题会返回status>0
-            int status = ((Map<String, Integer>) resultMap.get("status")).values().stream().mapToInt(Integer::intValue).sum();
-            if (status > 0) {
-                return new ReturnT<String>(IJobHandler.FAIL.getCode(), " query error " + resultMap.get("status"));
-            }
-
-        } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        }
-
-        return ReturnT.SUCCESS;
-    }
-
-    /**
      * 数据库连接参数
      *
      * @return map
@@ -718,17 +577,6 @@ public class LogStorageQuotaJob {
         List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
         list.forEach(map -> tableList.addAll(map.values()));
         return tableList;
-    }
-
-    /***
-     * --查所有的IP地址
-     * @Date 2020\9\18 0018
-     * @return java.util.List<java.lang.String>
-     **/
-    private List<String> getAddressForCK(String url) {
-        List<String> endpointList = new ArrayList<>();
-        endpointList.addAll(getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT concat(host_address,':','" + trafficPort + "') as endpoint FROM ", deletionConfig.getSystemClusters(), " FORMAT JSON;")));
-        return endpointList;
     }
 
     /**
@@ -772,15 +620,16 @@ public class LogStorageQuotaJob {
      * 更新标准时间
      *
      * @param logType
-     * @param maxdays
+     * @param maxDays
      */
-    private void modifyLastStorage(String logType, Integer maxdays) {
-        // 设置标准时间,如果now - 标准时间 > maxdays,则更新 标准时间 = 当前时间-maxday
-        Long lastStorage = storageQuotaService.getLastStorage(logType);
+    private void modifyLastStorage(String logType, Integer maxDays) {
+        // 设置标准时间,如果now - 标准时间 > maxDays,则更新 标准时间 = 当前时间-maxday
+        Long lastStorage = getLastStorage(logType);
         Long now = System.currentTimeMillis() / 1000;
-        Long max = maxdays * 24 * 60 * 60L;// 单位秒
+        Long max = maxDays * 24 * 60 * 60L;// 单位秒
         if (now - lastStorage > max) {
-            storageQuotaService.modifyLastStorage(logType, String.valueOf(now - max));
+            ZookeeperUtils zk = new ZookeeperUtils();
+            zk.modifyNode(Constant.ZOOKEEPER_STORAGE_PATH + logType, String.valueOf(now - max), zookeeperServer);
         }
     }
 
@@ -793,4 +642,33 @@ public class LogStorageQuotaJob {
         return ObjectUtils.isEmpty(startTimeList) ? DateUtils.getCurrentDate() : String.valueOf(startTimeList.get(0).get("version"));
     }
 
+    /**
+     * @param node
+     * @return 自定义的标准时间 last_storage,
+     * 存在zookeeper 节点/storage/worker/+node
+     */
+    public Long getLastStorage(String node) {
+        try {
+            ZookeeperUtils zk = new ZookeeperUtils();
+            //query
+            String nodeData = zk.getNodeData(Constant.ZOOKEEPER_STORAGE_PATH + node, zookeeperServer);
+            //不存在创建一个
+            if (org.springframework.util.ObjectUtils.isEmpty(nodeData)) {
+                Long lastTime = System.currentTimeMillis() / 1000;
+                zk.modifyNode(Constant.ZOOKEEPER_STORAGE_PATH + node, String.valueOf(lastTime), zookeeperServer);
+                return lastTime;
+            }
+            Long lastStorage = Long.valueOf(nodeData);
+            logger.info("query standard time last_storage success,{}", lastStorage);
+
+            return Long.valueOf(nodeData);
+        } catch (Exception e) {
+            logger.error("query standard time last_storage fail,{}", JobUtil.getErrorMsg(e));
+            throw new BusinessException("query standard time last_storage fail ," + JobUtil.getErrorMsg(e));
+        }
+
+    }
+    class DeleteParams {
+
+    }
 }

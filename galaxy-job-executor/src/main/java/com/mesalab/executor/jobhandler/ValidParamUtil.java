@@ -3,6 +3,7 @@ package com.mesalab.executor.jobhandler;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.geedgenetworks.utils.StringUtil;
 import com.xxl.job.core.log.XxlJobLogger;
 
 import java.util.List;
@@ -53,5 +54,19 @@ public class ValidParamUtil {
             }
         }
         return paramList;
+    }
+
+    public static Map<String, Object> parseParams(String params) {
+
+        if (StringUtil.isBlank(params)) {
+            XxlJobLogger.log("params is Empty !");
+            return null;
+        }
+        Map<String, Object> paramMap = JSONUtil.toBean(params, Map.class);
+        if (paramMap == null) {
+            XxlJobLogger.log("params error !");
+            return null;
+        }
+        return paramMap;
     }
 }

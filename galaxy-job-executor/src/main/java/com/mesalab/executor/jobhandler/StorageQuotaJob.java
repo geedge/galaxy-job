@@ -5,9 +5,11 @@ import cn.hutool.core.util.StrUtil;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.core.utils.TypeUtils;
 import com.mesalab.executor.pojo.JDBCParam;
-import com.mesalab.executor.service.StorageQuotaInfoService;
+import com.mesalab.executor.service.StorageQuotaService;
 import com.xxl.job.core.biz.model.ReturnT;
+import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
+import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -25,7 +27,7 @@ import java.util.Map;
 public class StorageQuotaJob {
 
     @Resource
-    private StorageQuotaInfoService storageQuotaInfoService;
+    private StorageQuotaService storageQuotaService;
 
 
     @XxlJob("getDatabaseStorageQuotaJobHandler")
@@ -40,7 +42,7 @@ public class StorageQuotaJob {
                 Boolean containBytes = TypeUtils.castToBoolean(source.get("containBytes"));
                 JDBCParam jdbcParam = BeanUtil.toBean(paramsMap.get("sink"), JDBCParam.class);
 
-                failCount += storageQuotaInfoService.getAndSaveStorageQuotaInfo(items, jdbcParam, containBytes);
+                failCount += storageQuotaService.getAndSaveStorageQuotaInfo(items, jdbcParam, containBytes);
 
             }
         } catch (Exception e) {
@@ -49,4 +51,28 @@ public class StorageQuotaJob {
         }
         return failCount > 0 ? ReturnT.FAIL : ReturnT.SUCCESS;
     }
+
+    @XxlJob("deleteOldLogJobHandler")
+    public ReturnT<String> deleteOldLogJobHandler(String params) {
+
+        int failCount = 0;
+        try {
+            Map<String, Object> paramsMap = ValidParamUtil.parseParams(params);
+            if (ObjectUtils.isEmpty(paramsMap)) {
+                JobUtil.errorLog("params parse error , params is {}", params);
+                return IJobHandler.FAIL;
+            }
+            String logType = TypeUtils.castToString(paramsMap.get("logType"));
+            int maxUsage = TypeUtils.castToInt(paramsMap.get("maxUsage"));
+            int minIntervalMinutes = TypeUtils.castToInt(paramsMap.get("minIntervalMinutes"));
+
+            failCount += storageQuotaService.deleteOldLog(logType, maxUsage, minIntervalMinutes);
+
+        } catch (Exception e) {
+            failCount++;
+            JobUtil.errorLog("getDatabaseStorageQuota job error:", e.getMessage());
+        }
+        return failCount > 0 ? ReturnT.FAIL : ReturnT.SUCCESS;
+    }
+
 }

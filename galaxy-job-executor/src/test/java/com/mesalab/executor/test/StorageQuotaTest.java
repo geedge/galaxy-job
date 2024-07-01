@@ -10,7 +10,6 @@ import com.mesalab.executor.core.utils.Constant;
 import com.mesalab.executor.core.utils.KafkaUtils;
 import com.mesalab.executor.jobhandler.LogStorageQuotaJob;
 import com.mesalab.executor.pojo.JDBCParam;
-import com.mesalab.executor.service.StorageQuotaInfoService;
 import com.mesalab.executor.service.StorageQuotaService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
@@ -18,7 +17,6 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
 import java.util.HashMap;
@@ -33,17 +31,6 @@ import java.util.stream.Collectors;
 public class StorageQuotaTest {
 
     @Autowired
-    StorageQuotaService storageQuotaService;
-
-    @Test
-    public void storageQuotaServiceTest() {
-
-        Map diskJson = storageQuotaService.getDiskJson(false);
-        Assert.notEmpty(diskJson, "存储配额获取失败");
-
-    }
-
-    @Autowired
     LogStorageQuotaJob logStorageQuotaJob;
 
     /**
@@ -56,19 +43,6 @@ public class StorageQuotaTest {
 //		Assert.isTrue(200==(deleteAllFiles.getCode()),"success");
     }
 
-    /**
-     * 设置文件存储策略
-     */
-//	@Test
-//	public void deleteFilesTest() {
-//		ReturnT<String> deleteFiles = logStorageQuotaJob.deleteFiles("{\"maxdays\":365}");
-//		Assert.isTrue(200 == (deleteFiles.getCode()), "success");
-//	}
-    @Test
-    public void zookeeperTest() {
-        Long lastStorage = storageQuotaService.getLastStorage("Files");
-        Assert.notNull(lastStorage, "获取标准时间失败");
-    }
 
     @Test
     public void testS() {
@@ -102,7 +76,7 @@ public class StorageQuotaTest {
 
 
     @Resource
-    StorageQuotaInfoService storageQuotaInfoService;
+    StorageQuotaService storageQuotaService;
 
     @Test
     public void testStorage2() {
@@ -114,9 +88,9 @@ public class StorageQuotaTest {
         sourceParams.put("username", "root");
         sourceParams.put("pin", "galaxy2019");
         JDBCParam jdbcParam = new JDBCParam(sourceParams);
-        storageQuotaInfoService.getAndSaveStorageQuotaInfo(new String[]{Constant.TRAFFIC_LOGS}, jdbcParam, true);
-        storageQuotaInfoService.getAndSaveStorageQuotaInfo(new String[]{Constant.METRICS}, jdbcParam, true);
-        storageQuotaInfoService.getAndSaveStorageQuotaInfo(new String[]{Constant.FILES}, jdbcParam, true);
+        storageQuotaService.getAndSaveStorageQuotaInfo(new String[]{Constant.TRAFFIC_LOGS}, jdbcParam, true);
+        storageQuotaService.getAndSaveStorageQuotaInfo(new String[]{Constant.METRICS}, jdbcParam, true);
+        storageQuotaService.getAndSaveStorageQuotaInfo(new String[]{Constant.FILES}, jdbcParam, true);
 
     }
 }

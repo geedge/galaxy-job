@@ -17,7 +17,6 @@ import com.mesalab.executor.core.utils.HttpClientUtils;
 import com.mesalab.executor.core.utils.SpringContextUtil;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.ColumnParam;
-import com.mesalab.executor.service.StorageQuotaService;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
@@ -36,8 +35,6 @@ public class LogStorageTtlJob {
     private static final String trafficPort = "8123";
     private static final int materializeTtlAfterModify = 0;
 
-    @Autowired
-    StorageQuotaService storageQuotaService;
     @Autowired
     ConfigService configService;
 
