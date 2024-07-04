@@ -8,6 +8,7 @@ public class Constant {
     public static final String TRAFFIC_LOGS = "Traffic Logs";
     public static final String METRICS = "Metrics";
     public static final String MAX_DAYS = "maxDays";
+    public static final int ONE_DAY = 86400;
 
     // zookeeper /path+node
     public static final String ZK_TRAFFIC_LOGS = "Traffic-Logs";

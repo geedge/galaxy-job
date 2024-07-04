@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.db.handler.NumberHandler;
 import cn.hutool.db.sql.SqlExecutor;
+import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import com.geedgenetworks.utils.DateUtils;
 import com.google.common.collect.Lists;
@@ -16,6 +17,7 @@ import com.mesalab.executor.pojo.JDBCParam;
 import com.mesalab.executor.pojo.JobResult;
 import com.mesalab.executor.pojo.SysStorageEvent;
 import com.xxl.job.core.biz.model.ReturnT;
+import lombok.Data;
 import org.apache.groovy.util.Maps;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
@@ -25,10 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.annotation.Resource;
-import javax.management.timer.Timer;
 import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * @Description:
@@ -45,8 +47,11 @@ public class StorageQuotaService {
 
     //查询历史数据时允许的最大间隔second
     private static final int MAX_QUERY_INTERVAL = 2 * 60 * 60;
-    final String clickhouseMaxSizeSql = StrUtil.format("SELECT SUM(`total_space`) FROM {};", storgeConfig.getSystemDisks());
-    final String clickhouseUsedSizeSql = StrUtil.format("SELECT SUM(`bytes_on_disk`) FROM {} WHERE database = '{}' ;", storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource());
+    private final String clickhouseMaxSizeSql = StrUtil.format("SELECT SUM(`total_space`) FROM {};", storgeConfig.getSystemDisks());
+    private final String clickhouseUsedSizeSql = StrUtil.format("SELECT SUM(`bytes_on_disk`) FROM {} WHERE database = '{}' and active = 1;", storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource());
+
+    private final String druidMaxSizeSql = "{\"query\":\"SELECT SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
+    private final String druidUsedSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 and is_overshadowed = 0\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
 
     @Value("${zookeeper.server}")
     private String zookeeperServer;
@@ -62,13 +67,13 @@ public class StorageQuotaService {
             try {
                 switch (logType) {
                     case Constant.TRAFFIC_LOGS:
-                        jobResult = getClickhouseStorageInfo(jdbcParam, containBytes);
+                        jobResult = getStorageQuota(jdbcParam, containBytes, storgeConfig.getTrafficDataCenter(), logType, Constant.ZK_TRAFFIC_LOGS);
                         break;
                     case Constant.METRICS:
-                        jobResult = getDruidStorageInfo(jdbcParam, containBytes);
+                        jobResult = getStorageQuota(jdbcParam, containBytes, storgeConfig.getAnalyticDataCenter(), logType, Constant.ZK_REPORT_AND_METRICS);
                         break;
                     case Constant.FILES:
-                        jobResult = getHosStorageInfo(jdbcParam, containBytes);
+                        jobResult = getStorageQuota(jdbcParam, containBytes, storgeConfig.getFilesDataCenter(), logType, Constant.FILES);
                         break;
                     default:
                         break;
@@ -92,13 +97,16 @@ public class StorageQuotaService {
         try {
             switch (logType) {
                 case Constant.TRAFFIC_LOGS:
-                    failCount+=  deleteClickhouseOldLog(maxUsage, minIntervalMinutes);
+                    failCount += deleteOldLogs(storgeConfig.getTrafficDataCenter(), maxUsage, minIntervalMinutes,
+                            host -> getUsage(getClickhouseStorageInfo(host)), logStorageQuotaJob::deleteTrafficDataByCluster, Constant.ZK_TRAFFIC_LOGS);
                     break;
                 case Constant.METRICS:
-                    failCount+=  deleteDruidOldLog(maxUsage, minIntervalMinutes);
+                    failCount += deleteOldLogs(storgeConfig.getAnalyticDataCenter(), maxUsage, minIntervalMinutes,
+                            host -> getUsage(getDruidStorageInfo(host)), logStorageQuotaJob::deleteReportAndMetricsData, Constant.ZK_REPORT_AND_METRICS);
                     break;
                 case Constant.FILES:
-                    failCount+=  deleteHosOldLog(maxUsage, minIntervalMinutes);
+                    failCount += deleteOldLogs(storgeConfig.getFilesDataCenter(), maxUsage, minIntervalMinutes,
+                            host -> getUsage(getHosStorageInfo(host)), logStorageQuotaJob::deleteFiles, Constant.FILES);
                     break;
                 default:
                     break;
@@ -110,138 +118,58 @@ public class StorageQuotaService {
         return failCount;
     }
 
-    public int deleteClickhouseOldLog(int maxUsage, int minIntervalMinutes) {
+    /**
+     * @param dataCenterMap
+     * @param maxUsage
+     * @param minIntervalMinutes
+     * @param getUsageFunction
+     * @param deleteFunction
+     * @param zkPath
+     * // 1.获取删除天数 /datacenter maxDays = now - data_center_last_storage - 1
+     * // 2.空则使用 maxDays = now - last_storage - 1
+     * // 3.调用删除接口 参数maxDays, 记录日志
+     * // 4.修改 datacenter时间
+     */
+    private int deleteOldLogs(Map<String, String> dataCenterMap, int maxUsage, int minIntervalMinutes,
+                              Function<String, Double> getUsageFunction, Function<String, ReturnT<String>> deleteFunction, String zkPath) {
         int failCount = 0;
-        for (Map.Entry<String, String> datacenterMap : storgeConfig.getTrafficDataCenter().entrySet()) {
+        for (Map.Entry<String, String> entry : dataCenterMap.entrySet()) {
             try {
-                String dataCenterHost = datacenterMap.getValue();
-                String dataCenterName = datacenterMap.getKey();
-
-                String zkClearTimePath = StrUtil.join("/", Constant.ZK_TRAFFIC_LOGS, dataCenterName, Constant.ZOOKEEPER_STORAGE_CLEAR_TIME);
+                String dataCenterHost = entry.getValue();
+                String dataCenterName = entry.getKey();
+                String zkClearTimePath = StrUtil.join("/", zkPath, dataCenterName, Constant.ZOOKEEPER_STORAGE_CLEAR_TIME);
 
                 if (!checkStorageInterval(zkClearTimePath, minIntervalMinutes)) {
                     continue;
                 }
-                double clickhouseUsage = getClickhouseUsage(dataCenterHost, dataCenterName);
-                if (maxUsage <= clickhouseUsage * 100d) {
-                    // 1.获取删除天数 /datacenter maxDays = now - data_center_last_storage - 1
-                    // 2.空则使用 maxDays = now - last_storage - 1
-                    // 3.调用删除接口 参数maxDays, 记录日志
-                    // 4.修改 datacenter时间
-                    String zkDcLastStoragePath = StrUtil.join("/", Constant.ZK_TRAFFIC_LOGS, dataCenterName);
+                double usage = getUsageFunction.apply(dataCenterHost);
+                if (maxUsage <= usage * 100d) {
+                    String zkDcLastStoragePath = StrUtil.join("/", zkPath, dataCenterName);
                     Long lastStorageTime = getLastStorage(zkDcLastStoragePath);
                     if (lastStorageTime == null) {
-                        lastStorageTime = getLastStorage(Constant.ZK_TRAFFIC_LOGS);
+                        lastStorageTime = getLastStorage(zkPath);
+                        if (lastStorageTime == null) {
+                            continue;
+                        }
                     }
-                    // 删除1天
-                    long storageTime = lastStorageTime - Timer.ONE_DAY;
-                    Long maxDays = DateUtil.currentSeconds() - storageTime;
+                    long storageTime = lastStorageTime + Constant.ONE_DAY;
+                    long maxDays = DateUtil.betweenDay(DateUtil.date(storageTime * 1000), DateUtil.date(), true);
 
-                    ReturnT<String> deleteResult = logStorageQuotaJob.deleteTrafficDataByCluster(Maps.of(Constant.MAX_DAYS, maxDays).toString());
+                    ReturnT<String> deleteResult = deleteFunction.apply(JSONUtil.toJsonStr(Maps.of(Constant.MAX_DAYS, maxDays)));
                     if (deleteResult.getCode() != 200) {
                         failCount++;
-                        JobUtil.errorLog("{} clickhouse log delete fail {}", dataCenterName, deleteResult.getMsg());
+                        JobUtil.errorLog("{} log delete fail {}", dataCenterName, deleteResult.getMsg());
                         continue;
                     }
                     setLastStorage(zkDcLastStoragePath, storageTime);
-                    JobUtil.infoLog("{} clickhouse log delete success {}");
+                    setLastStorage(zkClearTimePath, DateUtil.currentSeconds());
+                    JobUtil.infoLog("{} log delete success", dataCenterName);
                 }
             } catch (Exception e) {
                 failCount++;
-                JobUtil.errorLog("clickhouse delete log error {}", e.getMessage());
+                JobUtil.errorLog("delete log error {}", e.getMessage());
             }
         }
-
-        return failCount;
-    }
-
-    public int deleteDruidOldLog(int maxUsage, int minIntervalMinutes) {
-        int failCount = 0;
-        for (Map.Entry<String, String> datacenterMap : storgeConfig.getAnalyticDataCenter().entrySet()) {
-            try {
-                String dataCenterHost = datacenterMap.getValue();
-                String dataCenterName = datacenterMap.getKey();
-
-                String zkClearTimePath = StrUtil.join("/", Constant.ZK_REPORT_AND_METRICS, dataCenterName, Constant.ZOOKEEPER_STORAGE_CLEAR_TIME);
-
-                if (!checkStorageInterval(zkClearTimePath, minIntervalMinutes)) {
-                    continue;
-                }
-                double clickhouseUsage = getClickhouseUsage(dataCenterHost, dataCenterName);
-                if (maxUsage <= clickhouseUsage * 100d) {
-                    // 1.获取删除天数 /datacenter maxDays = now - data_center_last_storage - 1
-                    // 2.空则使用 maxDays = now - last_storage - 1
-                    // 3.调用删除接口 参数maxDays, 记录日志
-                    // 4.修改 datacenter时间
-                    String zkDcLastStoragePath = StrUtil.join("/", Constant.ZK_REPORT_AND_METRICS, dataCenterName);
-                    Long lastStorageTime = getLastStorage(zkDcLastStoragePath);
-                    if (lastStorageTime == null) {
-                        lastStorageTime = getLastStorage(Constant.ZK_REPORT_AND_METRICS);
-                    }
-                    // 删除1天
-                    long storageTime = lastStorageTime - Timer.ONE_DAY;
-                    Long maxDays = DateUtil.currentSeconds() - storageTime;
-
-                    ReturnT<String> deleteResult = logStorageQuotaJob.deleteReportAndMetricsData(Maps.of(Constant.MAX_DAYS, maxDays).toString());
-                    if (deleteResult.getCode() != 200) {
-                        failCount++;
-                        JobUtil.errorLog("{} druid log delete fail {}", dataCenterName, deleteResult.getMsg());
-                        continue;
-                    }
-                    setLastStorage(zkDcLastStoragePath, storageTime);
-                    JobUtil.infoLog("{} druid log delete success {}");
-                }
-            } catch (Exception e) {
-                failCount++;
-                JobUtil.errorLog("druid delete log error {}", e.getMessage());
-            }
-        }
-
-        return failCount;
-    }
-
-    public int deleteHosOldLog(int maxUsage, int minIntervalMinutes) {
-        int failCount = 0;
-        for (Map.Entry<String, String> datacenterMap : storgeConfig.getFilesDataCenter().entrySet()) {
-            try {
-                String dataCenterHost = datacenterMap.getValue();
-                String dataCenterName = datacenterMap.getKey();
-
-                String zkClearTimePath = StrUtil.join("/", Constant.FILES, dataCenterName, Constant.ZOOKEEPER_STORAGE_CLEAR_TIME);
-
-                if (!checkStorageInterval(zkClearTimePath, minIntervalMinutes)) {
-                    continue;
-                }
-                double clickhouseUsage = getClickhouseUsage(dataCenterHost, dataCenterName);
-                if (maxUsage <= clickhouseUsage * 100d) {
-                    // 1.获取删除天数 /datacenter maxDays = now - data_center_last_storage - 1
-                    // 2.空则使用 maxDays = now - last_storage - 1
-                    // 3.调用删除接口 参数maxDays, 记录日志
-                    // 4.修改 datacenter时间
-                    String zkDcLastStoragePath = StrUtil.join("/", Constant.FILES, dataCenterName);
-                    Long lastStorageTime = getLastStorage(zkDcLastStoragePath);
-                    if (lastStorageTime == null) {
-                        lastStorageTime = getLastStorage(Constant.FILES);
-                    }
-                    // 删除1天
-                    long storageTime = lastStorageTime - Timer.ONE_DAY;
-                    Long maxDays = DateUtil.currentSeconds() - storageTime;
-
-                    ReturnT<String> deleteResult = logStorageQuotaJob.deleteFiles(Maps.of(Constant.MAX_DAYS, maxDays).toString());
-                    if (deleteResult.getCode() != 200) {
-                        failCount++;
-                        JobUtil.errorLog("{} hos log delete fail {}", dataCenterName, deleteResult.getMsg());
-                        continue;
-                    }
-                    setLastStorage(zkDcLastStoragePath, storageTime);
-                    JobUtil.infoLog("{} hos log delete success {}");
-                }
-            } catch (Exception e) {
-                failCount++;
-                JobUtil.errorLog("hos delete log error {}", e.getMessage());
-            }
-        }
-
         return failCount;
     }
 
@@ -255,17 +183,12 @@ public class StorageQuotaService {
         return true;
     }
 
-    private double getClickhouseUsage(String dataCenterHost, String dataCenterName) {
-        Map<String, Object> ckParamMap = storgeConfig.getCkSource();
-        // 1. 总计
-        ckParamMap.put("query", clickhouseMaxSizeSql);
-        Long totalSize = queryClickhouse(dataCenterHost, ckParamMap);
-        //2. 已使用
-        ckParamMap.put("query", clickhouseUsedSizeSql);
-        Long usedSize = queryClickhouse(dataCenterHost, ckParamMap);
+    private double getUsage(StorageSizeInfo storageSizeInfo) {
+        Long totalSize = storageSizeInfo.getTotalSize();
+        Long usedSize = storageSizeInfo.getUsedSize();
         double usage = usedSize / (double) totalSize;
         usage = Double.valueOf(String.format("%.4f", usage));
-        JobUtil.infoLog("clickhouse total size {}, used size {}, usage {}",totalSize, usedSize, usage);
+        JobUtil.infoLog("total size {}, used size {}, usage {}", totalSize, usedSize, usage);
         return usage;
     }
 
@@ -297,42 +220,35 @@ public class StorageQuotaService {
         JobUtil.infoLog("set storage data ... ");
     }
 
-    private JobResult<SysStorageEvent> getClickhouseStorageInfo(JDBCParam jdbcParam, boolean containIncrease) throws Exception {
-
+    private JobResult<SysStorageEvent> getStorageQuota(JDBCParam jdbcParam, boolean containIncrease, Map<String, String> dataCenterMap, String logType, String zkNode) {
         List<SysStorageEvent> sysStorageEvents = Lists.newArrayList();
-        JobResult<SysStorageEvent> jobResult = new JobResult();
+        JobResult<SysStorageEvent> jobResult = new JobResult<>();
         int failCount = 0;
         long generatedTime = DateUtil.currentSeconds();
-        Long sinceTime = getLastStorage(Constant.ZK_TRAFFIC_LOGS);
-        for (Map.Entry<String, String> datacenterMap : storgeConfig.getTrafficDataCenter().entrySet()) {
+        Long sinceTime = getLastStorage(zkNode);
+        for (Map.Entry<String, String> entry : dataCenterMap.entrySet()) {
             try {
-                String datacenterHost = datacenterMap.getValue();
-                String datacenterName = datacenterMap.getKey();
-                Map<String, Object> ckParamMap = storgeConfig.getCkSource();
-                // 1. 总计
-                ckParamMap.put("query", clickhouseMaxSizeSql);
-                Long totalSize = queryClickhouse(datacenterHost, ckParamMap);
-                //2. 已使用
-                ckParamMap.put("query", clickhouseUsedSizeSql);
-                Long usedSize = queryClickhouse(datacenterHost, ckParamMap);
+                String dataCenterHost = entry.getValue();
+                String dataCenterName = entry.getKey();
+                StorageSizeInfo storageSizeInfo = getStorageSizeInfo(dataCenterHost, logType);
 
-                //3. 增量
-                Long bytes = containIncrease ? 0L : getIncreaseSize(jdbcParam, usedSize, datacenterMap.getKey(), Constant.TRAFFIC_LOGS);
+                Long bytes = containIncrease ? 0L : getIncreaseSize(jdbcParam, storageSizeInfo.getUsedSize(), entry.getKey(), logType);
+
                 SysStorageEvent storageEvent = SysStorageEvent.builder()
-                        .logType(Constant.TRAFFIC_LOGS)
-                        .dataCenter(datacenterName)
+                        .logType(logType)
+                        .dataCenter(dataCenterName)
                         .generatedTime(generatedTime)
-                        .totalAllocatedSize(totalSize)
-                        .usedSize(usedSize)
+                        .totalAllocatedSize(storageSizeInfo.getTotalSize())
+                        .usedSize(storageSizeInfo.getUsedSize())
                         .bytes(bytes)
                         .sinceTime(sinceTime)
                         .build();
 
                 sysStorageEvents.add(storageEvent);
-                JobUtil.infoLog("Get clickhouse storage info {}:", storageEvent.toString());
+                JobUtil.infoLog("Get {} storage info {}:", logType, storageEvent.toString());
             } catch (Exception e) {
                 failCount++;
-                JobUtil.errorLog("Get clickhouse storage error : datacenter {}, message {}", datacenterMap.getKey(), e.getMessage());
+                JobUtil.errorLog("Get {} storage error : datacenter {}, message {}", logType, entry.getKey(), e.getMessage());
             }
         }
         jobResult.setFailCount(failCount);
@@ -340,93 +256,23 @@ public class StorageQuotaService {
         return jobResult;
     }
 
-    private JobResult<SysStorageEvent> getDruidStorageInfo(JDBCParam jdbcParam, boolean containIncrease) throws Exception {
-
-        final String maxSizeSql = "{\"query\":\"SELECT SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
-        final String usedSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 and is_overshadowed = 0\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
-
-        List<SysStorageEvent> sysStorageEvents = Lists.newArrayList();
-        JobResult<SysStorageEvent> jobResult = new JobResult();
-        int failCount = 0;
-        long generatedTime = DateUtil.currentSeconds();
-        Long sinceTime = getLastStorage(Constant.ZK_REPORT_AND_METRICS);
-        for (Map.Entry<String, String> datacenterMap : storgeConfig.getAnalyticDataCenter().entrySet()) {
-            try {
-                String datacenterHost = datacenterMap.getValue();
-                String datacenterName = datacenterMap.getKey();
-                // 1. 总计
-                Long totalSize = queryDruid(datacenterHost, maxSizeSql);
-                //2. 已使用
-                Long usedSize = queryDruid(datacenterHost, usedSizeSql);
-
-                //3. 增量
-                Long bytes = containIncrease ? 0L : getIncreaseSize(jdbcParam, usedSize, datacenterMap.getKey(), Constant.METRICS);
-
-                SysStorageEvent storageEvent = SysStorageEvent.builder()
-                        .logType(Constant.METRICS)
-                        .dataCenter(datacenterName)
-                        .generatedTime(generatedTime)
-                        .totalAllocatedSize(totalSize)
-                        .usedSize(usedSize)
-                        .bytes(bytes)
-                        .sinceTime(sinceTime)
-                        .build();
-
-                sysStorageEvents.add(storageEvent);
-                JobUtil.infoLog("Get druid storage info {}:", storageEvent.toString());
-            } catch (Exception e) {
-                failCount++;
-                JobUtil.errorLog("Get druid storage error : datacenter {}, message {}", datacenterMap.getKey(), e.getMessage());
-            }
+    private StorageSizeInfo getStorageSizeInfo(String dataCenterHost, String logType) {
+        StorageSizeInfo storageSizeInfo = null;
+        switch (logType) {
+            case Constant.TRAFFIC_LOGS:
+                storageSizeInfo = getClickhouseStorageInfo(dataCenterHost);
+                break;
+            case Constant.METRICS:
+                storageSizeInfo = getDruidStorageInfo(dataCenterHost);
+                break;
+            case Constant.FILES:
+                storageSizeInfo = getHosStorageInfo(dataCenterHost);
+                break;
+            default:
+                break;
         }
-        jobResult.setFailCount(failCount);
-        jobResult.setData(sysStorageEvents);
-        return jobResult;
+        return storageSizeInfo;
     }
-
-    private JobResult<SysStorageEvent> getHosStorageInfo(JDBCParam jdbcParam, boolean containIncrease) throws Exception {
-
-        List<SysStorageEvent> sysStorageEvents = Lists.newArrayList();
-        JobResult<SysStorageEvent> jobResult = new JobResult();
-        int failCount = 0;
-        Long generatedTime = DateUtil.currentSeconds();
-        Long sinceTime = getLastStorage(Constant.FILES);
-        for (Map.Entry<String, String> datacenterMap : storgeConfig.getFilesDataCenter().entrySet()) {
-            try {
-                String datacenterHost = datacenterMap.getValue();
-                String datacenterName = datacenterMap.getKey();
-
-                HosSpace hosSpace = getHosSpace(datacenterHost, datacenterName);
-                Long totalSize = hosSpace.getHosCapacity();
-                Long usedSize = hosSpace.getHosUsed();
-                if (totalSize == -1 || usedSize == -1) {
-                    throw new BusinessException("hos server error : " + datacenterName);
-                }
-
-                //3. 增量
-                Long bytes = containIncrease ? 0L : getIncreaseSize(jdbcParam, usedSize, datacenterMap.getKey(), Constant.FILES);
-                SysStorageEvent storageEvent = SysStorageEvent.builder()
-                        .logType(Constant.FILES)
-                        .dataCenter(datacenterName)
-                        .generatedTime(generatedTime)
-                        .totalAllocatedSize(totalSize)
-                        .usedSize(usedSize)
-                        .bytes(bytes)
-                        .sinceTime(sinceTime)
-                        .build();
-
-                sysStorageEvents.add(storageEvent);
-                JobUtil.infoLog("Get hos storage info {}:", storageEvent.toString());
-            } catch (Exception e) {
-                failCount++;
-                JobUtil.errorLog("Get hos storage error : datacenter {}, message {}", datacenterMap.getKey(), e.getMessage());
-            }
-        }
-        jobResult.setFailCount(failCount);
-        jobResult.setData(sysStorageEvents);
-        return jobResult;
-    }
-
 
     private Long getIncreaseSize(JDBCParam jdbcParam, Long usedSize, String datacenter, String logType) throws Exception {
         final String lastUsedSizeSql = "SELECT used_size FROM " + jdbcParam.getTable() + " WHERE log_type = '" + logType + "' and data_center = '" + datacenter
@@ -463,17 +309,47 @@ public class StorageQuotaService {
         return Long.valueOf(result.trim());
     }
 
-    public HosSpace getHosSpace(String datacenterHost, String datacenterName) {
+    public StorageSizeInfo getClickhouseStorageInfo(String datacenterHost) {
+        Map<String, Object> ckParamMap = storgeConfig.getCkSource();
+        // 1. 总计
+        ckParamMap.put("query", clickhouseMaxSizeSql);
+        Long totalSize = queryClickhouse(datacenterHost, ckParamMap);
+        //2. 已使用
+        ckParamMap.put("query", clickhouseUsedSizeSql);
+        Long usedSize = queryClickhouse(datacenterHost, ckParamMap);
+
+        StorageSizeInfo storageSizeInfo = new StorageSizeInfo();
+        storageSizeInfo.setTotalSize(totalSize);
+        storageSizeInfo.setUsedSize(usedSize);
+        return storageSizeInfo;
+    }
+
+    public StorageSizeInfo getDruidStorageInfo(String datacenterHost) {
+        // 1. 总计
+        Long totalSize = queryDruid(datacenterHost, druidMaxSizeSql);
+        //2. 已使用
+        Long usedSize = queryDruid(datacenterHost, druidUsedSizeSql);
+
+        StorageSizeInfo storageSizeInfo = new StorageSizeInfo();
+        storageSizeInfo.setTotalSize(totalSize);
+        storageSizeInfo.setUsedSize(usedSize);
+        return storageSizeInfo;
+    }
+
+    public StorageSizeInfo getHosStorageInfo(String datacenterHost) {
         final String fileStoragePath = "/admin/diskspace";
         Header[] headers = {new BasicHeader(Constant.TOKEN, storgeConfig.getFilesToken()),
                 new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML)};
         String result = HttpClientUtils.httpGet(UrlUtil.getUrl(datacenterHost).concat(fileStoragePath), headers);
 
         if ("-1".equals(result)) {
-            throw new BusinessException("Get hos http request fail -1 , server: " + datacenterName);
+            throw new BusinessException("Get hos http request fail -1 , server: " + datacenterHost);
         }
         HosSpace hosSpace = XmlUtil.converXmlToBean(HosSpace.class, result);
-        return hosSpace;
+        StorageSizeInfo storageSizeInfo = new StorageSizeInfo();
+        storageSizeInfo.setTotalSize(hosSpace.getHosCapacity());
+        storageSizeInfo.setUsedSize(hosSpace.getHosUsed());
+        return storageSizeInfo;
     }
 
     /**
@@ -499,7 +375,14 @@ public class StorageQuotaService {
 
     private void setLastStorage(String path, Long lastStorage) {
         ZookeeperUtils zk = new ZookeeperUtils();
-        zk.modifyNode(path, String.valueOf(lastStorage), zookeeperServer);
+        zk.modifyNode(Constant.ZOOKEEPER_STORAGE_PATH + path, String.valueOf(lastStorage), zookeeperServer);
+    }
+
+    @Data
+    class StorageSizeInfo {
+        private Long totalSize;
+        private Long usedSize;
+
     }
 
 }
