@@ -668,7 +668,4 @@ public class LogStorageQuotaJob {
         }
 
     }
-    class DeleteParams {
-
-    }
 }

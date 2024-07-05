@@ -51,7 +51,7 @@ public class StorageQuotaService {
     private final String clickhouseUsedSizeSql = StrUtil.format("SELECT SUM(`bytes_on_disk`) FROM {} WHERE database = '{}' and active = 1;", storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource());
 
     private final String druidMaxSizeSql = "{\"query\":\"SELECT SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
-    private final String druidUsedSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 and is_overshadowed = 0\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
+    private final String druidUsedSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
 
     @Value("${zookeeper.server}")
     private String zookeeperServer;
@@ -124,11 +124,10 @@ public class StorageQuotaService {
      * @param minIntervalMinutes
      * @param getUsageFunction
      * @param deleteFunction
-     * @param zkPath
-     * // 1.获取删除天数 /datacenter maxDays = now - data_center_last_storage - 1
-     * // 2.空则使用 maxDays = now - last_storage - 1
-     * // 3.调用删除接口 参数maxDays, 记录日志
-     * // 4.修改 datacenter时间
+     * @param zkPath             // 1.获取删除天数 /datacenter maxDays = now - data_center_last_storage - 1
+     *                           // 2.空则使用 maxDays = now - last_storage - 1
+     *                           // 3.调用删除接口 参数maxDays, 记录日志
+     *                           // 4.修改 datacenter时间
      */
     private int deleteOldLogs(Map<String, String> dataCenterMap, int maxUsage, int minIntervalMinutes,
                               Function<String, Double> getUsageFunction, Function<String, ReturnT<String>> deleteFunction, String zkPath) {
@@ -155,6 +154,8 @@ public class StorageQuotaService {
                     long storageTime = lastStorageTime + Constant.ONE_DAY;
                     long maxDays = DateUtil.betweenDay(DateUtil.date(storageTime * 1000), DateUtil.date(), true);
 
+                    JobUtil.infoLog("delete old log maxDays: {}", maxDays);
+
                     ReturnT<String> deleteResult = deleteFunction.apply(JSONUtil.toJsonStr(Maps.of(Constant.MAX_DAYS, maxDays)));
                     if (deleteResult.getCode() != 200) {
                         failCount++;
@@ -164,6 +165,7 @@ public class StorageQuotaService {
                     setLastStorage(zkDcLastStoragePath, storageTime);
                     setLastStorage(zkClearTimePath, DateUtil.currentSeconds());
                     JobUtil.infoLog("{} log delete success", dataCenterName);
+                    logger.warn("{} log delete success", dataCenterName);
                 }
             } catch (Exception e) {
                 failCount++;
@@ -176,7 +178,7 @@ public class StorageQuotaService {
     private boolean checkStorageInterval(String zkClearTimePath, int minIntervalMinutes) {
         long now = DateUtil.currentSeconds();
         Long lastStorage = getLastStorage(zkClearTimePath);
-        if (lastStorage != null && now - lastStorage <= minIntervalMinutes * 60) {
+        if (lastStorage != null && now - lastStorage < minIntervalMinutes * 60) {
             JobUtil.infoLog("The deletion task is being executed");
             return false;
         }
@@ -232,7 +234,7 @@ public class StorageQuotaService {
                 String dataCenterName = entry.getKey();
                 StorageSizeInfo storageSizeInfo = getStorageSizeInfo(dataCenterHost, logType);
 
-                Long bytes = containIncrease ? 0L : getIncreaseSize(jdbcParam, storageSizeInfo.getUsedSize(), entry.getKey(), logType);
+                Long bytes = containIncrease ? getIncreaseSize(jdbcParam, storageSizeInfo.getUsedSize(), entry.getKey(), logType) : 0L;
 
                 SysStorageEvent storageEvent = SysStorageEvent.builder()
                         .logType(logType)
@@ -317,7 +319,7 @@ public class StorageQuotaService {
         //2. 已使用
         ckParamMap.put("query", clickhouseUsedSizeSql);
         Long usedSize = queryClickhouse(datacenterHost, ckParamMap);
-
+        usedSize = usedSize > totalSize ? totalSize : usedSize;
         StorageSizeInfo storageSizeInfo = new StorageSizeInfo();
         storageSizeInfo.setTotalSize(totalSize);
         storageSizeInfo.setUsedSize(usedSize);
@@ -329,6 +331,7 @@ public class StorageQuotaService {
         Long totalSize = queryDruid(datacenterHost, druidMaxSizeSql);
         //2. 已使用
         Long usedSize = queryDruid(datacenterHost, druidUsedSizeSql);
+        usedSize = usedSize > totalSize ? totalSize : usedSize;
 
         StorageSizeInfo storageSizeInfo = new StorageSizeInfo();
         storageSizeInfo.setTotalSize(totalSize);
@@ -346,9 +349,12 @@ public class StorageQuotaService {
             throw new BusinessException("Get hos http request fail -1 , server: " + datacenterHost);
         }
         HosSpace hosSpace = XmlUtil.converXmlToBean(HosSpace.class, result);
+        Long totalSize = hosSpace.getHosCapacity();
+        Long usedSize = hosSpace.getHosUsed();
+        usedSize = usedSize > totalSize ? totalSize : usedSize;
         StorageSizeInfo storageSizeInfo = new StorageSizeInfo();
-        storageSizeInfo.setTotalSize(hosSpace.getHosCapacity());
-        storageSizeInfo.setUsedSize(hosSpace.getHosUsed());
+        storageSizeInfo.setTotalSize(totalSize);
+        storageSizeInfo.setUsedSize(usedSize);
         return storageSizeInfo;
     }
 
