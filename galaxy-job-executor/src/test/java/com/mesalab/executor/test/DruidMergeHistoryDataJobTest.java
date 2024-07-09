@@ -62,27 +62,27 @@ public class DruidMergeHistoryDataJobTest {
                 "    {\n" +
                 "      \"type\": \"compact\",\n" +
                 "      \"dataSource\": \"object_statistics_test\",\n" +
-                "      \"interval\": \"2024-05-16/2024-05-17\",\n" +
+                "      \"interval\": \"2024-06-14/2024-06-15\",\n" +
                 "      \"tuningConfig\" : {\n" +
                 "        \"type\" : \"index_parallel\",\n" +
                 "        \"maxNumConcurrentSubTasks\" : 2\n" +
                 "      },\n" +
                 "      \"granularitySpec\" : {\n" +
                 "        \"segmentGranularity\": \"DAY\",\n" +
-                "        \"queryGranularity\": \"HOUR\"\n" +
+                "        \"queryGranularity\": \"DAY\"\n" +
                 "      },\n" +
                 "    },\n" +
                 "    {\n" +
                 "      \"type\": \"compact\",\n" +
                 "      \"dataSource\": \"object_statistics\",\n" +
-                "      \"interval\": \"2024-05-16/2024-05-17\",\n" +
+                "      \"interval\": \"2024-06-14/2024-06-15\",\n" +
                 "      \"tuningConfig\" : {\n" +
                 "        \"type\" : \"index_parallel\",\n" +
                 "        \"maxNumConcurrentSubTasks\" : 2\n" +
                 "      },\n" +
                 "      \"granularitySpec\" : {\n" +
                 "        \"segmentGranularity\": \"DAY\",\n" +
-                "        \"queryGranularity\": \"HOUR\"\n" +
+                "        \"queryGranularity\": \"DAY\"\n" +
                 "      },\n" +
                 "    }\n" +
                 "]";
@@ -95,7 +95,7 @@ public class DruidMergeHistoryDataJobTest {
 
     public ReturnT<String> druidMergeHistoryDataJobHandler (String params)  {
         //final String server = updateConfig.getAnalyticServer();
-        final String server = "192.168.41.29:8089";
+        final String server = "192.168.41.29:8088";
 
         try {
             DruidCompactUtil druidCompactUtil = DruidCompactUtil.getInstance(server);
@@ -111,7 +111,7 @@ public class DruidMergeHistoryDataJobTest {
                 return ReturnT.SUCCESS;
             }
 
-            JSONArray paramArray = parseParams(params);
+            JSONArray paramArray = parseParams(params, druidCompactUtil);
             List<JSONObject> submittedTaskParams = new ArrayList<>();
             List<DruidWaitedSubmitTaskParam> waitedSubmitTaskParams = new ArrayList<>();
             JSONObject paramTemplate;
@@ -120,7 +120,7 @@ public class DruidMergeHistoryDataJobTest {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -164,7 +164,7 @@ public class DruidMergeHistoryDataJobTest {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -225,13 +225,14 @@ public class DruidMergeHistoryDataJobTest {
         return ReturnT.SUCCESS;
     }
 
-    public JSONArray parseParams(String params) {
+    public JSONArray parseParams(String params, DruidCompactUtil druidCompactUtil) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC")); // 默认结束时间是UTC时间
 
         JSONArray paramArray = JSON.parseArray(params);
         for (int i = 0; i < paramArray.size(); i++) {
             JSONObject param = paramArray.getJSONObject(i);
+            druidCompactUtil.generateOverrideCompactTaskDefaultParam(param);
             String paramStr = param.toString();
             Preconditions.checkArgument("compact".equals(param.getString("type")), "type must is compact:%s", paramStr);
             Preconditions.checkArgument(param.getString("dataSource") != null, "dataSource is required:%s", paramStr);

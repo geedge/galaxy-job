@@ -4,6 +4,7 @@ import cn.hutool.log.Log;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.alibaba.fastjson2.JSONPath;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mesalab.executor.core.utils.HttpClientUtils;
@@ -111,6 +112,92 @@ public class DruidCompactUtil {
         }else{
             return DruidShouldCompactResult.notShould("already merged", totalRowCount, totalByteSize, fileCount, maxNumConcurrentSubTasks);
         }
+    }
+
+    public void generateOverrideCompactTaskDefaultParam(JSONObject param){
+        String dataSource = param.getString("dataSource");
+        JSONObject defaultParam = extractCompactTaskDefaultParam(dataSource);
+        Object dimensionsSpec = defaultParam.get("dimensionsSpec");
+        Object metricsSpec = defaultParam.get("metricsSpec");
+        JSONObject granularitySpec = (JSONObject) defaultParam.get("granularitySpec");
+        if(!param.containsKey("dimensionsSpec") && dimensionsSpec != null){
+            param.put("dimensionsSpec", dimensionsSpec);
+        }
+        if(!param.containsKey("metricsSpec") && metricsSpec != null){
+            param.put("metricsSpec", metricsSpec);
+        }
+        if(granularitySpec != null){
+            if(!param.containsKey("granularitySpec")){
+                param.put("granularitySpec", new JSONObject());
+            }
+            JSONObject granularityParam = param.getJSONObject("granularitySpec");
+            if(!granularityParam.containsKey("segmentGranularity") && granularitySpec.containsKey("segmentGranularity")){
+                granularityParam.put("segmentGranularity", granularitySpec.get("segmentGranularity"));
+            }
+            if(!granularityParam.containsKey("queryGranularity") && granularitySpec.containsKey("queryGranularity")){
+                granularityParam.put("queryGranularity", granularitySpec.get("queryGranularity"));
+            }
+            if(!granularityParam.containsKey("rollup") && granularitySpec.containsKey("rollup")){
+                granularityParam.put("rollup", granularitySpec.get("rollup"));
+            }
+        }
+    }
+
+    public JSONObject extractCompactTaskDefaultParam(String dataSource){
+        JSONObject defaultSpec = new JSONObject(8);
+
+        try {
+            String url = UrlUtil.getUrl(server, "/druid/indexer/v1/supervisor/" + dataSource);
+            String response = HttpClientUtils.httpGet(url);
+            JSONObject spec = JSON.parseObject(response);
+
+            // 提取任务配置: 有多种配置方式
+            String[] dimensionsPaths = new String[]{"$.dataSchema.dimensionsSpec", "$.spec.dataSchema.dimensionsSpec", "$.dataSchema.parser.parseSpec.dimensionsSpec"};
+            String[] metricsPaths = new String[]{"$.dataSchema.metricsSpec", "$.spec.dataSchema.metricsSpec"};
+            String[] granularityPaths = new String[]{"$.dataSchema.granularitySpec", "$.spec.dataSchema.granularitySpec"};
+            JSONObject dimensionsSpec = null;
+            JSONArray metricsSpec = null;
+            JSONObject granularitySpec = null;
+            JSONObject metric;
+            String fieldName;
+            String name;
+
+            for (String dimensionsPath : dimensionsPaths) {
+                dimensionsSpec = (JSONObject) JSONPath.of(dimensionsPath).eval(spec);
+                if(dimensionsSpec != null){
+                    break;
+                }
+            }
+            for (String metricsPath : metricsPaths) {
+                metricsSpec = (JSONArray) JSONPath.of(metricsPath).eval(spec);
+                if(metricsSpec != null){
+                    for (int i = 0; i < metricsSpec.size(); i++) {
+                        metric = metricsSpec.getJSONObject(i);
+                        fieldName = metric.getString("fieldName");
+                        name = metric.getString("name");
+                        if(fieldName != null && !fieldName.equals(name)){
+                            metric.put("fieldName", name);
+                        }
+                    }
+                    break;
+                }
+            }
+            for (String granularityPath : granularityPaths) {
+                granularitySpec = (JSONObject) JSONPath.of(granularityPath).eval(spec);
+                if(granularitySpec != null){
+                    break;
+                }
+            }
+
+            defaultSpec.put("dimensionsSpec", dimensionsSpec);
+            defaultSpec.put("metricsSpec", metricsSpec);
+            defaultSpec.put("granularitySpec", granularitySpec);
+        } catch (Exception e) {
+            XxlJobLogger.log("extract compact task default param error:" + e.getMessage());
+            XxlJobLogger.log(e);
+        }
+
+        return defaultSpec;
     }
 
     public void submitCompactTask(JSONObject param, List<JSONObject> submittedTaskParams){

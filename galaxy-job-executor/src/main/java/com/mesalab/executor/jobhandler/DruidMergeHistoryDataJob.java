@@ -54,7 +54,7 @@ public class DruidMergeHistoryDataJob {
                 return ReturnT.SUCCESS;
             }
 
-            JSONArray paramArray = parseParams(params);
+            JSONArray paramArray = parseParams(params, druidCompactUtil);
             List<JSONObject> submittedTaskParams = new ArrayList<>();
             List<DruidWaitedSubmitTaskParam> waitedSubmitTaskParams = new ArrayList<>();
             JSONObject paramTemplate;
@@ -63,7 +63,7 @@ public class DruidMergeHistoryDataJob {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -107,7 +107,7 @@ public class DruidMergeHistoryDataJob {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -168,13 +168,14 @@ public class DruidMergeHistoryDataJob {
         return ReturnT.SUCCESS;
     }
 
-    public JSONArray parseParams(String params) {
+    public JSONArray parseParams(String params, DruidCompactUtil druidCompactUtil) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC")); // 默认结束时间是UTC时间
 
         JSONArray paramArray = JSON.parseArray(params);
         for (int i = 0; i < paramArray.size(); i++) {
             JSONObject param = paramArray.getJSONObject(i);
+            druidCompactUtil.generateOverrideCompactTaskDefaultParam(param);
             String paramStr = param.toString();
             Preconditions.checkArgument("compact".equals(param.getString("type")), "type must is compact:%s", paramStr);
             Preconditions.checkArgument(param.getString("dataSource") != null, "dataSource is required:%s", paramStr);

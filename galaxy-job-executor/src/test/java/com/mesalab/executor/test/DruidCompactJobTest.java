@@ -5,6 +5,7 @@ import cn.hutool.log.Log;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.alibaba.fastjson2.JSONWriter;
 import com.geedgenetworks.utils.StringUtil;
 import com.google.common.base.Preconditions;
 import com.mesalab.executor.jobhandler.DruidCompactUtil;
@@ -39,6 +40,21 @@ import java.util.List;
 @Slf4j
 public class DruidCompactJobTest {
     private Log logger = Log.get();
+
+    @Test
+    public void extractCompactTaskDefaultParamTest() throws Exception {
+        final String server = "192.168.44.12:8089";
+        DruidCompactUtil druidCompactUtil = DruidCompactUtil.getInstance(server);
+        //JSONObject jsonObject = druidCompactUtil.extractCompactTaskDefaultParam("object_statistics");
+        //System.out.println(jsonObject);
+        String[] tables = new String[]{"sys_storage_log", "statistics_rule", "object_statistics", "application_protocol_stat", "security_rule_hits", "monitor_rule_hits", "traffic_general_stat", "top_server_ips", "traffic_shaping_rule_hits", "service_chaining_rule_hits", "service_function_status", "statistics_rule_hits", "top_client_ips", "top_external_ips", "top_internal_ips", "top_server_domains", "top_server_fqdns", "proxy_rule_hits", "top_server_countries", "top_client_countries", "dos_protection_rule_hits", "dos_protection_rule_metric", "dos_sketch_top_server_ip"};
+        for (String table : tables) {
+            JSONObject jsonObject = druidCompactUtil.extractCompactTaskDefaultParam(table);
+            System.out.println(table + ":");
+            System.out.println(jsonObject.toJSONString(JSONWriter.Feature.PrettyFormat));
+            System.out.println("#################");
+        }
+    }
 
     /**
      * 压缩测试
@@ -109,7 +125,7 @@ public class DruidCompactJobTest {
                 return ReturnT.SUCCESS;
             }
 
-            JSONArray paramArray = parseParams(params);
+            JSONArray paramArray = parseParams(params, druidCompactUtil);
             List<JSONObject> submittedTaskParams = new ArrayList<>();
             List<DruidWaitedSubmitTaskParam> waitedSubmitTaskParams = new ArrayList<>();
             JSONObject paramTemplate;
@@ -118,7 +134,7 @@ public class DruidCompactJobTest {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -162,7 +178,7 @@ public class DruidCompactJobTest {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -173,7 +189,7 @@ public class DruidCompactJobTest {
                 String endDate = endTime;
 
                 // 检查补录前两天compact任务
-                for (int j = 1; j <= 2; j++) {
+                for (int j = 1; j <= 1; j++) {
                     startDate = LocalDate.parse(startTime).minusDays(j).toString();
                     endDate = LocalDate.parse(startDate).plusDays(1).toString();
 
@@ -223,7 +239,7 @@ public class DruidCompactJobTest {
         return ReturnT.SUCCESS;
     }
 
-    public JSONArray parseParams(String params) {
+    public JSONArray parseParams(String params, DruidCompactUtil druidCompactUtil) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC")); // 默认结束时间是UTC时间
         LocalDateTime defaultEndDateTime = now.getHour() >= 1? now: now.plusDays(-1); // 如果hour在1小时内, 结束时间往前推一天
@@ -232,6 +248,7 @@ public class DruidCompactJobTest {
         JSONArray paramArray = JSON.parseArray(params);
         for (int i = 0; i < paramArray.size(); i++) {
             JSONObject param = paramArray.getJSONObject(i);
+            druidCompactUtil.generateOverrideCompactTaskDefaultParam(param);
             String paramStr = param.toString();
             Preconditions.checkArgument("compact".equals(param.getString("type")), "type must is compact:%s", paramStr);
             Preconditions.checkArgument(param.getString("dataSource") != null, "dataSource is required:%s", paramStr);

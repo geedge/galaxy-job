@@ -58,7 +58,7 @@ public class DruidCompactJob {
                 return ReturnT.SUCCESS;
             }
 
-            JSONArray paramArray = parseParams(params);
+            JSONArray paramArray = parseParams(params, druidCompactUtil);
             List<JSONObject> submittedTaskParams = new ArrayList<>();
             List<DruidWaitedSubmitTaskParam> waitedSubmitTaskParams = new ArrayList<>();
             JSONObject paramTemplate;
@@ -67,7 +67,7 @@ public class DruidCompactJob {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -111,7 +111,7 @@ public class DruidCompactJob {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = paramTemplate.clone();
+                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
                 String dataSource = param.getString("dataSource");
                 int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
                 final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
@@ -122,7 +122,7 @@ public class DruidCompactJob {
                 String endDate = endTime;
 
                 // 检查补录前两天compact任务
-                for (int j = 1; j <= 2; j++) {
+                for (int j = 1; j <= 1; j++) {
                     startDate = LocalDate.parse(startTime).minusDays(j).toString();
                     endDate = LocalDate.parse(startDate).plusDays(1).toString();
 
@@ -172,7 +172,7 @@ public class DruidCompactJob {
         return ReturnT.SUCCESS;
     }
 
-    public JSONArray parseParams(String params) {
+    public JSONArray parseParams(String params, DruidCompactUtil druidCompactUtil) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC")); // 默认结束时间是UTC时间
         LocalDateTime defaultEndDateTime = now.getHour() >= 1? now: now.plusDays(-1); // 如果hour在1小时内, 结束时间往前推一天
@@ -181,6 +181,7 @@ public class DruidCompactJob {
         JSONArray paramArray = JSON.parseArray(params);
         for (int i = 0; i < paramArray.size(); i++) {
             JSONObject param = paramArray.getJSONObject(i);
+            druidCompactUtil.generateOverrideCompactTaskDefaultParam(param);
             String paramStr = param.toString();
             Preconditions.checkArgument("compact".equals(param.getString("type")), "type must is compact:%s", paramStr);
             Preconditions.checkArgument(param.getString("dataSource") != null, "dataSource is required:%s", paramStr);
