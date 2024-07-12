@@ -222,7 +222,10 @@ public class JobUtil {
         logger.info(msg, arguments);
         XxlJobLogger.log(msg, arguments);
     }
-
+    public static void warnLog(String msg, Object... arguments) {
+        logger.warn(msg, arguments);
+        XxlJobLogger.log(msg, arguments);
+    }
     public static void errorLog(String msg, Object... arguments) {
         logger.error(msg, arguments);
         XxlJobLogger.log(msg, arguments);

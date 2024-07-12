@@ -16,5 +16,4 @@ public class GalaxyExecutorApplication {
 		System.setProperty("jasypt.encryptor.password", "galaxy");
         SpringApplication.run(GalaxyExecutorApplication.class, args);
 	}
-
 }

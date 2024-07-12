@@ -2,6 +2,8 @@ package com.mesalab.executor.jobhandler;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.mesalab.executor.core.utils.JobUtil;
 import com.mesalab.executor.core.utils.TypeUtils;
 import com.mesalab.executor.pojo.JDBCParam;
@@ -63,10 +65,10 @@ public class StorageQuotaJob {
                 return IJobHandler.FAIL;
             }
             String logType = TypeUtils.castToString(paramsMap.get("logType"));
-            int maxUsage = TypeUtils.castToInt(paramsMap.get("maxUsage"));
+            double maxUsage = TypeUtils.castToInt(paramsMap.get("maxUsage")) / 100D;
             int minIntervalMinutes = TypeUtils.castToInt(paramsMap.get("minIntervalMinutes"));
-
-            failCount += storageQuotaService.deleteOldLog(logType, maxUsage, minIntervalMinutes);
+            JDBCParam jdbcParam = JSONUtil.toBean((JSONObject) paramsMap.get("jdbcParam"), JDBCParam.class);
+            failCount += storageQuotaService.deleteOldLog(logType, maxUsage, minIntervalMinutes, jdbcParam);
 
         } catch (Exception e) {
             failCount++;

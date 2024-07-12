@@ -9,7 +9,9 @@ public class Constant {
     public static final String METRICS = "Metrics";
     public static final String MAX_DAYS = "maxDays";
     public static final int ONE_DAY = 86400;
-
+    public static final Long ONE_MONTH = 30 * 24 * 3600L;
+    public static final Long ONE_YEAR = 365 * 24 * 3600L;
+    public static final String DRUID_URL = "/druid/v2/sql";
     // zookeeper /path+node
     public static final String ZK_TRAFFIC_LOGS = "Traffic-Logs";
     public static final String ZK_REPORT_AND_METRICS = "Report-and-Metrics";
