@@ -1,9 +1,6 @@
 package com.mesalab.executor.test;
 
 import cn.hutool.core.date.DateUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.db.handler.BeanListHandler;
-import cn.hutool.db.sql.SqlExecutor;
 import cn.hutool.json.JSONUtil;
 import com.geedgenetworks.utils.DateUtils;
 import com.geedgenetworks.utils.JsonMapper;
@@ -27,7 +24,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import javax.annotation.Resource;
-import java.sql.Connection;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -158,21 +154,22 @@ public class StorageQuotaTest {
     public void testQueryMysql() {
         String mysqlSql = "SELECT UNIX_TIMESTAMP(FROM_UNIXTIME(generated_time,'%Y%m%d')) AS date, sum(bytes) AS used_size FROM sys_storage_event WHERE log_type='Files' AND data_center='xxg' GROUP BY date, log_type ORDER BY date ASC";
 
-        try (Connection conn = DBUtils.getDBConn(jdbcParam)) {
-            List<DailyStorage> dailyStorageList = SqlExecutor.query(conn, mysqlSql, new BeanListHandler<>(DailyStorage.class));
-            log.info(dailyStorageList.toString());
-        } catch (Exception e) {
-            log.error(e.getMessage());
-        }
+//        try (Connection conn = DBUtils.getDBConn(jdbcParam)) {
+//            List<DailyStorage> dailyStorageList = SqlExecutor.query(conn, mysqlSql, new BeanListHandler<>(DailyStorage.class));
+//            log.info(dailyStorageList.toString());
+//        } catch (Exception e) {
+//            log.error(e.getMessage());
+//        }
+        System.err.println(DateUtil.parseDate(DateUtil.today()).getTime());
     }
 
-    private final String clickhouseDailyUsedSizeSql = StrUtil.format("SELECT DISTINCT(`partition`) as date, SUM(`bytes_on_disk`) as bytes  from system.parts_cluster  WHERE database = '{}' {} and active = 1 group by date;",
-            storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource(), storgeConfig.getNotInSql("table", storgeConfig.getTafficExclusion()));
-    private final String druidDailyUsedSizeSql = "{\"query\":\"SELECT \\\"start\\\" as \\\"date\\\", sum(\\\"size\\\") as bytes from sys.segments where is_published = 1 and \\\"start\\\" < '3000' " + storgeConfig.getNotInSql("datasource", storgeConfig.getAnalyticExclusion()) + " group by \\\"start\\\" ORDER BY \\\"start\\\" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+//    public final String clickhouseDailyUsedSizeSql = StrUtil.format("SELECT DISTINCT(`partition`) as date, SUM(`bytes_on_disk`) as bytes  from {}  WHERE database = '{}' {} and date <=  formatDateTime(now(),'%Y%m%d') and active = 1 group by date;",
+//            storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource(), storgeConfig.getNotInSql("table", storgeConfig.getTafficExclusion()));
+//    public final String druidDailyUsedSizeSql = "{\"query\":\"SELECT \\\"start\\\" as \\\"date\\\", sum(\\\"size\\\") as bytes from sys.segments where is_published = 1 and \\\"start\\\" < '3000' " + storgeConfig.getNotInSql("datasource", storgeConfig.getAnalyticExclusion()) + " group by \\\"start\\\" ORDER BY \\\"start\\\" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
 
     private List<DailyStorage> getClickhouseDaily(String dataCenterHost) {
         Map<String, Object> ckParamMap = storgeConfig.getCkSource();
-        ckParamMap.put("query", clickhouseDailyUsedSizeSql);
+        ckParamMap.put("query", "clickhouseDailyUsedSizeSql");
         String result = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(dataCenterHost), ckParamMap));
         if ("-1".equals(result)) {
             throw new BusinessException("Get clickhouse http fail -1");
@@ -191,7 +188,7 @@ public class StorageQuotaTest {
     }
 
     private List<DailyStorage> getDruidDaily(String dataCenterHost) {
-        String result = HttpClientUtils.httpPost(UrlUtil.getUrl(dataCenterHost, Constant.DRUID_URL), druidDailyUsedSizeSql);
+        String result = HttpClientUtils.httpPost(UrlUtil.getUrl(dataCenterHost, Constant.DRUID_URL), "druidDailyUsedSizeSql");
         if ("-1".equals(result)) {
             throw new BusinessException("Get druid http fail -1");
         }
