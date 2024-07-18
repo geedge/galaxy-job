@@ -91,14 +91,23 @@ public class KnowledgeBaseService {
 
             ResultSetMetaData metaData = resultSet.getMetaData();
             int columnLength = metaData.getColumnCount();
-            while (resultSet.next()) {
-                Map<String, Object> map = new HashMap<>();
+            if (resultSet.next()) {
+                while (resultSet.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    for (int i = 0; i < columnLength; i++) {
+                        String columnName = metaData.getColumnName(i + 1);
+                        Object value = resultSet.getObject(columnName);
+                        map.put(columnName, value);
+                    }
+                    collect.add(map);
+                }
+            } else {
+                Map<String, Object> headerMap = new HashMap<>();
                 for (int i = 0; i < columnLength; i++) {
                     String columnName = metaData.getColumnName(i + 1);
-                    Object value = resultSet.getObject(columnName);
-                    map.put(columnName, value);
+                    headerMap.put(columnName, null);
                 }
-                collect.add(map);
+                collect.add(headerMap);
             }
         }
         return collect;
@@ -122,12 +131,12 @@ public class KnowledgeBaseService {
      */
     public boolean push(KnowledgeBase knowledgeBase, File tmpFile, String url) throws BusinessException {
         try {
-            if(knowledgeBase.getIs_encryption()== 1){
+            if (knowledgeBase.getIs_encryption() == 1) {
                 knowledgeBase.setFormat("aes");
                 File tmpEncryptFile = new File(StringUtil.join(tmpFile.getParentFile(), File.separator, knowledgeBase.getName(), knowledgeBase.getFormat()));
-                JobUtil.encrypt(Constant.ENCRYPT_KEY,tmpFile,tmpEncryptFile);
+                JobUtil.encrypt(Constant.ENCRYPT_KEY, tmpFile, tmpEncryptFile);
                 tmpFile = tmpEncryptFile;
-                JobUtil.infoLog("knowledgeBase encrypt" ,knowledgeBase.getName());
+                JobUtil.infoLog("knowledgeBase encrypt", knowledgeBase.getName());
             }
             String resultStr = HttpClientUtils.httpPostFile(url, tmpFile, BeanUtil.beanToMap(knowledgeBase));
             JobUtil.infoLog("knowledgeBase info {}, response {}", knowledgeBase.toString(), resultStr);
@@ -193,7 +202,7 @@ public class KnowledgeBaseService {
         String workDir = JobUtil.exeCmd(workDirCmd);
         String imagesName = JobUtil.exeCmd(imagesNameCmd);
 
-        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:"+ KNOWLEDGE_WORK_DIR +" --name perl-mmdb "+ imagesName +" sh -c 'cd "+ KNOWLEDGE_WORK_DIR +" && perl " + script + ".pl'";
+        final String cmd = "docker run --rm --network=host -v " + workDir + "/mmdb:" + KNOWLEDGE_WORK_DIR + " --name perl-mmdb " + imagesName + " sh -c 'cd " + KNOWLEDGE_WORK_DIR + " && perl " + script + ".pl'";
         JobUtil.infoLog("ip locate run perl cmd {}", cmd);
 
         int executeResult = JobUtil.executeCommand(cmd);
@@ -247,7 +256,7 @@ public class KnowledgeBaseService {
      */
     public static boolean checkSample(String path, String filename, String script) throws Exception {
 
-        final String builtinStatusFile = script+"_builtin_status.json";
+        final String builtinStatusFile = script + "_builtin_status.json";
 
         MMDBStatus mmdbStatus = JobUtil.readJsonFile(path + File.separator + builtinStatusFile, MMDBStatus.class);
         JobUtil.infoLog("builtin ip locate library result: status {}, message {}", mmdbStatus.getStatus(), mmdbStatus.getMessage());
@@ -255,7 +264,7 @@ public class KnowledgeBaseService {
             JobUtil.errorLog("builtin status fail {}", mmdbStatus.getStatus());
             return false;
         }
-        if (mmdbStatus.getTotal() == 0 ) {
+        if (mmdbStatus.getTotal() == 0) {
             JobUtil.errorLog("perl query failed result: total {}.", mmdbStatus.getTotal());
             return false;
         }
@@ -263,9 +272,9 @@ public class KnowledgeBaseService {
         List<String> ipSample = mmdbStatus.getIpSample();
         String samplePath = path + File.separator + filename;
         if ("ip".equals(script)) {
-           return JobUtil.ipKnowledgeNotEmpty(samplePath,"",ipSample);
-        }else if ("asn".equals(script)) {
-           return JobUtil.asnKnowledgeNotEmpty(samplePath,"",ipSample);
+            return JobUtil.ipKnowledgeNotEmpty(samplePath, "", ipSample);
+        } else if ("asn".equals(script)) {
+            return JobUtil.asnKnowledgeNotEmpty(samplePath, "", ipSample);
         }
         return true;
     }
@@ -286,16 +295,16 @@ public class KnowledgeBaseService {
                         if (result.get("status") != null && "200".equals(String.valueOf(result.get("status")))) {
                             deleteMetadata(knowledgeId);
                             JobUtil.infoLog("knowledgeBase delete success");
-                        }else {
-                            failCount ++;
+                        } else {
+                            failCount++;
                         }
                     } else {
                         JobUtil.errorLog("knowledgeBase delete fail");
-                        failCount ++;
+                        failCount++;
                     }
                 }
             }
-            if(failCount > 0 ){
+            if (failCount > 0) {
                 return false;
             }
             return true;

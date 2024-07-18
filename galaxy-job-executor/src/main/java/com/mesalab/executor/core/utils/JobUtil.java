@@ -90,7 +90,9 @@ public class JobUtil {
             if (ObjectUtil.isNotEmpty(maps)) {
                 Object[] fieldArr = maps.get(0).keySet().toArray();
                 result.add(Arrays.asList(fieldArr));
-                maps.forEach(m -> result.add(m.values()));
+                if (maps.size() > 1) {
+                    maps.forEach(m -> result.add(m.values()));
+                }
             }
             writer.write(result);
             return file;
