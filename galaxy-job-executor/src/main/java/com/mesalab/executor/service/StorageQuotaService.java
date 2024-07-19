@@ -61,6 +61,7 @@ public class StorageQuotaService {
 
     private final String druidMaxSizeSql = "{\"query\":\"SELECT SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
     private final String druidUsedSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
+    private final String druidUsedActiveSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 and is_active=1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
     private final String mysqlDailyUsedSizeSql = "SELECT UNIX_TIMESTAMP(FROM_UNIXTIME(generated_time,'%Y%m%d')) AS date, sum(bytes) AS bytes FROM {}.{} WHERE generated_time <= CURRENT_TIMESTAMP AND generated_time > UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR)) AND  log_type='{}' AND data_center='{}' GROUP BY date, log_type ORDER BY date DESC";
     private final String druidDailyUsedSizeSql = "{\"query\":\"SELECT \\\"start\\\" as \\\"date\\\", sum(\\\"size\\\") as bytes from sys.segments where is_published = 1 and \\\"start\\\" < '3000' " + storgeConfig.getNotInSql("datasource", storgeConfig.getAnalyticExclusion()) + " group by \\\"start\\\" ORDER BY \\\"start\\\" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
 
@@ -95,7 +96,7 @@ public class StorageQuotaService {
         for (String logType : logTypes) {
             JobResult<SysStorageEvent> jobResult = new JobResult<>();
             try {
-                JobUtil.infoLog("--------------Get {} storage info.-----------", logType);
+                JobUtil.infoLog("--------------Get {} storage info task.-----------", logType);
                 switch (logType) {
                     case Constant.TRAFFIC_LOGS:
                         jobResult = getStorageQuota(jdbcParam, containBytes, storgeConfig.getTrafficDataCenter(), logType, Constant.ZK_TRAFFIC_LOGS);
@@ -122,22 +123,22 @@ public class StorageQuotaService {
         return failCount;
     }
 
-    public int deleteOldLog(String logType, Double maxUsage, int minIntervalMinutes, JDBCParam jdbcParam) {
+    public int deleteOldLog(String logType, Double maxUsage, int durationMinutes, int minIntervalMinutes, JDBCParam jdbcParam) {
 
         int failCount = 0;
         try {
-            JobUtil.infoLog("--------------Delete {} old log.--------------------", logType);
+            JobUtil.infoLog("--------------Delete {} old log task.--------------------", logType);
             switch (logType) {
                 case Constant.TRAFFIC_LOGS:
-                    failCount += deleteOldLogs(storgeConfig.getTrafficDataCenter(), maxUsage, minIntervalMinutes, jdbcParam, logType,
+                    failCount += deleteOldLogs(storgeConfig.getTrafficDataCenter(), maxUsage, durationMinutes, minIntervalMinutes, jdbcParam, logType,
                             this::getClickhouseStorageInfoByUnreserved, logStorageQuotaJob::deleteTrafficDataByCluster, counterTrafficLogsDelete::increment, Constant.ZK_TRAFFIC_LOGS);
                     break;
                 case Constant.METRICS:
-                    failCount += deleteOldLogs(storgeConfig.getAnalyticDataCenter(), maxUsage, minIntervalMinutes, jdbcParam, logType,
+                    failCount += deleteOldLogs(storgeConfig.getAnalyticDataCenter(), maxUsage, durationMinutes, minIntervalMinutes, jdbcParam, logType,
                             this::getDruidStorageInfo, logStorageQuotaJob::deleteReportAndMetricsData, counterMetricsDelete::increment, Constant.ZK_REPORT_AND_METRICS);
                     break;
                 case Constant.FILES:
-                    failCount += deleteOldLogs(storgeConfig.getFilesDataCenter(), maxUsage, minIntervalMinutes, jdbcParam, logType,
+                    failCount += deleteOldLogs(storgeConfig.getFilesDataCenter(), maxUsage, durationMinutes, minIntervalMinutes, jdbcParam, logType,
                             this::getHosStorageInfo, logStorageQuotaJob::deleteFiles, counterFilesDelete::increment, Constant.FILES);
                     break;
                 default:
@@ -158,7 +159,7 @@ public class StorageQuotaService {
      * @param deleteFunction
      * @param zkPath
      */
-    private int deleteOldLogs(Map<String, String> dataCenterMap, Double maxUsage, int minIntervalMinutes, JDBCParam jdbcParam, String logType,
+    private int deleteOldLogs(Map<String, String> dataCenterMap, Double maxUsage, int durationMinutes, int minIntervalMinutes, JDBCParam jdbcParam, String logType,
                               Function<String, StorageSizeInfo> getStorageInfo,
                               Function<String, ReturnT<String>> deleteFunction,
                               Consumer<Double> setMonitor,
@@ -174,16 +175,24 @@ public class StorageQuotaService {
                 String dataCenterName = entry.getKey();
                 String zkClearTimePath = StrUtil.join("/", zkPath, dataCenterName, Constant.ZOOKEEPER_STORAGE_CLEAR_TIME);
 
+                // 距离上次删除最小时间
                 if (!checkStorageInterval(zkClearTimePath, minIntervalMinutes)) {
                     continue;
                 }
+
                 StorageSizeInfo storageSizeInfo = getStorageInfo.apply(dataCenterHost);
-                if (maxUsage <= storageSizeInfo.getUsage()) {
+                boolean overMaxUsage = maxUsage <= storageSizeInfo.getUsage();
+                // 距离上次达到时间
+                if (!checkOverMaxUsageDuration(overMaxUsage, zkPath, dataCenterName, durationMinutes)) {
+                    continue;
+                }
+                if (overMaxUsage) {
 
                     List<DailyStorage> historyStorageDaily = getHistoryStorageDaily(jdbcParam, logType, dataCenterName, dataCenterHost);
 
                     Long deleteDate = getDeleteDate(historyStorageDaily, storageSizeInfo.getTotalSize(), maxUsage, zkPath, dataCenterName);
                     long maxDays = DateUtil.betweenDay(DateUtil.date(deleteDate * 1000), DateUtil.date(), true);
+                    maxDays = maxDays < 1 ? 1 : maxDays;
 
                     JobUtil.infoLog("delete old log date : {}, maxDays: {}", DateUtil.date(deleteDate * 1000), maxDays);
                     ReturnT<String> deleteResult = deleteFunction.apply(JSONUtil.toJsonStr(Maps.of(Constant.MAX_DAYS, maxDays)));
@@ -193,8 +202,8 @@ public class StorageQuotaService {
                         JobUtil.errorLog("{} log delete fail {}", dataCenterName, deleteResult.getMsg());
                         continue;
                     }
-                    setLastStorage(StrUtil.join("/", zkPath, dataCenterName), deleteDate);
-                    setLastStorage(zkClearTimePath, DateUtil.currentSeconds());
+                    setZkStorageNode(StrUtil.join("/", zkPath, dataCenterName), deleteDate);
+                    setZkStorageNode(zkClearTimePath, DateUtil.currentSeconds());
 
                     setMonitor.accept(1D);
                     JobUtil.warnLog("{} log delete success", dataCenterName);
@@ -207,9 +216,34 @@ public class StorageQuotaService {
         return failCount;
     }
 
+    private boolean checkOverMaxUsageDuration(boolean overMaxUsage, String zkPath, String dataCenterName, int durationMinutes) {
+        String zkDurationTimePath = StrUtil.join("/", zkPath, dataCenterName, Constant.ZOOKEEPER_STORAGE_DURATION_TIME);
+        String zkOverMaxUsagePath = StrUtil.join("/", zkPath, dataCenterName, Constant.ZOOKEEPER_STORAGE_OVER_MAX_USAGE);
+
+        // 1. 超限：获取记录，如为0，则改为1，获取持续时间，是否超时：超时: true,未超时: false
+        // 2. 未超限：false
+        if (overMaxUsage) {
+            Long hasOverMaxUsage = getZkStorageNode(zkOverMaxUsagePath);
+            Long lastOverTime = getZkStorageNode(zkDurationTimePath);
+            if (hasOverMaxUsage == null || lastOverTime == null || hasOverMaxUsage == 0) {
+                setZkStorageNode(zkOverMaxUsagePath, 1L);
+                setZkStorageNode(zkDurationTimePath, DateUtil.currentSeconds());
+                JobUtil.warnLog("The log storage usage has first over the max usage limit.");
+                return false;
+            }
+            if (hasOverMaxUsage == 1 && DateUtil.currentSeconds() - lastOverTime >= durationMinutes * 60) {
+                JobUtil.infoLog("The deletion task has been out of limit for {} minutes", durationMinutes);
+                setZkStorageNode(zkOverMaxUsagePath, 0L);
+                setZkStorageNode(zkDurationTimePath, DateUtil.currentSeconds());
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean checkStorageInterval(String zkClearTimePath, int minIntervalMinutes) {
         long now = DateUtil.currentSeconds();
-        Long lastStorage = getLastStorage(zkClearTimePath);
+        Long lastStorage = getZkStorageNode(zkClearTimePath);
         if (lastStorage != null && now - lastStorage < minIntervalMinutes * 60) {
             JobUtil.infoLog("The deletion task is running");
             return false;
@@ -257,7 +291,7 @@ public class StorageQuotaService {
         JobResult<SysStorageEvent> jobResult = new JobResult<>();
         int failCount = 0;
         long generatedTime = DateUtil.currentSeconds();
-        Long sinceTime = getLastStorage(zkNode);
+        Long sinceTime = getZkStorageNode(zkNode);
         for (Map.Entry<String, String> entry : dataCenterMap.entrySet()) {
             try {
                 String dataCenterHost = entry.getValue();
@@ -479,10 +513,9 @@ public class StorageQuotaService {
 
     /**
      * @param node
-     * @return 自定义的标准时间 last_storage,
-     * 存在zookeeper 节点/storage/worker/+node
+     * @return 存在zookeeper 节点/storage/worker/+node
      */
-    private Long getLastStorage(String node) {
+    private Long getZkStorageNode(String node) {
         try {
             ZookeeperUtils zk = new ZookeeperUtils();
             String nodeData = zk.getNodeData(Constant.ZOOKEEPER_STORAGE_PATH + node, zookeeperServer);
@@ -490,16 +523,16 @@ public class StorageQuotaService {
                 return null;
             }
             Long lastStorage = Long.valueOf(nodeData);
-            logger.info("query standard time last_storage success,{}", lastStorage);
+            logger.info("query storage success,{}", lastStorage);
             return Long.valueOf(nodeData);
         } catch (Exception e) {
             throw new BusinessException("query standard time last_storage fail ," + JobUtil.getErrorMsg(e));
         }
     }
 
-    private void setLastStorage(String path, Long lastStorage) {
+    private void setZkStorageNode(String path, Long data) {
         ZookeeperUtils zk = new ZookeeperUtils();
-        zk.modifyNode(Constant.ZOOKEEPER_STORAGE_PATH + path, String.valueOf(lastStorage), zookeeperServer);
+        zk.modifyNode(Constant.ZOOKEEPER_STORAGE_PATH + path, String.valueOf(data), zookeeperServer);
     }
 
     private Long getDeleteDate(List<DailyStorage> dailyStorageList, Long totalSize, Double maxUsage, String zkPath, String dataCenterName) {
@@ -523,11 +556,11 @@ public class StorageQuotaService {
         }
         if (deleteDate == null) {
             //获取不到存储配额信息时，使用默认值
-            Long dcLastStorageTime = getLastStorage(StrUtil.join("/", zkPath, dataCenterName));
+            Long dcLastStorageTime = getZkStorageNode(StrUtil.join("/", zkPath, dataCenterName));
             if (dcLastStorageTime != null) {
                 deleteDate = dcLastStorageTime + Constant.ONE_DAY;
             } else {
-                Long lastStorage = getLastStorage(zkPath);
+                Long lastStorage = getZkStorageNode(zkPath);
                 deleteDate = lastStorage == null ? Constant.ONE_MONTH : lastStorage + Constant.ONE_DAY;
             }
 

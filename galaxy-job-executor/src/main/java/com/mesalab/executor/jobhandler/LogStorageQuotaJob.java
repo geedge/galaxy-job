@@ -85,6 +85,7 @@ public class LogStorageQuotaJob {
             for (String table : tablesForCKs) {
 
                 try {
+                    JobUtil.infoLog("-----------------reset storage clickhouse endpoint = {}, table = {}  ------------------", deletionConfig.getTrafficServer(), table);
                     List<String> partitionList = getSystemDataForCK(ckUrl, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemPartsCluster() + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
                     logger.info("reset storage days table {}, drop partition size {} ", table, partitionList.size());
                     XxlJobLogger.log("reset storage days table {}, drop partition size {} ", table, partitionList.size());
@@ -184,49 +185,55 @@ public class LogStorageQuotaJob {
      **/
     private void deleteDruidTable(String queryTablesSql, Integer maxdays, boolean hotTask) {
         List<String> analyticTables = getAnalyticTables(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryTablesSql);
-        //修改规则
+        //1.修改规则
         String changeRulesUrl = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/rules/");
         String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", maxdays, "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
+        // 2. unuse
+        // curl -X 'POST' -H 'Content-Type:application/json' -d '{ "interval" : "2022-01-01/3000-01-03" }' /druid/coordinator/v1/datasources/$table_name/markUnused
 
-        //1.物理删除除
+        //3 .物理删除
         String deleteUrl = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/indexer/v1/task");
         String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
         //起始时间/当前时间-maxDay
         String druidDataStartTime = getDruidDataStartTime();
         String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -maxdays);
         String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", druidDataStartTime, "/", deleteMaxDate, "\"}");
+        String unUseParam = Joiner.on("").join("{\"interval\":\"", druidDataStartTime, "/", deleteMaxDate, "\"}");
+        JobUtil.infoLog("reset storage days druid unused command = {}", unUseParam);
 
         int failCount = 0;
         for (String table : analyticTables) {
             try {
+                JobUtil.infoLog("-----------------reset storage druid endpoint = {}, table = {} ------------------", deletionConfig.getAnalyticServer(), table);
                 // hot表不用执行修改规则
                 if (!hotTask) {
-                    XxlJobLogger.log("reset storage days first command table :{}, sql : {}", table, changeRulesParam);
+                    JobUtil.infoLog("reset storage days first rules command = {}", table, changeRulesParam);
                     HttpClientUtils.httpPost(changeRulesUrl + table, changeRulesParam);
                 }
                 if (druidDataStartTime.compareTo(deleteMaxDate) < 0) {
-                    XxlJobLogger.log("reset storage days druid command endpoint = {}, table = {}, sql = {}", deletionConfig.getAnalyticServer(), table, prefixDeleteParam + table + suffixDeleteParam);
-                    logger.info("reset storage days druid second command endpoint = {}, table = {}, sql = {}", deletionConfig.getAnalyticServer(), table, prefixDeleteParam + table + suffixDeleteParam);
+
+                    String unUseMessage = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/datasources/", table,"/markUnused") , unUseParam);
+                    JobUtil.infoLog("reset storage days druid unused result message :{}", unUseMessage);
+
+                    JobUtil.infoLog("reset storage days druid second command = {}",  prefixDeleteParam + table + suffixDeleteParam);
                     String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam + table + suffixDeleteParam);
-                    XxlJobLogger.log("reset storage days druid result endpoint = {}, table = {}, message :{}", deletionConfig.getAnalyticServer(), table, deleteMessage);
+                    JobUtil.infoLog("reset storage days druid result message :{}", deleteMessage);
                 }
             } catch (BusinessException e) {
                 failCount++;
-                logger.error("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
-                XxlJobLogger.log("reset storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
+                JobUtil.errorLog("reset storage druid ttl table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
             }
         }
         if (ObjectUtils.isNotEmpty(deletionConfig.getAnalyticExclusion())) {
             List<String> tableExc = Splitter.on(",").trimResults().splitToList(deletionConfig.getAnalyticExclusion());
             for (String table : tableExc) {
                 try {
-                    logger.info("load forever druid table {}", table);
-                    HttpClientUtils.httpPost(changeRulesUrl + table, "[{\"type\":\"loadForever\",\"tieredReplicants\":{\"_default_tier\":1}}]");
-                    XxlJobLogger.log("load forever druid table {}", table);
+                    JobUtil.infoLog("========================= load forever druid table {} =========================", table);
+                    String loadMessage = HttpClientUtils.httpPost(changeRulesUrl + table, "[{\"type\":\"loadForever\",\"tieredReplicants\":{\"_default_tier\":1}}]");
+                    JobUtil.infoLog("load forever druid result message {}", loadMessage);
                 } catch (BusinessException e) {
                     failCount++;
-                    logger.error("load forever storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("load forever storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
+                    JobUtil.errorLog("load forever storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
                 }
             }
         }
@@ -253,6 +260,7 @@ public class LogStorageQuotaJob {
             List<String> hosHostList = parseList(deletionConfig.getFilesHosServer());
             int failCount = 0;
             for (String hosHost : hosHostList) {
+                JobUtil.infoLog("-----------------reset storage hos endpoint = {} ------------------", hosHost);
                 failCount += deleteHosData(hosHost, maxDays);
             }
 
@@ -404,11 +412,14 @@ public class LogStorageQuotaJob {
             String changeRulesUrl = Joiner.on("").join(deleteendpoint, "/druid/coordinator/v1/rules/");
             String changeRulesParam = "[{ \"type\":\"dropByInterval\", \"interval\":\"" + deleteStartTime + "/" + deleteEndDate + "\" }]";
 
-            //2物理删除所有数据
+            //2标记unused
+            String unUseParam = Joiner.on("").join("{\"interval\":\"", deleteStartTime, "/", deleteEndDate, "\"}");
+            JobUtil.infoLog("reset storage days druid unused command = {}", unUseParam);
+            //3物理删除所有数据
             String deleteUrl = Joiner.on("").join(deleteendpoint, "/druid/indexer/v1/task");
             String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
             String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", deleteStartTime + "/", deleteEndDate, "\"}");
-            //3恢复加载规则
+            //4恢复加载规则
             String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get(max_days), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
             //清库时注意不操作hot结尾的表
             String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%' " + deletionConfig.getNotInSql("datasource", deletionConfig.getAnalyticExclusion()) + " \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
@@ -440,6 +451,10 @@ public class LogStorageQuotaJob {
                             break;
                         }
                     }
+
+                    String unUseMessage = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/datasources/", table,"/markUnused") , unUseParam);
+                    JobUtil.infoLog("reset storage days druid unused result message :{}", unUseMessage);
+
                     XxlJobLogger.log("delete druid table second command table = {}, sql = {}", table, prefixDeleteParam + table + suffixDeleteParam);
                     String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam + table + suffixDeleteParam);
                     XxlJobLogger.log("delete druid table third command table = {}, sql = {}", table, resetRulesParam);

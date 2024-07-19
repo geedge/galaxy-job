@@ -17,6 +17,9 @@ public class Constant {
     public static final String ZK_REPORT_AND_METRICS = "Report-and-Metrics";
     public static final String ZOOKEEPER_STORAGE_PATH = "/storage/worker/";
     public static final String ZOOKEEPER_STORAGE_CLEAR_TIME = "clearTime";
+    // 超限持续时间
+    public static final String ZOOKEEPER_STORAGE_DURATION_TIME = "durationTime";
+    public static final String ZOOKEEPER_STORAGE_OVER_MAX_USAGE = "overMaxUsage";
 
     public static final String TOKEN = "Token";
     public static final String TEXT_XML = "text/xml";
