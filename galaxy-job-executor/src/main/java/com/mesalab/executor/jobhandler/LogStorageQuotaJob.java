@@ -77,43 +77,37 @@ public class LogStorageQuotaJob {
 
             String ckUrl = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8).toString();
             List<String> tablesForCKs = getTablesForCK(ckUrl, deletionConfig.getNotInSql("name", deletionConfig.getTafficExclusion()));
-            logger.info("reset storage clickhouse endpoint = {}, tables = {}", ckUrl, tablesForCKs);
-            XxlJobLogger.log("reset storage clickhouse endpoint = {}, tables = {}", ckUrl, tablesForCKs);
+            JobUtil.infoLog("reset storage clickhouse endpoint = {}, tables = {}", ckUrl, tablesForCKs);
 
             int failCount = 0;
             // 设置一个获取sql的方法，把表List
             for (String table : tablesForCKs) {
 
                 try {
-                    JobUtil.infoLog("-----------------reset storage clickhouse endpoint = {}, table = {}  ------------------", deletionConfig.getTrafficServer(), table);
+                    JobUtil.infoLog("-----------------reset storage clickhouse table = {}  ------------------", table);
                     List<String> partitionList = getSystemDataForCK(ckUrl, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemPartsCluster() + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
-                    logger.info("reset storage days table {}, drop partition size {} ", table, partitionList.size());
-                    XxlJobLogger.log("reset storage days table {}, drop partition size {} ", table, partitionList.size());
+                    JobUtil.infoLog("reset storage days table {}, drop partition size {} ", table, partitionList.size());
 
                     partitionList.forEach(partition -> {
                         String deleteSql = Joiner.on("").join(prefixDeleteSql, table, suffixDeleteSql, "'", partition, "'");
                         deleteParamMap.put("query", deleteSql);
-                        logger.info("reset storage days clickhouse sql:{}", deleteSql);
+                        JobUtil.infoLog("reset storage days clickhouse sql:{}", deleteSql);
 
                         HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(ckUrl, deleteParamMap), null);
-                        logger.info("reset storage days table {} partition {} success", table, partition);
-                        XxlJobLogger.log("reset storage days table {} partition {}", table, partition);
+                        JobUtil.infoLog("reset storage days table {} partition {} success", table, partition);
                     });
                 } catch (BusinessException e) {
                     failCount++;
-                    logger.error("clickhouse ttl error table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("clickhouse ttl error table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
+                    JobUtil.errorLog("clickhouse ttl error table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
                 }
             }
             modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, maxdays);
             if (failCount > 0) {
                 throw new BusinessException("reset storage clickhouse ttl error, failCount " + failCount);
             }
-            logger.info("reset clickhouse {} days success", maxdays);
-            XxlJobLogger.log("reset clickhouse {} days success", maxdays);
+            JobUtil.infoLog("reset clickhouse {} days success", maxdays);
         } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
+            JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
 

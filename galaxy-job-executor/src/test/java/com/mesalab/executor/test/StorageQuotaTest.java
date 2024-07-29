@@ -9,7 +9,10 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.mesalab.executor.GalaxyExecutorApplication;
 import com.mesalab.executor.core.config.StorgeConfig;
-import com.mesalab.executor.core.utils.*;
+import com.mesalab.executor.core.utils.Constant;
+import com.mesalab.executor.core.utils.HttpClientUtils;
+import com.mesalab.executor.core.utils.TypeUtils;
+import com.mesalab.executor.core.utils.UrlUtil;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.jobhandler.LogStorageQuotaJob;
 import com.mesalab.executor.pojo.JDBCParam;
@@ -69,13 +72,6 @@ public class StorageQuotaTest {
         long yyyyMMdd = DateUtils.convertStringToTimestamp(date, "yyyyMMdd");
         log.info(String.valueOf(yyyyMMdd));
     }
-
-    @Test
-    public void testStorage() {
-        String msgc = "{\"log_type\":\"Files\",\"aggregate_size\":0,\"data_center\":\"Nur-sultan\",\"time\":1630569900,\"last_storage\":1622299518,\"used_size\":1217383982783,\"max_size\":25169958203392}";
-        new KafkaUtils().sendMessage("SYS-STORAGE-LOG", msgc);
-    }
-
 
     @Resource
     StorageQuotaService storageQuotaService;

@@ -50,8 +50,6 @@ public class StorageQuotaService {
     private StorgeConfig storgeConfig = (StorgeConfig) SpringContextUtil.getBean("storgeConfig");
     private Log logger = Log.get();
 
-    //查询历史数据时允许的最大间隔second
-    private static final int MAX_QUERY_INTERVAL = 2 * 24 * 60 * 60;
     private final String clickhouseMaxSizeSql = StrUtil.format("SELECT SUM(`total_space`) FROM {};", storgeConfig.getSystemDisks());
     private final String clickhouseUsageSql = StrUtil.format("SELECT 1-(sum(unreserved_space)/sum(total_space)) AS usage FROM {};", storgeConfig.getSystemDisks());
     private final String clickhouseUsedSizeSql = StrUtil.format("SELECT SUM(`bytes_on_disk`) FROM {} WHERE database = '{}' and active = 1;", storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource());
@@ -231,11 +229,14 @@ public class StorageQuotaService {
                 JobUtil.warnLog("The log storage usage has first over the max usage limit.");
                 return false;
             }
-            if (hasOverMaxUsage == 1 && DateUtil.currentSeconds() - lastOverTime >= durationMinutes * 60) {
+            long durationTime = (DateUtil.currentSeconds() - lastOverTime) / 60;
+            if (hasOverMaxUsage == 1 && durationTime >= durationMinutes) {
                 JobUtil.infoLog("The deletion task has been out of limit for {} minutes", durationMinutes);
                 setZkStorageNode(zkOverMaxUsagePath, 0L);
                 setZkStorageNode(zkDurationTimePath, DateUtil.currentSeconds());
                 return true;
+            } else {
+                JobUtil.infoLog("The current overrun time {} is less than {} minutes", durationTime, durationMinutes);
             }
         }
         return false;
@@ -360,7 +361,7 @@ public class StorageQuotaService {
 
     private Long getIncreaseSize(JDBCParam jdbcParam, Long usedSize, String datacenter, String logType) throws Exception {
         final String lastUsedSizeSql = "SELECT used_size FROM " + jdbcParam.getTable() + " WHERE log_type = '" + logType + "' and data_center = '" + datacenter
-                + "' and generated_time >=  UNIX_TIMESTAMP() - " + MAX_QUERY_INTERVAL + " ORDER BY generated_time DESC LIMIT 1;";
+                + "' and generated_time >=  UNIX_TIMESTAMP() - " + Constant.ONE_WEEK + " and generated_time <=  UNIX_TIMESTAMP() - " + Constant.ONE_DAY + " ORDER BY generated_time DESC LIMIT 1;";
         JobUtil.infoLog(lastUsedSizeSql);
 
         try (Connection conn = DBUtils.getDBConn(jdbcParam)) {

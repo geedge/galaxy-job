@@ -8,7 +8,9 @@ public class Constant {
     public static final String TRAFFIC_LOGS = "Traffic Logs";
     public static final String METRICS = "Metrics";
     public static final String MAX_DAYS = "maxDays";
+    public static final int ONE_WEEK = 7 * 24 * 60 * 60;
     public static final int ONE_DAY = 86400;
+    public static final int TWO_DAY = 2 * 24 * 60 * 60;
     public static final Long ONE_MONTH = 30 * 24 * 3600L;
     public static final Long ONE_YEAR = 365 * 24 * 3600L;
     public static final String DRUID_URL = "/druid/v2/sql";
