@@ -83,22 +83,17 @@ public class DruidCompactJobTest {
         String params = "[\n" +
                 "    {\n" +
                 "      \"type\": \"compact\",\n" +
-                "      \"dataSource\": \"object_statistics_test\",\n" +
-                "      \"interval\": \"2024-05-16/2024-05-17\",\n" +
+                "      \"dataSource\": \"statistics_rule\",\n" +
+                "      \"interval\": \"2024-07-22/2024-07-23\",\n" +
                 "      \"tuningConfig\" : {\n" +
                 "        \"type\" : \"index_parallel\",\n" +
                 "        \"maxNumConcurrentSubTasks\" : 2\n" +
-                "      }\n" +
-                "    },\n" +
-                "    {\n" +
-                "      \"type\": \"compact\",\n" +
-                "      \"dataSource\": \"object_statistics\",\n" +
-                "      \"interval\": \"2024-05-16/2024-05-17\",\n" +
-                "      \"tuningConfig\" : {\n" +
-                "        \"type\" : \"index_parallel\",\n" +
-                "        \"maxNumConcurrentSubTasks\" : 2\n" +
-                "      }\n" +
-                "    }\n" +
+                "      },\n" +
+                "      \"granularitySpec\" : {\n" +
+                "        \"segmentGranularity\": \"DAY\",\n" +
+                "        \"queryGranularity\": \"MINUTE\"\n" +
+                "      },\n" +
+                "    }" +
                 "]";
         System.out.println(params);
 
@@ -109,7 +104,7 @@ public class DruidCompactJobTest {
 
     public ReturnT<String> druidCompactSegmentJobHandler(String params)  {
         // final String server = compactConfig.getAnalyticServer();
-        final String server = "192.168.41.29:8089";
+        final String server = "192.168.41.29:8088";
 
         try {
             DruidCompactUtil druidCompactUtil = DruidCompactUtil.getInstance(server);
@@ -149,12 +144,20 @@ public class DruidCompactJobTest {
                 XxlJobLogger.log(String.format("%s[%s, %s]", dataSource, startDate, endDate) + " compact:" + shouldCompactResult);
 
                 if (shouldCompactResult.shouldCompact){
+                    // 24-08 statistics_rule表重构, 兼容旧数据, 不删除旧数据列
+                    if("statistics_rule".equals(dataSource)){
+                        druidCompactUtil.fitStatisticsRuleOldData(param);
+                    }
+                    System.out.println(param.toJSONString(JSONWriter.Feature.PrettyFormat));
+                    System.out.println("\n");
                     //compact任务
-                    if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
+                    if(druidCompactUtil.needFetchCompactMetaTimeTooLong(param, shouldCompactResult.fileCount)){
+                        XxlJobLogger.log("needFetchCompactMeta and fileCount too much" );
+                    }else if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
                         param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                         if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
                             availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
-                            druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                            //druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                         }else{
                             XxlJobLogger.log("availableSlots is too small:" + availableSlots);
                             waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(0, shouldCompactResult.maxNumConcurrentSubTasks, param));
@@ -162,7 +165,7 @@ public class DruidCompactJobTest {
                     }else if(shouldCompactResult.maxNumConcurrentSubTasks * 6 >= maxNumConcurrentSubTasks){
                         if(availableSlots >= maxNumConcurrentSubTasks){
                             availableSlots -= maxNumConcurrentSubTasks;
-                            druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                            //druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                         }else{
                             XxlJobLogger.log("availableSlots is too small:" + availableSlots);
                             waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(0, maxNumConcurrentSubTasks, param));
@@ -178,32 +181,37 @@ public class DruidCompactJobTest {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
-                String dataSource = param.getString("dataSource");
-                int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
-                final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
-                String[] times = param.getString("interval").split("/");
-                final String startTime = times[0];
-                final String endTime = times[1];
-                String startDate = startTime;
-                String endDate = endTime;
 
                 // 检查补录前两天compact任务
                 for (int j = 1; j <= 1; j++) {
-                    startDate = LocalDate.parse(startTime).minusDays(j).toString();
-                    endDate = LocalDate.parse(startDate).plusDays(1).toString();
+                    param = JSON.parseObject(JSON.toJSONString(paramTemplate));
+                    String dataSource = param.getString("dataSource");
+                    int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
+                    final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
+                    String[] times = param.getString("interval").split("/");
+                    final String startTime = times[0];
+                    String startDate = LocalDate.parse(startTime).minusDays(j).toString();
+                    String endDate  = LocalDate.parse(startDate).plusDays(1).toString();
 
                     shouldCompactResult = druidCompactUtil.shouldCompact(dataSource, startDate, endDate, queryGranularity);
-                    if (shouldCompactResult.shouldCompact){
+                    if(druidCompactUtil.needFetchCompactMetaTimeTooLong(param, shouldCompactResult.fileCount)){
+                        XxlJobLogger.log("needFetchCompactMeta and fileCount too much" );
+                    }else if (shouldCompactResult.shouldCompact){
                         XxlJobLogger.log(String.format("%s[%s, %s]", dataSource, startDate, endDate) + " compact:" + shouldCompactResult);
                         param = paramTemplate.clone();
                         param.put("interval", startDate + "/" + endDate);
 
+                        // 24-08 statistics_rule表重构, 兼容旧数据, 不删除旧数据列
+                        if("statistics_rule".equals(dataSource)){
+                            druidCompactUtil.fitStatisticsRuleOldData(param);
+                        }
+                        System.out.println(param.toJSONString(JSONWriter.Feature.PrettyFormat));
+                        System.out.println("\n");
                         if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
                             param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                             if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
                                 availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
-                                druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                                //druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                             }else{
                                 XxlJobLogger.log("availableSlots is too small:" + availableSlots);
                                 waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(j, shouldCompactResult.maxNumConcurrentSubTasks, param));
@@ -211,7 +219,7 @@ public class DruidCompactJobTest {
                         }else if(shouldCompactResult.maxNumConcurrentSubTasks * 6 >= maxNumConcurrentSubTasks){
                             if(availableSlots >= maxNumConcurrentSubTasks){
                                 availableSlots -= maxNumConcurrentSubTasks;
-                                druidCompactUtil.submitCompactTask(param, submittedTaskParams);
+                                //druidCompactUtil.submitCompactTask(param, submittedTaskParams);
                             }else{
                                 XxlJobLogger.log("availableSlots is too small:" + availableSlots);
                                 waitedSubmitTaskParams.add(new DruidWaitedSubmitTaskParam(j, maxNumConcurrentSubTasks, param));

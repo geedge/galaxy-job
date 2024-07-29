@@ -78,8 +78,14 @@ public class DruidMergeHistoryDataJob {
                 XxlJobLogger.log(String.format("%s[%s, %s]", dataSource, startDate, endDate) + " compact:" + shouldCompactResult);
 
                 if (shouldCompactResult.shouldCompact){
+                    // 24-08 statistics_rule表重构, 兼容旧数据, 不删除旧数据列
+                    if("statistics_rule".equals(dataSource)){
+                        druidCompactUtil.fitStatisticsRuleOldData(param);
+                    }
                     //compact任务
-                    if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
+                    if(druidCompactUtil.needFetchCompactMetaTimeTooLong(param, shouldCompactResult.fileCount)){
+                        XxlJobLogger.log("needFetchCompactMeta and fileCount too much" );
+                    }else if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
                         param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                         if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
                             availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
@@ -107,28 +113,30 @@ public class DruidMergeHistoryDataJob {
 
             for (int i = 0; i < paramArray.size(); i++) {
                 paramTemplate = paramArray.getJSONObject(i);
-                param = JSON.parseObject(JSON.toJSONString(paramTemplate));
-                String dataSource = param.getString("dataSource");
-                int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
-                final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
-                String[] times = param.getString("interval").split("/");
-                final String startTime = times[0];
-                final String endTime = times[1];
-                String startDate = startTime;
-                String endDate = endTime;
 
                 // 检查补录前两天compact任务
                 for (int j = 1; j <= 2; j++) {
-                    startDate = LocalDate.parse(startTime).minusDays(j).toString();
-                    endDate = LocalDate.parse(startDate).plusDays(1).toString();
+                    param = JSON.parseObject(JSON.toJSONString(paramTemplate));
+                    String dataSource = param.getString("dataSource");
+                    int maxNumConcurrentSubTasks = param.getJSONObject("tuningConfig").getIntValue("maxNumConcurrentSubTasks", 1);
+                    final String queryGranularity = DruidCompactUtil.extractQueryGranularityFromParam(param);
+                    String[] times = param.getString("interval").split("/");
+                    final String startTime = times[0];
+                    String startDate = LocalDate.parse(startTime).minusDays(j).toString();
+                    String endDate = LocalDate.parse(startDate).plusDays(1).toString();
 
                     shouldCompactResult = druidCompactUtil.shouldCompact(dataSource, startDate, endDate, queryGranularity);
                     if (shouldCompactResult.shouldCompact){
                         XxlJobLogger.log(String.format("%s[%s, %s]", dataSource, startDate, endDate) + " compact:" + shouldCompactResult);
-                        param = paramTemplate.clone();
                         param.put("interval", startDate + "/" + endDate);
 
-                        if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
+                        // 24-08 statistics_rule表重构, 兼容旧数据, 不删除旧数据列
+                        if("statistics_rule".equals(dataSource)){
+                            druidCompactUtil.fitStatisticsRuleOldData(param);
+                        }
+                        if(druidCompactUtil.needFetchCompactMetaTimeTooLong(param, shouldCompactResult.fileCount)){
+                            XxlJobLogger.log("needFetchCompactMeta and fileCount too much" );
+                        }else if(shouldCompactResult.maxNumConcurrentSubTasks < maxNumConcurrentSubTasks){
                             param.getJSONObject("tuningConfig").put("maxNumConcurrentSubTasks", shouldCompactResult.maxNumConcurrentSubTasks);
                             if(availableSlots >= shouldCompactResult.maxNumConcurrentSubTasks){
                                 availableSlots -= shouldCompactResult.maxNumConcurrentSubTasks;
