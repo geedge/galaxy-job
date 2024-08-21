@@ -195,21 +195,21 @@
                 <artifactId>docker-maven-plugin</artifactId>
                 <version>1.0.0</version>
                 <configuration>
-                    <serverId>153-docker-repo</serverId>
+                    <serverId>153-nexus-docker-repo</serverId>
                     <registryUrl>${docker.registry}:${docker.registry.port}</registryUrl>
                     <pushImage>true</pushImage>
+                    <forceTags>true</forceTags>
                     <imageName>${docker.registry}:${docker.registry.port}/${docker.image.prefix}/${project.artifactId}
                     </imageName>
-                    <forceTags>true</forceTags>
-                    <dockerHost>http://192.168.40.153:2375</dockerHost>
+                    <dockerHost>http://${docker.build}:${docker.build.port}</dockerHost>
                     <dockerDirectory>docker</dockerDirectory>
                     <buildArgs>
-                        <JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_202</JDK_IMAGE>
-                        <GO_IMAGE>192.168.40.153:9080/common/golang:1.15.6</GO_IMAGE>
+                        <JDK_IMAGE>${docker.registry}:${docker.registry.port}/common/jdk:1.8.0_202</JDK_IMAGE>
+                        <GOLANG_IMAGE>${docker.registry}:${docker.registry.port}/common/golang:1.15.6</GOLANG_IMAGE>
                         <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
                     </buildArgs>
                     <imageTags>
-                        <imageTag>2.2.0.5</imageTag>
+                        <imageTag>2.2.0.6</imageTag>
                     </imageTags>
                     <resources>
                         <resource>

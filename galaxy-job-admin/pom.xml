@@ -86,20 +86,20 @@
 				<artifactId>docker-maven-plugin</artifactId>
 				<version>1.0.0</version>
 				<configuration>
-					<serverId>153-docker-repo</serverId>
+					<serverId>153-nexus-docker-repo</serverId>
 					<registryUrl>${docker.registry}:${docker.registry.port}</registryUrl>
 					<pushImage>true</pushImage>
 					<imageName>${docker.registry}:${docker.registry.port}/${docker.image.prefix}/${project.artifactId}
 					</imageName>
 					<forceTags>true</forceTags>
-					<dockerHost>http://192.168.40.153:2375</dockerHost>
+					<dockerHost>http://${docker.build}:${docker.build.port}</dockerHost>
 					<dockerDirectory>docker</dockerDirectory>
 					<buildArgs>
-						<JDK_IMAGE>192.168.40.153:9080/common/jdk:1.8.0_202</JDK_IMAGE>
+						<JDK_IMAGE>${docker.registry}:${docker.registry.port}/common/jdk:1.8.0_202</JDK_IMAGE>
 						<JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
 					</buildArgs>
 					<imageTags>
-						<imageTag>v1.3.220412-dev</imageTag>
+						<imageTag>2.2.0.1</imageTag>
 					</imageTags>
 
 					<!--将构建jar拷贝到/target/docker 目录下与dockerfile一起-->

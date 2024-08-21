@@ -1,8 +1,8 @@
 ARG JDK_IMAGE
-ARG GO_IMAGE
+ARG GOLANG_IMAGE
 #编译环境，生成二进制文件
 #FROM 192.168.40.153:9080/common/golang:1.15.6 as builder
-FROM ${GO_IMAGE} as builder
+FROM ${GOLANG_IMAGE} as builder
 
 WORKDIR /build
 COPY xjar.go /build/
