@@ -183,8 +183,6 @@ public class DruidCompactJob {
     public JSONArray parseParams(String params, DruidCompactUtil druidCompactUtil) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC")); // 默认结束时间是UTC时间
-        LocalDateTime defaultEndDateTime = now.getHour() >= 1? now: now.plusDays(-1); // 如果hour在1小时内, 结束时间往前推一天
-        LocalDateTime defaultStartDateTime = defaultEndDateTime.plusDays(-1);
 
         JSONArray paramArray = JSON.parseArray(params);
         for (int i = 0; i < paramArray.size(); i++) {
@@ -194,6 +192,18 @@ public class DruidCompactJob {
             Preconditions.checkArgument("compact".equals(param.getString("type")), "type must is compact:%s", paramStr);
             Preconditions.checkArgument(param.getString("dataSource") != null, "dataSource is required:%s", paramStr);
             String interval = param.getString("interval");
+
+            int offsetDays = param.getIntValue("offsetDays", 0);
+            param.remove("offsetDays");
+            Preconditions.checkArgument(offsetDays >= 0, "offsetDays must must >= 0:%s", offsetDays);
+            LocalDateTime defaultEndDateTime;
+            if(offsetDays == 0){
+                defaultEndDateTime = now.getHour() >= 1? now: now.plusDays(-1); // 如果hour在1小时内, 结束时间往前推一天
+            }else{
+                defaultEndDateTime = now.minusDays(offsetDays);
+            }
+            LocalDateTime defaultStartDateTime = defaultEndDateTime.plusDays(-1);
+
             /**
              * interval:
              *   null:默认周期

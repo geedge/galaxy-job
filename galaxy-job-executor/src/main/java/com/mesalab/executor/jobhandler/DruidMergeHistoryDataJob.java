@@ -207,7 +207,7 @@ public class DruidMergeHistoryDataJob {
                 param.put("interval", dateFormatter.format(defaultStartDateTime) + "/" + dateFormatter.format(defaultEndDateTime));
             } else if (!interval.contains("/")) {
                 int days = Integer.parseInt(interval);
-                Preconditions.checkArgument(days > 5, "days must > 5:%s", Integer.toString(days));
+                Preconditions.checkArgument(days >= 1, "days must > 1:%s", Integer.toString(days));
                 LocalDateTime startDateTime = defaultEndDateTime.minusDays(days);
                 param.put("interval", dateFormatter.format(startDateTime) + "/" + dateFormatter.format(defaultEndDateTime));
             }
