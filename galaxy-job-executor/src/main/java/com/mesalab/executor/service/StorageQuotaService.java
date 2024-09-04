@@ -5,6 +5,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.db.handler.BeanListHandler;
 import cn.hutool.db.handler.NumberHandler;
 import cn.hutool.db.sql.SqlExecutor;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import com.geedgenetworks.utils.DateUtils;
@@ -13,10 +15,7 @@ import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.jobhandler.LogStorageQuotaJob;
-import com.mesalab.executor.pojo.HosSpace;
-import com.mesalab.executor.pojo.JDBCParam;
-import com.mesalab.executor.pojo.JobResult;
-import com.mesalab.executor.pojo.SysStorageEvent;
+import com.mesalab.executor.pojo.*;
 import com.xxl.job.core.biz.model.ReturnT;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -54,14 +53,14 @@ public class StorageQuotaService {
     private final String clickhouseUsageSql = StrUtil.format("SELECT 1-(sum(unreserved_space)/sum(total_space)) AS usage FROM {};", storgeConfig.getSystemDisks());
     private final String clickhouseUsedSizeSql = StrUtil.format("SELECT SUM(`bytes_on_disk`) FROM {} WHERE database = '{}' and active = 1;", storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource());
     private final String clickhouseDailyUsedSizeSql = StrUtil.format("SELECT DISTINCT(`partition`) as date, SUM(`bytes_on_disk`) as bytes from {} WHERE database = '{}' {} and date <=  formatDateTime(now(),'%Y%m%d') and active = 1 group by date FORMAT JSON;",
-            storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource(), storgeConfig.getNotInSql("table", storgeConfig.getTafficExclusion()));
+            storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource());
 
 
     private final String druidMaxSizeSql = "{\"query\":\"SELECT SUM(max_size) AS max_size FROM sys.servers WHERE server_type = 'historical'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
-    private final String druidUsedSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
-    private final String druidUsedActiveSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE datasource NOT LIKE '%hot%' and is_published = 1 and is_active=1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
+    private final String druidUsedSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE is_published = 1 \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
+    //    private final String druidUsedActiveSizeSql = "{\"query\":\"SELECT SUM(size) AS used_size FROM sys.segments WHERE is_published = 1 and is_active=1\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"csv\"}";
     private final String mysqlDailyUsedSizeSql = "SELECT UNIX_TIMESTAMP(FROM_UNIXTIME(generated_time,'%Y%m%d')) AS date, sum(bytes) AS bytes FROM {}.{} WHERE generated_time <= CURRENT_TIMESTAMP AND generated_time > UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 YEAR)) AND  log_type='{}' AND data_center='{}' GROUP BY date, log_type ORDER BY date DESC";
-    private final String druidDailyUsedSizeSql = "{\"query\":\"SELECT \\\"start\\\" as \\\"date\\\", sum(\\\"size\\\") as bytes from sys.segments where is_published = 1 and \\\"start\\\" < '3000' " + storgeConfig.getNotInSql("datasource", storgeConfig.getAnalyticExclusion()) + " group by \\\"start\\\" ORDER BY \\\"start\\\" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+    private final String druidDailyUsedSizeSql = "{\"query\":\"SELECT \\\"start\\\" as \\\"date\\\", sum(\\\"size\\\") as bytes from sys.segments where is_published = 1 and \\\"start\\\" < '3000' {} group by \\\"start\\\" ORDER BY \\\"start\\\" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
 
 
     @Value("${zookeeper.server}")
@@ -121,22 +120,22 @@ public class StorageQuotaService {
         return failCount;
     }
 
-    public int deleteOldLog(String logType, Double maxUsage, int durationMinutes, int minIntervalMinutes, JDBCParam jdbcParam) {
+    public int deleteOldLog(String logType, int durationMinutes, int minIntervalMinutes, JDBCParam jdbcParam) {
 
         int failCount = 0;
         try {
             JobUtil.infoLog("--------------Delete {} old log task.--------------------", logType);
             switch (logType) {
                 case Constant.TRAFFIC_LOGS:
-                    failCount += deleteOldLogs(storgeConfig.getTrafficDataCenter(), maxUsage, durationMinutes, minIntervalMinutes, jdbcParam, logType,
-                            this::getClickhouseStorageInfoByUnreserved, logStorageQuotaJob::deleteTrafficDataByCluster, counterTrafficLogsDelete::increment, Constant.ZK_TRAFFIC_LOGS);
+                    failCount += deleteOldLogs(storgeConfig.getTrafficDataCenter(), durationMinutes, minIntervalMinutes, jdbcParam, logType,
+                            this::getClickhouseStorageInfoByUnreserved, logStorageQuotaJob::deleteTrafficData, counterTrafficLogsDelete::increment, Constant.ZK_TRAFFIC_LOGS);
                     break;
                 case Constant.METRICS:
-                    failCount += deleteOldLogs(storgeConfig.getAnalyticDataCenter(), maxUsage, durationMinutes, minIntervalMinutes, jdbcParam, logType,
+                    failCount += deleteOldLogs(storgeConfig.getAnalyticDataCenter(), durationMinutes, minIntervalMinutes, jdbcParam, logType,
                             this::getDruidStorageInfo, logStorageQuotaJob::deleteReportAndMetricsData, counterMetricsDelete::increment, Constant.ZK_REPORT_AND_METRICS);
                     break;
                 case Constant.FILES:
-                    failCount += deleteOldLogs(storgeConfig.getFilesDataCenter(), maxUsage, durationMinutes, minIntervalMinutes, jdbcParam, logType,
+                    failCount += deleteOldLogs(storgeConfig.getFilesDataCenter(), durationMinutes, minIntervalMinutes, jdbcParam, logType,
                             this::getHosStorageInfo, logStorageQuotaJob::deleteFiles, counterFilesDelete::increment, Constant.FILES);
                     break;
                 default:
@@ -151,21 +150,23 @@ public class StorageQuotaService {
 
     /**
      * @param dataCenterMap
-     * @param maxUsage
      * @param minIntervalMinutes
      * @param getStorageInfo
      * @param deleteFunction
      * @param zkPath
      */
-    private int deleteOldLogs(Map<String, String> dataCenterMap, Double maxUsage, int durationMinutes, int minIntervalMinutes, JDBCParam jdbcParam, String logType,
+    private int deleteOldLogs(Map<String, String> dataCenterMap, int durationMinutes, int minIntervalMinutes, JDBCParam jdbcParam, String logType,
                               Function<String, StorageSizeInfo> getStorageInfo,
                               Function<String, ReturnT<String>> deleteFunction,
                               Consumer<Double> setMonitor,
-                              String zkPath) {
+                              String zkPath) throws Exception {
         // 1.获取删除天数
         // 2.空则使用
         // 3.调用删除接口 参数maxDays, 记录日志
         // 4.修改 datacenter时间
+        StorageQuota storageQuota = getStorageQuota(logType);
+        double maxUsage = storageQuota.getMax_usage() / 100D;
+
         int failCount = 0;
         for (Map.Entry<String, String> entry : dataCenterMap.entrySet()) {
             try {
@@ -341,7 +342,7 @@ public class StorageQuotaService {
         return storageSizeInfo;
     }
 
-    private List<DailyStorage> getHistoryStorageDaily(JDBCParam jdbcParam, String logType, String dataCenterName, String dataCenterHost) throws SQLException {
+    private List<DailyStorage> getHistoryStorageDaily(JDBCParam jdbcParam, String logType, String dataCenterName, String dataCenterHost) throws Exception {
         List<DailyStorage> dailyStorageList = new ArrayList<>();
         switch (logType) {
             case Constant.TRAFFIC_LOGS:
@@ -476,9 +477,12 @@ public class StorageQuotaService {
         return storageSizeInfo;
     }
 
-    private List<DailyStorage> getClickhouseHistoryDaily(String dataCenterHost) {
+    private List<DailyStorage> getClickhouseHistoryDaily(String dataCenterHost) throws Exception {
+        StorageQuota storageQuota = getStorageQuota(Constant.TRAFFIC_LOGS);
+
         Map<String, Object> ckParamMap = storgeConfig.getCkSource();
-        ckParamMap.put("query", clickhouseDailyUsedSizeSql);
+
+        ckParamMap.put("query", StrUtil.format(clickhouseDailyUsedSizeSql, storgeConfig.getInSql("table", storageQuota.getSource_list())));
         String result = HttpClientUtils.httpGet(HttpClientUtils.getUrlWithParams(UrlUtil.getUrl(dataCenterHost), ckParamMap));
         if ("-1".equals(result)) {
             throw new BusinessException("Get clickhouse http fail -1");
@@ -496,8 +500,10 @@ public class StorageQuotaService {
         return dailyStorageList;
     }
 
-    private List<DailyStorage> getDruidHistoryDaily(String dataCenterHost) {
-        String result = HttpClientUtils.httpPost(UrlUtil.getUrl(dataCenterHost, Constant.DRUID_URL), druidDailyUsedSizeSql);
+    private List<DailyStorage> getDruidHistoryDaily(String dataCenterHost) throws Exception {
+        StorageQuota storageQuota = getStorageQuota(Constant.METRICS);
+
+        String result = HttpClientUtils.httpPost(UrlUtil.getUrl(dataCenterHost, Constant.DRUID_URL), StrUtil.format(druidDailyUsedSizeSql, storgeConfig.getInSql("datasource", storageQuota.getSource_list())));
         if ("-1".equals(result)) {
             throw new BusinessException("Get druid http fail -1");
         }
@@ -570,6 +576,20 @@ public class StorageQuotaService {
         deleteDate = deleteDate > currDate ? currDate : deleteDate;
         JobUtil.infoLog("The delete date is {}", deleteDate);
         return deleteDate;
+    }
+
+    public StorageQuota getStorageQuota(String logType) throws Exception {
+
+        String responseString = HttpClientUtils.httpGet(UrlUtil.getUrl(storgeConfig.getQgwServer(), Constant.QGW_STORAGE_QUOTA_URL), Constant.QGW_HEADER);
+        JSONObject paramsObject = JSONUtil.parseObj(responseString);
+
+        JSONArray dataJsonArray = paramsObject.getJSONArray("data");
+        List<StorageQuota> storageQuotaList = JSONUtil.toList(dataJsonArray, StorageQuota.class);
+        StorageQuota storageQuota = storageQuotaList.stream()
+                .filter(s -> logType.equals(s.getType()))
+                .findFirst().orElseThrow(() -> new BusinessException("query gateway storage quota error "));
+        JobUtil.infoLog(storageQuota.toString());
+        return storageQuota;
     }
 
     /**

@@ -130,35 +130,6 @@ public class StorageQuotaTest {
 
     }
 
-    // datasource NOT LIKE '%hot%' and datasource not in ('traffic_general_stat') and
-    @Test
-    public void testQueryDruid() {
-        String getDruidDailyUsedSizeSql = "{\"query\":\"SELECT \\\"start\\\" as \\\"date\\\", sum(\\\"size\\\") as bytes from sys.segments where is_published = 1 and \\\"start\\\" < '3000' " + storgeConfig.getNotInSql("datasource", storgeConfig.getAnalyticExclusion()) + " group by \\\"start\\\" ORDER BY \\\"start\\\" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-        String result = HttpClientUtils.httpPost(UrlUtil.getUrl(storgeConfig.getAnalyticServer(), Constant.DRUID_URL), getDruidDailyUsedSizeSql);
-        List<Map> dataList = JSONUtil.toList(result, Map.class);
-        List<DailyStorage> dailyStorageList = Lists.newArrayList();
-        for (Map map : dataList) {
-            DailyStorage dailyStorage = new DailyStorage();
-            dailyStorage.setDate(DateUtils.convertStringToTimestamp(String.valueOf(map.get("date")), "yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
-            dailyStorage.setBytes(TypeUtils.castToLong(map.get("bytes")));
-            dailyStorageList.add(dailyStorage);
-        }
-        System.err.println(dailyStorageList);
-    }
-
-    @Test
-    public void testQueryMysql() {
-        String mysqlSql = "SELECT UNIX_TIMESTAMP(FROM_UNIXTIME(generated_time,'%Y%m%d')) AS date, sum(bytes) AS used_size FROM sys_storage_event WHERE log_type='Files' AND data_center='xxg' GROUP BY date, log_type ORDER BY date ASC";
-
-//        try (Connection conn = DBUtils.getDBConn(jdbcParam)) {
-//            List<DailyStorage> dailyStorageList = SqlExecutor.query(conn, mysqlSql, new BeanListHandler<>(DailyStorage.class));
-//            log.info(dailyStorageList.toString());
-//        } catch (Exception e) {
-//            log.error(e.getMessage());
-//        }
-        System.err.println(DateUtil.parseDate(DateUtil.today()).getTime());
-    }
-
 //    public final String clickhouseDailyUsedSizeSql = StrUtil.format("SELECT DISTINCT(`partition`) as date, SUM(`bytes_on_disk`) as bytes  from {}  WHERE database = '{}' {} and date <=  formatDateTime(now(),'%Y%m%d') and active = 1 group by date;",
 //            storgeConfig.getSystemPartsCluster(), storgeConfig.getTrafficDatasource(), storgeConfig.getNotInSql("table", storgeConfig.getTafficExclusion()));
 //    public final String druidDailyUsedSizeSql = "{\"query\":\"SELECT \\\"start\\\" as \\\"date\\\", sum(\\\"size\\\") as bytes from sys.segments where is_published = 1 and \\\"start\\\" < '3000' " + storgeConfig.getNotInSql("datasource", storgeConfig.getAnalyticExclusion()) + " group by \\\"start\\\" ORDER BY \\\"start\\\" \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
@@ -198,7 +169,6 @@ public class StorageQuotaTest {
         }
         return dailyStorageList;
     }
-
     @Data
     class DailyStorage {
         private long bytes;

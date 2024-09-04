@@ -1,8 +1,9 @@
 package com.mesalab.executor.jobhandler;
 
-import cn.hutool.core.net.url.UrlBuilder;
 import cn.hutool.core.thread.ThreadUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
 import com.geedgenetworks.utils.DateUtils;
 import com.geedgenetworks.utils.JsonMapper;
@@ -15,9 +16,9 @@ import com.mesalab.executor.core.config.StorgeConfig;
 import com.mesalab.executor.core.utils.*;
 import com.mesalab.executor.exception.BusinessException;
 import com.mesalab.executor.pojo.LifecycleConfiguration;
-import com.mesalab.executor.pojo.ListAllMyBucketsResult;
+import com.mesalab.executor.pojo.StorageQuota;
+import com.mesalab.executor.service.StorageQuotaService;
 import com.xxl.job.core.biz.model.ReturnT;
-import com.xxl.job.core.handler.IJobHandler;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import com.xxl.job.core.log.XxlJobLogger;
 import org.apache.commons.lang3.ObjectUtils;
@@ -28,7 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
+import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class LogStorageQuotaJob {
 
     private static final String analyticUrl = "/druid/v2/sql";
     private static final String ck_cluster = "ck_cluster";
-    private static final String max_days = "maxDays";
+    private static final String ck_table_suffix = "_local";
     private static final String trafficPort = "8123";
 
     @Value("${zookeeper.server}")
@@ -52,6 +53,9 @@ public class LogStorageQuotaJob {
     private final Header[] hosHeaders = {new BasicHeader(Constant.TOKEN, deletionConfig.getFilesToken()),
             new BasicHeader(HttpHeaders.CONTENT_TYPE, Constant.TEXT_XML)};
 
+    @Resource
+    StorageQuotaService storageQuotaService;
+
     /**
      * 设置流量日志存储策略储
      * clickhouse
@@ -59,42 +63,38 @@ public class LogStorageQuotaJob {
     @XxlJob("deleteTrafficDataJobHandler")
     public ReturnT<String> deleteTrafficData(String params) {
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
-            Map<String, Object> deleteParamMap = deletionConfig.getCkSource();
+            Map<String, Object> ckParamsMap = deletionConfig.getCkSource();
+            StorageQuota storageQuota = storageQuotaService.getStorageQuota(Constant.TRAFFIC_LOGS);
+            Integer maxDays = getMaxDays(params, storageQuota.getMax_days());
+            String dropPartSqlTemp = "ALTER TABLE " + deletionConfig.getTrafficDatasource() + ".{} DROP PARTITION {}";
+            String queryPartSqlTemp = "SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemParts() + " WHERE table = '{}' AND `partition` < '{}' FORMAT JSON;";
 
-            //根据服务器地址，表，分区去删除数据
-            String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", deletionConfig.getTrafficDatasource(), ".");
-            String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
-            String ckUrl = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8).toString();
-            List<String> addressForCKs = getAddressForCK(ckUrl);
-            List<String> tablesForCKs = getTablesForCK(ckUrl,deletionConfig.getNotInSql("name",deletionConfig.getTafficExclusion()));
+            String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -maxDays);
+            List<String> addressForCKs = getAddressForCK(UrlUtil.getUrl(deletionConfig.getTrafficServer()));
             int failCount = 0;
             // 指定服务器
             for (String endpoint : addressForCKs) {
                 try {
                     JobUtil.infoLog("-----------------reset storage clickhouse ttl endpoint = {}  ------------------", endpoint);
                     String endpointUrl = UrlUtil.getUrl(endpoint);
-                    for (String table : tablesForCKs) {
+                    for (String table : storageQuota.getSource_list()) {
+                        String localTable = table + ck_table_suffix;
                         try {
                             //指定分区
-                            List<String> partitions = getSystemDataForCK(endpointUrl, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemParts() + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
+                            List<String> partitions = getSystemDataForCK(endpointUrl, StrUtil.format(queryPartSqlTemp, localTable, deleteMaxDate));
                             for (String partition : partitions) {
                                 try {
-                                    deleteParamMap.put("query", Joiner.on("").join(prefixDeleteSql, table, " DROP PARTITION ", partition));
-                                    HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(endpointUrl, deleteParamMap), "");
+                                    ckParamsMap.put("query", StrUtil.format(dropPartSqlTemp, localTable, partition));
+                                    HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(endpointUrl, ckParamsMap), "");
                                 } catch (BusinessException e) {
                                     failCount++;
-                                    JobUtil.errorLog("clickhouse ttl error endpoint = {}, table = {}, partition = {}, fail message = {}", endpoint, table, partition, JobUtil.getErrorMsg(e));
+                                    JobUtil.errorLog("clickhouse ttl error table = {}, partition = {}, fail message = {}", localTable, partition, JobUtil.getErrorMsg(e));
                                 }
                             }
-                            JobUtil.infoLog("reset clickhouse ttl table = {}, partition < {}, size = {}, fail count = {}", table, deleteMaxDate, partitions, failCount);
+                            JobUtil.infoLog("reset clickhouse ttl table = {}, partition < {}, size = {}, fail count = {}", localTable, deleteMaxDate, partitions, failCount);
                         } catch (BusinessException e) {
                             failCount++;
-                            JobUtil.errorLog("clickhouse ttl error endpoint = {},table = {}, fail message = {}", endpoint, table, JobUtil.getErrorMsg(e));
+                            JobUtil.errorLog("clickhouse ttl error table = {}, fail message = {}", localTable, JobUtil.getErrorMsg(e));
                         }
                     }
                 } catch (BusinessException e) {
@@ -102,17 +102,18 @@ public class LogStorageQuotaJob {
                     JobUtil.errorLog("clickhouse ttl error endpoint = {}, fail message = {}", endpoint, JobUtil.getErrorMsg(e));
                 }
             }
-            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
+            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, maxDays);
             if (failCount > 0) {
                 throw new BusinessException("reset storage clickhouse ttl error ,failCount " + failCount);
             }
 
-        } catch (BusinessException be) {
+        } catch (Exception be) {
             JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
     }
+
     /**
      * 设置流量日志存储策略储
      * clickhouse 数据库
@@ -122,59 +123,59 @@ public class LogStorageQuotaJob {
     @XxlJob("deleteTrafficDataJobHandler1")
     public ReturnT<String> deleteTrafficDataByCluster(String params) {
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
+
             Map<String, Object> deleteParamMap = deletionConfig.getCkSource();
+            StorageQuota storageQuota = storageQuotaService.getStorageQuota(Constant.TRAFFIC_LOGS);
 
             String prefixDeleteSql = Joiner.on("").join("ALTER TABLE ", deletionConfig.getTrafficDatasource(), ".");
             String suffixDeleteSql = Joiner.on("").join(" ON CLUSTER ", ck_cluster, " DROP PARTITION ");
-            Integer maxdays = Integer.valueOf(String.valueOf(paramsMap.get(max_days)));
-            String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -maxdays);
-
-            String ckUrl = UrlBuilder.ofHttp(deletionConfig.getTrafficServer(), StandardCharsets.UTF_8).toString();
-            List<String> tablesForCKs = getTablesForCK(ckUrl, deletionConfig.getNotInSql("name", deletionConfig.getTafficExclusion()));
-            JobUtil.infoLog("reset storage clickhouse endpoint = {}, tables = {}", ckUrl, tablesForCKs);
+            Integer maxDays = getMaxDays(params, storageQuota.getMax_days());
+            String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYYMMDD, -maxDays);
+            String ckUrl = UrlUtil.getUrl(deletionConfig.getTrafficServer());
 
             int failCount = 0;
             // 设置一个获取sql的方法，把表List
-            for (String table : tablesForCKs) {
-
+            for (String table : storageQuota.getSource_list()) {
+                String localTable = table + ck_table_suffix;
                 try {
-                    JobUtil.infoLog("-----------------reset storage clickhouse table = {}  ------------------", table);
-                    List<String> partitionList = getSystemDataForCK(ckUrl, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemPartsCluster() + " WHERE table = '", table, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
-                    JobUtil.infoLog("reset storage days table {}, drop partition size {} ", table, partitionList.size());
+                    JobUtil.infoLog("-----------------reset storage clickhouse table = {}  ------------------", localTable);
+                    List<String> partitionList = getSystemDataForCK(ckUrl, Joiner.on("").join("SELECT DISTINCT(`partition`) from " + deletionConfig.getSystemPartsCluster()
+                            + " WHERE table = '", localTable, "' AND `partition` < '", deleteMaxDate, "' FORMAT JSON;"));
+                    JobUtil.infoLog("reset storage days table {}, drop partition size {} ", localTable, partitionList.size());
 
                     partitionList.forEach(partition -> {
-                        String deleteSql = Joiner.on("").join(prefixDeleteSql, table, suffixDeleteSql, "'", partition, "'");
+                        String deleteSql = Joiner.on("").join(prefixDeleteSql, localTable, suffixDeleteSql, "'", partition, "'");
                         deleteParamMap.put("query", deleteSql);
                         JobUtil.infoLog("reset storage days clickhouse sql:{}", deleteSql);
 
                         HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(ckUrl, deleteParamMap), null);
-                        JobUtil.infoLog("reset storage days table {} partition {} success", table, partition);
+                        JobUtil.infoLog("reset storage days table {} partition {} success", localTable, partition);
                     });
                 } catch (BusinessException e) {
                     failCount++;
-                    JobUtil.errorLog("clickhouse ttl error table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
+                    JobUtil.errorLog("clickhouse ttl error table = {}, fail message = {}", localTable, JobUtil.getErrorMsg(e));
                 }
             }
-            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, maxdays);
+            modifyLastStorage(Constant.ZK_TRAFFIC_LOGS, maxDays);
             if (failCount > 0) {
                 throw new BusinessException("reset storage clickhouse ttl error, failCount " + failCount);
             }
-            JobUtil.infoLog("reset clickhouse {} days success", maxdays);
-        } catch (BusinessException be) {
+            JobUtil.infoLog("reset clickhouse {} days success", maxDays);
+        } catch (Exception be) {
             JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
 
         return ReturnT.SUCCESS;
+    }
+
+    private Integer getMaxDays(String params, Integer maxDays) {
+        if (ObjectUtils.isNotEmpty(params)) {
+            JSONObject paramsJsonObj = JSONUtil.parseObj(params);
+            Integer triggerMaxDays = paramsJsonObj.getInt(Constant.MAX_DAYS);
+            maxDays = triggerMaxDays == null ? maxDays : triggerMaxDays;
+        }
+        return maxDays;
     }
 
     /**
@@ -187,114 +188,56 @@ public class LogStorageQuotaJob {
     public ReturnT<String> deleteReportAndMetricsData(String params) {
 
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
+            StorageQuota storageQuota = storageQuotaService.getStorageQuota(Constant.METRICS);
+            Integer maxDays = getMaxDays(params, storageQuota.getMax_days());
+            deleteDruidTable(maxDays, storageQuota.getSource_list());
+            modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, maxDays);
 
-            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%' " + deletionConfig.getNotInSql("datasource", deletionConfig.getAnalyticExclusion()) + " \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get(max_days))), false);
-            modifyLastStorage(Constant.ZK_REPORT_AND_METRICS, Integer.valueOf(String.valueOf(paramsMap.get(max_days))));
-
-        } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
+        } catch (Exception be) {
+            JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
-
         return ReturnT.SUCCESS;
     }
 
-    /**
-     * 日志存储策略
-     * druid 数据库
-     * 用于删除hot表，默认保留一天
-     *
-     * @param params{"maxdays":1}
-     */
-    @XxlJob("deleteDruidHotLogJobHandler")
-    public ReturnT<String> deleteDruidHotLogJobHandler(String params) {
-
-        try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
-            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks  WHERE datasource LIKE '%hot%' " + deletionConfig.getNotInSql("datasource", deletionConfig.getAnalyticExclusion()) + " \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
-            deleteDruidTable(queryTablesSql, Integer.valueOf(String.valueOf(paramsMap.get(max_days))), true);
-        } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
-            return ReturnT.FAIL;
-        }
-
-        return ReturnT.SUCCESS;
-    }
-
-    /*
-     * @Author zhq
-     * @Description 通过查询跟天数，查到的表保留天数
-     * @Date 2020\9\25
-     * @Param [queryTablesSql, maxdays]
-     * @return void
-     **/
-    private void deleteDruidTable(String queryTablesSql, Integer maxdays, boolean hotTask) {
-        List<String> analyticTables = getAnalyticTables(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryTablesSql);
+    private void deleteDruidTable(Integer maxDays, List<String> tableList) {
         //1.修改规则
-        String changeRulesUrl = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/rules/");
-        String changeRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", maxdays, "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
-        // 2. unuse
-        // curl -X 'POST' -H 'Content-Type:application/json' -d '{ "interval" : "2022-01-01/3000-01-03" }' /druid/coordinator/v1/datasources/$table_name/markUnused
-
+        String druidHost = deletionConfig.getAnalyticServer();
+        String changeRulesUrl = UrlUtil.getUrl(druidHost, "/druid/coordinator/v1/rules/");
+        String changeRulesParam = StrUtil.format("[{\"type\":\"loadByPeriod\",\"period\":\"P{}D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]", maxDays);
         //3 .物理删除
-        String deleteUrl = UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/indexer/v1/task");
-        String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
+        String deleteUrl = UrlUtil.getUrl(druidHost, "/druid/indexer/v1/task");
         //起始时间/当前时间-maxDay
         String druidDataStartTime = getDruidDataStartTime();
-        String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -maxdays);
-        String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", druidDataStartTime, "/", deleteMaxDate, "\"}");
-        String unUseParam = Joiner.on("").join("{\"interval\":\"", druidDataStartTime, "/", deleteMaxDate, "\"}");
+        String deleteMaxDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, -maxDays);
+        String deleteParamTemp = String.join("","{\"type\":\"kill\",\"dataSource\":\"{}\",\"interval\":\"", druidDataStartTime, "/", deleteMaxDate, "\"}");
+        if (druidDataStartTime.compareTo(deleteMaxDate) > 0) {
+            JobUtil.infoLog("deletion range start date {} >  end date {}", druidDataStartTime, deleteMaxDate);
+            return;
+        }
+        String unUseParam = String.join("","{\"interval\":\"", druidDataStartTime, "/", deleteMaxDate, "\"}");
         JobUtil.infoLog("reset storage days druid unused command = {}", unUseParam);
 
         int failCount = 0;
-        for (String table : analyticTables) {
+        for (String table : tableList) {
             try {
-                JobUtil.infoLog("-----------------reset storage druid endpoint = {}, table = {} ------------------", deletionConfig.getAnalyticServer(), table);
-                // hot表不用执行修改规则
-                if (!hotTask) {
-                    JobUtil.infoLog("reset storage days first rules command = {}", table, changeRulesParam);
-                    HttpClientUtils.httpPost(changeRulesUrl + table, changeRulesParam);
-                }
-                if (druidDataStartTime.compareTo(deleteMaxDate) < 0) {
+                JobUtil.infoLog("-----------------reset storage druid endpoint = {}, table = {} ------------------", druidHost, table);
 
-                    String unUseMessage = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/datasources/", table,"/markUnused") , unUseParam);
-                    JobUtil.infoLog("reset storage days druid unused result message :{}", unUseMessage);
+                JobUtil.infoLog("reset storage days rules command = {}", changeRulesParam);
+                HttpClientUtils.httpPost(changeRulesUrl + table, changeRulesParam);
+                // 2. unuse
+                String unUseMessage = HttpClientUtils.httpPost(UrlUtil.getUrl(druidHost, "/druid/coordinator/v1/datasources/", table, "/markUnused"), unUseParam);
+                JobUtil.infoLog("reset storage days unused result message :{}", unUseMessage);
 
-                    JobUtil.infoLog("reset storage days druid second command = {}",  prefixDeleteParam + table + suffixDeleteParam);
-                    String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam + table + suffixDeleteParam);
-                    JobUtil.infoLog("reset storage days druid result message :{}", deleteMessage);
-                }
+                String deleteDataCmd = StrUtil.format(deleteParamTemp, table);
+                JobUtil.infoLog("reset storage days kill command = {}", deleteDataCmd);
+                String deleteMessage = HttpClientUtils.httpPost(deleteUrl, deleteDataCmd);
+                JobUtil.infoLog("reset storage days druid result message :{}", deleteMessage);
             } catch (BusinessException e) {
                 failCount++;
                 JobUtil.errorLog("reset storage druid ttl table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
             }
         }
-        if (ObjectUtils.isNotEmpty(deletionConfig.getAnalyticExclusion())) {
-            List<String> tableExc = Splitter.on(",").trimResults().splitToList(deletionConfig.getAnalyticExclusion());
-            for (String table : tableExc) {
-                try {
-                    JobUtil.infoLog("========================= load forever druid table {} =========================", table);
-                    String loadMessage = HttpClientUtils.httpPost(changeRulesUrl + table, "[{\"type\":\"loadForever\",\"tieredReplicants\":{\"_default_tier\":1}}]");
-                    JobUtil.infoLog("load forever druid result message {}", loadMessage);
-                } catch (BusinessException e) {
-                    failCount++;
-                    JobUtil.errorLog("load forever storage druid ttl endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
-                }
-            }
-        }
-
         if (failCount > 0) {
             throw new BusinessException("reset storage druid ttl error, table fail count " + failCount);
         }
@@ -308,36 +251,34 @@ public class LogStorageQuotaJob {
     @XxlJob("deleteFilesJobHandler")
     public ReturnT<String> deleteFiles(String params) {
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
-            String maxDays = String.valueOf(paramsMap.get(max_days));
-            List<String> hosHostList = parseList(deletionConfig.getFilesHosServer());
+            StorageQuota storageQuota = storageQuotaService.getStorageQuota(Constant.FILES);
+            Integer maxDays = getMaxDays(params, storageQuota.getMax_days());
+            List<String> hosHostList = StringUtil.isEmpty(deletionConfig.getFilesHosServer()) ? null : Splitter.on(",")
+                    .trimResults()
+                    .omitEmptyStrings()
+                    .splitToList(deletionConfig.getFilesHosServer());
+
             int failCount = 0;
             for (String hosHost : hosHostList) {
                 JobUtil.infoLog("-----------------reset storage hos endpoint = {} ------------------", hosHost);
-                failCount += deleteHosData(hosHost, maxDays);
+                failCount += deleteHosData(hosHost, maxDays.toString(), storageQuota.getSource_list());
             }
 
             if (failCount > 0) {
                 JobUtil.errorLog(" number of total endpoints " + hosHostList.size() + ", number of failed count " + failCount);
                 return ReturnT.FAIL;
             }
-        } catch (BusinessException be) {
+        } catch (Exception be) {
             JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
     }
 
-    public int deleteHosData(String endpoint, String maxDays) {
+    public int deleteHosData(String endpoint, String maxDays, List<String> bucketList) {
         int failCount = 0;
         try {
             String hosServer = UrlUtil.getUrl(endpoint);
-            // 获取桶列表
-            List<String> bucketList = getBucketList(endpoint, hosServer);
             LifecycleConfiguration lifecycleConfig = new LifecycleConfiguration();
 
             lifecycleConfig.getRule().setExpiration(new LifecycleConfiguration.Expiration(maxDays));
@@ -357,31 +298,6 @@ public class LogStorageQuotaJob {
         }
         return failCount;
     }
-
-    private List<String> getBucketList(String endpoint, String hosServer) {
-        List<String> whiteList = parseList(deletionConfig.getFilesExclusion());
-        String httpGetRes = HttpClientUtils.httpGet(hosServer + "/hos/", hosHeaders);
-        if (httpGetRes == null || "-1".equals(httpGetRes)) {
-            throw new BusinessException(StrUtil.format("reset storage files ttl endpoint = {} , fail message = I/O exception", endpoint));
-        }
-
-        List<String> bucketList = Lists.newArrayList();
-        ListAllMyBucketsResult bucketsResult = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
-
-        if (ObjectUtils.allNotNull(bucketsResult, bucketsResult.getBuckets(), bucketsResult.getBuckets().getBucket())) {
-            for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketsResult.getBuckets().getBucket()) {
-                if (ObjectUtils.isNotEmpty(whiteList) && whiteList.contains(bucket.getName())) {
-                    continue;
-                }
-                bucketList.add(bucket.getName());
-            }
-        }
-        return bucketList;
-    }
-
-    private List<String> parseList(String csv) {
-        return StringUtil.isEmpty(csv) ? null : Splitter.on(",").trimResults().omitEmptyStrings().splitToList(csv);
-    }
     //*********************************************清库**********************************************************
 
     /**
@@ -393,42 +309,30 @@ public class LogStorageQuotaJob {
     public ReturnT<String> deleteAllTrafficData(String params) {
 
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
             Map<String, Object> deleteParamMap = deletionConfig.getCkSource();
+            StorageQuota storageQuota = storageQuotaService.getStorageQuota(Constant.TRAFFIC_LOGS);
             //清库命令参数
             String deleteSql = Joiner.on("").join("TRUNCATE TABLE IF EXISTS ", deletionConfig.getTrafficDatasource(), ".");
             int failCount = 0;
             try {
                 String url = UrlUtil.getUrl(deletionConfig.getTrafficServer());
-                List<String> tablesForCKs = getTablesForCK(url, deletionConfig.getNotInSql("name", deletionConfig.getTafficExclusion()));
-                logger.info("delete storage clickhouse endpoint = {}, tables = {}", url, tablesForCKs);
-                XxlJobLogger.log("delete storage clickhouse endpoint = {}, tables = {}", url, tablesForCKs);
-
-                for (String table : tablesForCKs) {
+                JobUtil.infoLog("delete storage clickhouse endpoint = {}, tables = {}", url, storageQuota.getSource_list());
+                for (String table : storageQuota.getSource_list()) {
                     try {
                         String deleteSqlCluster = String.join(" ", deleteSql, table, " ON CLUSTER ", ck_cluster);
                         deleteParamMap.put("query", deleteSqlCluster);
 
-                        logger.info("delete clickhouse table = {}, sql:{}", table, deleteSqlCluster);
+                        JobUtil.infoLog("delete clickhouse table = {}, sql:{}", table, deleteSqlCluster);
                         HttpClientUtils.httpPost(HttpClientUtils.getUrlWithParams(url, deleteParamMap), "");
-                        XxlJobLogger.log("delete clickhouse table = {}", table);
+                        JobUtil.infoLog("delete clickhouse table = {}", table);
 
                     } catch (BusinessException e) {
-                        logger.error("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", url, table, JobUtil.getErrorMsg(e));
-                        XxlJobLogger.log("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", url, table, JobUtil.getErrorMsg(e));
+                        JobUtil.errorLog("delete storage clickhouse error endpoint = {}, table = {}, fail message = {}", url, table, JobUtil.getErrorMsg(e));
                         failCount++;
                     }
                 }
-                logger.info("delete storage clickhouse endpoint = {}, fail count = {}, tables = {}", url, failCount, tablesForCKs);
-                XxlJobLogger.log("delete storage clickhouse endpoint = {}, fail count = {}, tables = {}", url, failCount, tablesForCKs);
-
             } catch (BusinessException e) {
-                logger.error("delete storage clickhouse error ,  fail message = {}", JobUtil.getErrorMsg(e));
-                XxlJobLogger.log("delete storage clickhouse error ,  fail message = {}", JobUtil.getErrorMsg(e));
+                JobUtil.errorLog("delete storage clickhouse error ,  fail message = {}", JobUtil.getErrorMsg(e));
                 failCount++;
             }
 
@@ -436,11 +340,9 @@ public class LogStorageQuotaJob {
             if (failCount > 0) {
                 throw new BusinessException("delete storage clickhouse error ,failCount " + failCount);
             }
-            logger.info("delete clickhouse success");
-            XxlJobLogger.log("delete clickhouse success");
-        } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
+            JobUtil.infoLog("delete clickhouse success");
+        } catch (Exception be) {
+            JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
 
@@ -455,47 +357,39 @@ public class LogStorageQuotaJob {
     @XxlJob("deleteAllReportAndMetricsDataJobHandler")
     public ReturnT<String> deleteAllReportAndMetricsData(String params) {
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
+            StorageQuota storageQuota = storageQuotaService.getStorageQuota(Constant.METRICS);
+            Integer maxDays = getMaxDays(params, storageQuota.getMax_days());
+            String druidHost = UrlUtil.getUrl(deletionConfig.getAnalyticServer());
             String deleteEndDate = DateUtils.getSomeDate(TimeConstants.YYYY_MM_DD, 1);
-
-            String deleteendpoint = UrlUtil.getUrl(deletionConfig.getAnalyticServer());
-
             String deleteStartTime = getDruidDataStartTime();
             //1停止加载
-            String changeRulesUrl = Joiner.on("").join(deleteendpoint, "/druid/coordinator/v1/rules/");
+            String changeRulesUrl = String.join("",druidHost, "/druid/coordinator/v1/rules/");
             String changeRulesParam = "[{ \"type\":\"dropByInterval\", \"interval\":\"" + deleteStartTime + "/" + deleteEndDate + "\" }]";
-
             //2标记unused
-            String unUseParam = Joiner.on("").join("{\"interval\":\"", deleteStartTime, "/", deleteEndDate, "\"}");
+            String unUseParam = String.join("","{\"interval\":\"", deleteStartTime, "/", deleteEndDate, "\"}");
             JobUtil.infoLog("reset storage days druid unused command = {}", unUseParam);
             //3物理删除所有数据
-            String deleteUrl = Joiner.on("").join(deleteendpoint, "/druid/indexer/v1/task");
-            String prefixDeleteParam = "{\"type\":\"kill\",\"dataSource\":\"";
-            String suffixDeleteParam = Joiner.on("").join("\",\"interval\":\"", deleteStartTime + "/", deleteEndDate, "\"}");
+            String deleteUrl = String.join("",druidHost, "/druid/indexer/v1/task");
+            String deleteParamTemp = String.join("","{\"type\":\"kill\",\"dataSource\":\"{}\",\"interval\":\"", deleteStartTime + "/", deleteEndDate, "\"}");
             //4恢复加载规则
-            String resetRulesParam = Joiner.on("").join("[{\"type\":\"loadByPeriod\",\"period\":\"P", paramsMap.get(max_days), "D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]");
-            //清库时注意不操作hot结尾的表
-            String queryTablesSql = "{\"query\":\"SELECT DISTINCT(datasource) FROM sys.tasks WHERE datasource NOT LIKE '%hot%' " + deletionConfig.getNotInSql("datasource", deletionConfig.getAnalyticExclusion()) + " \",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}";
+            String resetRulesParam = StrUtil.format("[{\"type\":\"loadByPeriod\",\"period\":\"P{}D\",\"tieredReplicants\":{\"_default_tier\":1}},{\"type\":\"dropForever\"}]", maxDays);
 
-            List<String> analyticTables = getAnalyticTables(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryTablesSql);
             int failCount = 0;
-            for (String table : analyticTables) {
+            for (String table : storageQuota.getSource_list()) {
                 try {
                     //每个表限制操作时间五分钟，开始计时
                     long startTime = System.currentTimeMillis();
                     long endTime = startTime + 1000 * 60 * 5;
-                    XxlJobLogger.log("delete druid table first command , endpoint = {}, table = {}, sql = {}", deletionConfig.getAnalyticServer(), table, changeRulesParam);
+                    JobUtil.infoLog("-----------------reset storage druid table = {} ------------------", table);
+                    XxlJobLogger.log("delete druid table first command , endpoint = {}, table = {}, sql = {}", druidHost, table, changeRulesParam);
                     HttpClientUtils.httpPost(changeRulesUrl + table, changeRulesParam);
 
                     //查询表数据是否删除 固定key EXPR$0
-                    String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time >= '", deleteStartTime, "' AND __time <= '", getDruidDataEndTime(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl)), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
+                    String countTableDataSql = Joiner.on("").join("{\"query\":\"SELECT count(*) from ", table, " where __time >= '", deleteStartTime, "' AND __time <= '",
+                            getDruidDataEndTime(UrlUtil.getUrl(druidHost, analyticUrl)), "'\",\"context\":{\"skipEmptyBuckets\":\"false\"},\"resultFormat\":\"object\"}");
                     int count = 1;
                     while (count > 0) {
-                        String httpPostResult = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), countTableDataSql);
+                        String httpPostResult = HttpClientUtils.httpPost(UrlUtil.getUrl(druidHost, analyticUrl), countTableDataSql);
                         List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
                         count = Integer.valueOf(String.valueOf(list.get(0).get("EXPR$0")));
                         if (count > 0) {
@@ -509,19 +403,20 @@ public class LogStorageQuotaJob {
                         }
                     }
 
-                    String unUseMessage = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/datasources/", table,"/markUnused") , unUseParam);
+                    String unUseMessage = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), "/druid/coordinator/v1/datasources/", table, "/markUnused"), unUseParam);
                     JobUtil.infoLog("reset storage days druid unused result message :{}", unUseMessage);
 
-                    XxlJobLogger.log("delete druid table second command table = {}, sql = {}", table, prefixDeleteParam + table + suffixDeleteParam);
-                    String deleteMessage = HttpClientUtils.httpPost(deleteUrl, prefixDeleteParam + table + suffixDeleteParam);
-                    XxlJobLogger.log("delete druid table third command table = {}, sql = {}", table, resetRulesParam);
+                    String deleteParams = StrUtil.format(deleteParamTemp, table);
+                    JobUtil.infoLog("delete druid table second command table = {}, sql = {}", table, deleteParams);
+
+                    String deleteMessage = HttpClientUtils.httpPost(deleteUrl, deleteParams);
+                    JobUtil.infoLog("delete druid table third command table = {}, sql = {}", table, resetRulesParam);
                     HttpClientUtils.httpPost(changeRulesUrl + table, resetRulesParam);
 
                     XxlJobLogger.log("delete druid table result message = {}", deleteMessage);
                 } catch (BusinessException e) {
                     // 表不存在时，查询发生错误，记录下继续执行
-                    logger.error(" query druid error, table = {}, fail message = {}", table, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log(" query druid error, endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
+                    JobUtil.errorLog(" query druid error, endpoint = {}, table = {}, fail message = {}", deletionConfig.getAnalyticServer(), table, JobUtil.getErrorMsg(e));
                     failCount++;
                 }
             }
@@ -529,7 +424,7 @@ public class LogStorageQuotaJob {
             if (failCount > 0) {
                 throw new BusinessException("delete druid error, fail count " + failCount);
             }
-        } catch (BusinessException be) {
+        } catch (Exception be) {
             logger.error(be.getMessage());
             XxlJobLogger.log(be.getMessage());
             return ReturnT.FAIL;
@@ -546,118 +441,39 @@ public class LogStorageQuotaJob {
     @XxlJob("deleteAllFilesJobHandler")
     public ReturnT<String> deleteAllFiles(String params) {
         try {
-            Map<String, Object> paramsMap = validParams(params);
-            if (ObjectUtils.isEmpty(paramsMap)) {
-                logger.error("params parser error , params is {}", params);
-                return IJobHandler.FAIL;
-            }
+            StorageQuota storageQuota = storageQuotaService.getStorageQuota(Constant.FILES);
             Header header = new BasicHeader(Constant.TOKEN, deletionConfig.getFilesToken());
-            List<String> endpointList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesHosServer());
-            List<String> whiteList = StringUtil.isEmpty(deletionConfig.getFilesExclusion()) ? null : Splitter.on(",").trimResults().omitEmptyStrings().splitToList(deletionConfig.getFilesExclusion());
+            List<String> endpointList = Splitter.on(",").trimResults()
+                    .omitEmptyStrings()
+                    .splitToList(deletionConfig.getFilesHosServer());
 
             int failCount = 0;
             for (String endpoint : endpointList) {
                 try {
                     String filesServer = UrlUtil.getUrl(endpoint);
-                    String httpGetRes = HttpClientUtils.httpGet(Joiner.on("").join(filesServer, "/hos/"), header);
-
-                    if (httpGetRes != null && !"-1".equals(httpGetRes)) {
-                        ListAllMyBucketsResult list = XmlUtil.converXmlToBean(ListAllMyBucketsResult.class, httpGetRes);
-                        logger.info("delete storage files ttl endpoint = {}, bucket list = {} ", endpoint, list);
-                        XxlJobLogger.log("endpoint = {}, bucket list = {} ", endpoint, list);
-                        if (ObjectUtils.allNotNull(list, list.getBuckets(), list.getBuckets().getBucket())) {
-                            ListAllMyBucketsResult.Buckets buckets = list.getBuckets();
-                            List<ListAllMyBucketsResult.Buckets.Bucket> bucketList = buckets.getBucket();
-                            XxlJobLogger.log("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
-                            logger.info("delete file endpoint = {}, bucket list = {} ", endpoint, bucketList);
-                            for (ListAllMyBucketsResult.Buckets.Bucket bucket : bucketList) {
-                                try {
-                                    //排除白名单
-                                    if (ObjectUtils.isEmpty(whiteList) || !whiteList.contains(bucket.getName())) {
-                                        HttpClientUtils.httpDelete(Joiner.on("").join(filesServer, "/hos/", bucket.getName(), "?truncate"), header);
-                                    }
-                                } catch (BusinessException e) {
-                                    failCount++;
-                                    logger.error("delete file error endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
-                                    XxlJobLogger.log("endpoint = {},bucket ={}, fail message={}", endpoint, bucket, JobUtil.getErrorMsg(e));
-                                }
-                            }
+                    JobUtil.infoLog("delete file endpoint = {}, bucket list = {} ", endpoint, storageQuota.getSource_list());
+                    for (String bucketName : storageQuota.getSource_list()) {
+                        try {
+                            HttpClientUtils.httpDelete(String.join("",filesServer, "/hos/", bucketName, "?truncate"), header);
+                        } catch (BusinessException e) {
+                            failCount++;
+                            JobUtil.errorLog("endpoint = {},bucket ={}, fail message={}", endpoint, bucketName, JobUtil.getErrorMsg(e));
                         }
-                    } else {
-                        failCount++;
-                        logger.error("delete file error failCount = {}, endpoint = {} , fail message = I/O exception", failCount, endpoint);
-                        XxlJobLogger.log("endpoint = {} , fail message = I/O exception", endpoint);
                     }
                 } catch (BusinessException e) {
                     failCount++;
-                    logger.error("delete file error endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
-                    XxlJobLogger.log("endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
-
+                    JobUtil.errorLog("endpoint = {}, fail message={}", endpoint, JobUtil.getErrorMsg(e));
                 }
             }
             modifyLastStorage(Constant.FILES, 0);
             if (failCount > 0) {
                 throw new BusinessException(" delete files error, failed count " + failCount);
             }
-        } catch (BusinessException be) {
-            logger.error(be.getMessage());
-            XxlJobLogger.log(be.getMessage());
+        } catch (Exception be) {
+            JobUtil.errorLog(be.getMessage());
             return ReturnT.FAIL;
         }
         return ReturnT.SUCCESS;
-    }
-
-
-    /**
-     * 数据库连接参数
-     *
-     * @return map
-     * {database：,
-     * password：,
-     * user:,
-     * }
-     */
-
-    /**
-     * 必填参数进行验证，其它自行配置
-     *
-     * @param params
-     */
-    private Map<String, Object> validParams(String params) {
-        logger.info("params{}", params);
-
-        if (StringUtil.isBlank(params)) {
-            XxlJobLogger.log("params is Empty !");
-            return null;
-        }
-        Map<String, Object> paramMap = (Map) JsonMapper.fromJsonString(params, Map.class);
-        if (paramMap == null) {
-            XxlJobLogger.log("params error !");
-            return null;
-        }
-        return paramMap;
-    }
-
-
-    /**
-     * 根据druid日志表
-     */
-    private List<String> getAnalyticTables(String url, String sql) {
-        List<String> tableList = Lists.newArrayList();
-        //查询表名
-        String httpPostResult = HttpClientUtils.httpPost(url, sql);
-        List<Map> list = (List) JsonMapper.fromJsonString(httpPostResult, List.class);
-        list.forEach(map -> tableList.addAll(map.values()));
-        return tableList;
-    }
-
-    /**
-     * 查询clickhouse 需要删除的表
-     *
-     * @return List<String>
-     */
-    private List<String> getTablesForCK(String url, String condition) {
-        return getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT(name) FROM ", deletionConfig.getSystemTables(), " WHERE database = '", deletionConfig.getTrafficDatasource(), "' AND engine in  ('MergeTree','ReplicatedMergeTree')", condition == null ? "" : condition, " FORMAT JSON;"));
     }
 
     //公共查询clickhouse
@@ -685,7 +501,8 @@ public class LogStorageQuotaJob {
         String httpPost = HttpClientUtils.httpPost(UrlUtil.getUrl(deletionConfig.getAnalyticServer(), analyticUrl), queryAnalyticStartTimeSql);
         //查询表数据url
         List<Map> startTimeList = (List) JsonMapper.fromJsonString(httpPost, List.class);
-        return ObjectUtils.isEmpty(startTimeList) ? DateUtils.getCurrentDate() : DateUtils.getFormatDate(DateUtils.convertStringToDate(String.valueOf(startTimeList.get(0).get("start")), "yyyy-MM-dd'T'HH:mm:ss.SSSZ"), DateUtils.YYYY_MM_DD);
+        return ObjectUtils.isEmpty(startTimeList) ? DateUtils.getCurrentDate() :
+                DateUtils.getFormatDate(DateUtils.convertStringToDate(String.valueOf(startTimeList.get(0).get("start")), "yyyy-MM-dd'T'HH:mm:ss.SSSZ"), DateUtils.YYYY_MM_DD);
     }
 
     /**
@@ -713,6 +530,7 @@ public class LogStorageQuotaJob {
         List<Map> startTimeList = (List) JsonMapper.fromJsonString(httpPost, List.class);
         return ObjectUtils.isEmpty(startTimeList) ? DateUtils.getCurrentDate() : String.valueOf(startTimeList.get(0).get("version"));
     }
+
     /***
      * --查所有的IP地址
      * @Date 2020\9\18 0018
@@ -723,6 +541,7 @@ public class LogStorageQuotaJob {
         endpointList.addAll(getSystemDataForCK(url, Joiner.on("").join("SELECT DISTINCT concat(host_address,':','" + trafficPort + "') as endpoint FROM ", deletionConfig.getSystemClusters(), " FORMAT JSON;")));
         return endpointList;
     }
+
     /**
      * @param node
      * @return 自定义的标准时间 last_storage,

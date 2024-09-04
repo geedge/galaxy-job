@@ -1,5 +1,9 @@
 package com.mesalab.executor.core.utils;
 
+import org.apache.http.Header;
+import org.apache.http.message.BasicHeader;
+import org.springframework.http.HttpHeaders;
+
 public class Constant {
 
     // 存储配额中区分数据类型的字段
@@ -44,5 +48,6 @@ public class Constant {
 
     public static String ENCRYPT_KEY = "86cf0e2ffba3f541a6c6761313e5cc7e";
 
-
+    public static final Header QGW_HEADER = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+    public static final String QGW_STORAGE_QUOTA_URL= "/v1/database/storage/quota";
 }

@@ -65,11 +65,10 @@ public class StorageQuotaJob {
                 return IJobHandler.FAIL;
             }
             String logType = TypeUtils.castToString(paramsMap.get("logType"));
-            double maxUsage = TypeUtils.castToInt(paramsMap.get("maxUsage")) / 100D;
             int durationMinutes = TypeUtils.castToInt(paramsMap.get("durationMinutes"));
             int minIntervalMinutes = TypeUtils.castToInt(paramsMap.get("minIntervalMinutes"));
             JDBCParam jdbcParam = JSONUtil.toBean((JSONObject) paramsMap.get("jdbcParam"), JDBCParam.class);
-            failCount += storageQuotaService.deleteOldLog(logType, maxUsage,durationMinutes, minIntervalMinutes, jdbcParam);
+            failCount += storageQuotaService.deleteOldLog(logType, durationMinutes, minIntervalMinutes, jdbcParam);
 
         } catch (Exception e) {
             failCount++;

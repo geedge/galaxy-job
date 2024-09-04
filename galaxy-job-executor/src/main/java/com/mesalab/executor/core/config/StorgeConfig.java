@@ -52,14 +52,17 @@ public class StorgeConfig {
 	@NacosValue(value = "${storge.files.token}",autoRefreshed = true)
 	private String filesToken; //登录验证
 
-	@NacosValue(value = "${storge.files.delete.exclusion}",autoRefreshed = true)
-	private String filesExclusion;
+//	@NacosValue(value = "${storge.files.delete.exclusion}",autoRefreshed = true)
+//	private String filesExclusion;
+//
+//	@NacosValue(value = "${storge.analytic.delete.exclusion}",autoRefreshed = true)
+//	private String analyticExclusion;
+//
+//	@NacosValue(value = "${storge.taffic.delete.exclusion}",autoRefreshed = true)
+//	private String tafficExclusion;
 
-	@NacosValue(value = "${storge.analytic.delete.exclusion}",autoRefreshed = true)
-	private String analyticExclusion;
-
-	@NacosValue(value = "${storge.taffic.delete.exclusion}",autoRefreshed = true)
-	private String tafficExclusion;
+	@NacosValue(value = "${query-gateway.server}", autoRefreshed = true)
+	private String qgwServer;
 
 	public String getFilesHosServer() {
 		return getServer();
@@ -106,6 +109,11 @@ public class StorgeConfig {
 			return "";
 		}
 		return Splitter.on(",").trimResults().splitToList(exclusion).stream().filter(x ->StrUtil.isNotEmpty(x)).collect(Collectors.joining("','"," and "+ field +" not in ('","')"));
+	}
+
+	public String getInSql(String field, List<String> list){
+
+		return list.stream().filter(x ->StrUtil.isNotEmpty(x)).collect(Collectors.joining("','"," and "+ field +" in ('","')"));
 	}
 
 	public Map<String, Object> getCkSource() {
