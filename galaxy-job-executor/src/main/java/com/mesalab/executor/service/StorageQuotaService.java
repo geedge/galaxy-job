@@ -1,5 +1,6 @@
 package com.mesalab.executor.service;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.db.handler.BeanListHandler;
@@ -270,13 +271,14 @@ public class StorageQuotaService {
         long interval = 60;
         long num = 24 * 60 / interval;
 
-        List<SysStorageEvent> newResultList = Lists.newArrayList();
+        List<SysStorageEvent> newResultList = new ArrayList<>();
         long timestamp = DateUtils.convertStringToTimestamp(DateUtils.getDateOfYesterday("yyyyMMdd"), "yyyyMMdd");
         for (SysStorageEvent sysStorageEvent : jobResult.getData()) {
             Long dayBytes = sysStorageEvent.getBytes();
             long minBytes = dayBytes / num;
             for (long i = 0; i < num; i++) {
-                SysStorageEvent newStorageEvent = sysStorageEvent;
+                SysStorageEvent newStorageEvent = new SysStorageEvent();
+                BeanUtil.copyProperties(sysStorageEvent,newStorageEvent);
                 newStorageEvent.setBytes(minBytes);
 
                 timestamp = timestamp + interval * 60;

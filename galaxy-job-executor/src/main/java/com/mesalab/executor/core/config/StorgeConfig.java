@@ -52,14 +52,6 @@ public class StorgeConfig {
 	@NacosValue(value = "${storge.files.token}",autoRefreshed = true)
 	private String filesToken; //登录验证
 
-//	@NacosValue(value = "${storge.files.delete.exclusion}",autoRefreshed = true)
-//	private String filesExclusion;
-//
-//	@NacosValue(value = "${storge.analytic.delete.exclusion}",autoRefreshed = true)
-//	private String analyticExclusion;
-//
-//	@NacosValue(value = "${storge.taffic.delete.exclusion}",autoRefreshed = true)
-//	private String tafficExclusion;
 
 	@NacosValue(value = "${query-gateway.server}", autoRefreshed = true)
 	private String qgwServer;
