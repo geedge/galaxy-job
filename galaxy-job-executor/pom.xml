@@ -191,40 +191,50 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.spotify</groupId>
+                <groupId>io.fabric8</groupId>
                 <artifactId>docker-maven-plugin</artifactId>
-                <version>1.0.0</version>
+                <version>0.45.0</version>
                 <configuration>
-                    <serverId>153-nexus-docker-repo</serverId>
-                    <registryUrl>${docker.registry}:${docker.registry.port}</registryUrl>
-                    <pushImage>true</pushImage>
-                    <forceTags>true</forceTags>
-                    <imageName>${docker.registry}:${docker.registry.port}/${docker.image.prefix}/${project.artifactId}
-                    </imageName>
                     <dockerHost>http://${docker.build}:${docker.build.port}</dockerHost>
-                    <dockerDirectory>docker</dockerDirectory>
-                    <buildArgs>
-                        <JDK_IMAGE>${docker.registry}:${docker.registry.port}/common/jdk:1.8.0_202</JDK_IMAGE>
-                        <GOLANG_IMAGE>${docker.registry}:${docker.registry.port}/common/golang:1.15.6</GOLANG_IMAGE>
-                        <JAR_FILE>${project.build.finalName}.xjar</JAR_FILE>
-                    </buildArgs>
-                    <imageTags>
-                        <imageTag>2.2.0.7</imageTag>
-                    </imageTags>
-                    <resources>
-                        <resource>
-                            <targetPath>/</targetPath>
-                            <directory>${project.build.directory}</directory>
-                            <include>${project.build.finalName}.xjar</include>
-                            <include>xjar.go</include>
-                        </resource>
-                        <resource>
-                            <targetPath>/config</targetPath>
-                            <directory>${project.build.directory}/classes/</directory>
-                            <include>**/*.properties</include>
-                            <include>**/*.yml</include>
-                        </resource>
-                    </resources>
+                    <registry>${docker.registry}:${docker.registry.port}</registry>
+                    <images>
+                        <image>
+                            <name>
+                                ${docker.registry}:${docker.registry.port}/${docker.image.prefix}/${project.artifactId}
+                            </name>
+                            <build>
+                                <tags>
+                                    <tag>latest</tag>
+                                    <tag>${v}</tag>
+                                </tags>
+                                <assembly>
+                                    <name>/</name>
+                                    <descriptor>${project.basedir}/docker/assembly.xml</descriptor>
+                                </assembly>
+                                <args>
+                                    <JDK_IMAGE>
+                                        ${docker.registry}:${docker.registry.port}/common/jdk:1.8-multi
+                                    </JDK_IMAGE>
+                                    <GO_IMAGE>
+                                        ${docker.registry}:${docker.registry.port}/common/golang:1.15.6-multi
+                                    </GO_IMAGE>
+                                    <JAR_FILE>
+                                        ${project.build.finalName}.xjar
+                                    </JAR_FILE>
+                                </args>
+                                <dockerFile>${project.basedir}/docker/Dockerfile</dockerFile>
+                                <buildx>
+                                    <builderName>olap_builder</builderName>
+                                    <platforms>
+                                        <platform>linux/amd64,linux/arm64</platform>
+                                    </platforms>
+                                    <attestations>
+                                        <provenance>false</provenance>
+                                    </attestations>
+                                </buildx>
+                            </build>
+                        </image>
+                    </images>
                 </configuration>
             </plugin>
         </plugins>

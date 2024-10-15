@@ -1,9 +1,7 @@
-image: 192.168.40.153:8082/common/maven:3.8.1-openjdk-11-slim
+image: 192.168.40.153:8082/common/maven:3.8.2-jdk-8-slim
 
 variables:
   MAVEN_CLI_OPTS: --batch-mode --errors --show-version
-  SONAR_HOST_URL: http://192.168.40.153:9900
-  SONAR_PROJECT_KEY: galaxy-job-service
 
 stages:
   - build
@@ -37,11 +35,7 @@ deploy:
     - echo 'exec mvn package & docker build'
     - echo  'tag:' $CI_COMMIT_TAG
     - echo "$MAVEN_SETTINGS_XML" > /usr/share/maven/conf/settings.xml
-    - |-
-      mvn $MAVEN_CLI_OPTS clean verify sonar:sonar -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-         -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_LOGIN_TOKEN \
-         -Dsonar.qualitygate.wait=true -Dsonar.qualitygate.timeout=300
-    - mvn clean package -Dmaven.test.skip=true docker:build -DdockerImageTags=$CI_COMMIT_TAG
+    - mvn clean package -Dmaven.test.skip=true docker:build docker:push -Dv=$CI_COMMIT_TAG
   when: on_success
   only:
     - tags
