@@ -31,6 +31,9 @@ clean:
 
 deploy:
   stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
   script:
     - echo 'exec mvn package & docker build'
     - echo  'tag:' $CI_COMMIT_TAG
