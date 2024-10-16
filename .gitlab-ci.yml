@@ -1,4 +1,4 @@
-image: 192.168.40.153:8082/common/maven:3.8.2-jdk-8-slim
+image: 192.168.40.153:8082/common/maven:3.8.2-jdk-8-docker-slim
 
 variables:
   MAVEN_CLI_OPTS: --batch-mode --errors --show-version
