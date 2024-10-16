@@ -1,5 +1,3 @@
-image: 192.168.40.153:8082/common/maven:3.8.2-jdk-8-docker-slim
-
 variables:
   MAVEN_CLI_OPTS: --batch-mode --errors --show-version
 
@@ -31,9 +29,6 @@ clean:
 
 deploy:
   stage: deploy
-  image: docker:latest
-  services:
-    - docker:dind
   script:
     - echo 'exec mvn package & docker build'
     - echo  'tag:' $CI_COMMIT_TAG
