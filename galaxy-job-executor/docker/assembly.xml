@@ -11,7 +11,7 @@
             </includes>
         </fileSet>
         <fileSet>
-            <directory>config</directory>
+            <directory>${project.build.directory}/classes/</directory>
             <outputDirectory>/config</outputDirectory>
         </fileSet>
     </fileSets>
